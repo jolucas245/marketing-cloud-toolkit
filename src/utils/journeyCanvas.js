@@ -6,8 +6,9 @@ export const MIN_JOURNEY_ZOOM = 0.15
 export const MAX_JOURNEY_ZOOM = 2.5
 
 const visual = (icon, shape, color) => ({ icon, shape, color })
-const MESSAGE = '#218f8b'
-const FLOW = '#bd6800'
+const MESSAGE = '#48c6c2'
+const FLOW = '#f58a00'
+const EINSTEIN = '#032d60'
 const VISUALS = {
   ENTRY: visual('entry', 'circle', '#639b34'),
   EXIT: visual('exit', 'circle', '#639b34'),
@@ -24,11 +25,12 @@ const VISUALS = {
   MULTICRITERIADECISION: visual('decision', 'diamond', FLOW),
   DECISIONSPLIT: visual('decision', 'diamond', FLOW),
   CONTACTDECISION: visual('decision', 'diamond', FLOW),
-  ENGAGEMENTSPLIT: visual('engagement', 'diamond', '#f58a00'),
-  ENGAGEMENTDECISION: visual('engagement', 'diamond', '#f58a00'),
+  ENGAGEMENTSPLIT: visual('engagement', 'diamond', FLOW),
+  ENGAGEMENTDECISION: visual('engagement', 'diamond', FLOW),
   RANDOMSPLIT: visual('random', 'diamond', FLOW),
   ABNTEST: visual('optimizer', 'diamond', FLOW),
-  EINSTEINSPLIT: visual('engagement', 'diamond', FLOW),
+  EINSTEINSPLIT: visual('engagement', 'diamond', EINSTEIN),
+  STOWAIT: visual('wait', 'diamond', EINSTEIN),
   UPDATECONTACTDATA: visual('contact', 'square', MESSAGE),
   SALESCLOUDACTIVITY: visual('cloud', 'square', '#167bbb'),
   SALESFORCESALESCLOUDACTIVITY: visual('cloud', 'square', '#167bbb'),
