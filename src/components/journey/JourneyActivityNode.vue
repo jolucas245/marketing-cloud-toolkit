@@ -32,7 +32,10 @@ const sourceStyle = computed(() => horizontal.value
           :stroke-linecap="data.visual.icon === 'decision' ? 'butt' : 'round'"
           stroke-linejoin="round"
         >
-          <path v-for="(path, index) in paths" :key="index" :d="path" />
+          <path v-for="(path, index) in paths" :key="index" :d="path"
+          :fill="data.visual.icon === 'email' && index === 0 ? 'currentColor' : 'none'"
+          :stroke="data.visual.icon === 'email' ? (index === 0 ? 'none' : 'var(--activity-color)') : 'currentColor'"
+          :stroke-width="data.visual.icon === 'email' ? 1.1 : undefined" />
           <g v-if="data.visual.icon === 'random'" fill="currentColor" stroke="none">
             <circle v-for="y in [5, 12, 19]" :key="y" cx="17" :cy="y" r="2.5" />
           </g>

@@ -11,8 +11,8 @@ const MESSAGE = '#48c6c2'
 const FLOW = '#f58a00'
 const EINSTEIN = '#032d60'
 const VISUALS = {
-  ENTRY: visual('entry', 'circle', '#639b34'),
-  EXIT: visual('exit', 'circle', '#639b34'),
+  ENTRY: visual('entry', 'circle', '#95d160'),
+  EXIT: visual('exit', 'circle', '#95d160'),
   EMAIL: visual('email', 'square', MESSAGE),
   EMAILV2: visual('email', 'square', MESSAGE),
   SMSSYNC: visual('sms', 'square', MESSAGE),
@@ -45,7 +45,7 @@ const VISUALS = {
 export const JOURNEY_ICON_PATHS = {
   entry: ['M6 4h12a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z', 'M8 8h1m3 0h4M8 12h1m3 0h4M8 16h1m3 0h4'],
   exit: ['M11 5H5v14h6', 'M9 12h11m-4-4 4 4-4 4'],
-  email: ['M3 6h18v12H3Z', 'm3 7 9 6 9-6M3 18l6-6m12 6-6-6'],
+  email: ['M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z','M2 7l7.4 6.2a4 4 0 0 0 5.2 0L22 7M2 17l6-5m14 5-6-5',],
   sms: ['M4 4h16v12H9l-5 4V4Z', 'M8 8h8M8 12h5'],
   whatsapp: ['M20 11.5a8 8 0 0 1-11.6 7.2L3 21l1.8-5.2A8 8 0 1 1 20 11.5Z', 'm8 7 2 3-1 1c1 2 2 3 4 3l1-1 3 2c-1 3-4 3-7 0S6 9 8 7Z'],
   push: ['M8 17H5l2-3V9a5 5 0 0 1 10 0v5l2 3H8Z', 'M10 20h4'],
