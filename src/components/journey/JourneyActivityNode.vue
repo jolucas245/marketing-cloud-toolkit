@@ -29,6 +29,9 @@ const sourceStyle = computed(() => horizontal.value ? { right: '56px', top: '26p
           stroke-linejoin="round"
         >
           <path v-for="(path, index) in paths" :key="index" :d="path" />
+          <g v-if="data.visual.icon === 'random'" fill="currentColor" stroke="none">
+            <circle v-for="y in [5, 12, 19]" :key="y" cx="17" :cy="y" r="2.5" />
+          </g>
           <path
             v-if="data.visual.icon === 'engagement'"
             d="M12 10 22 18h-5l3 4-2.7 1.7-3-4.5-2.3 2.8Z"
