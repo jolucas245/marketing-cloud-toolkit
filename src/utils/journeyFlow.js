@@ -188,6 +188,9 @@ export function journeyFlowModel(graph, layout = null, orientation = 'horizontal
     const parallel = pairs.get(pair) || 0
     pairs.set(pair, parallel + 1)
     const route = routeConnection(origin, branch?.position || origin, target, junctions.routes.get(edge.index), parallel, branch, branches.length > 0, horizontal, geometry)
+    if (horizontal && topology.outgoing.get(edge.from).length > 1 && (branch || target.x > origin.x)) {
+      route.x = origin.x + (geometry.source.x + geometry.step + geometry.depth + geometry.target.x) / 2
+    }
     return {
       index: edge.index, from: edge.from, to: edge.to, label: String(edge.label || ''),
       ...route, path: pathData(route.points),
