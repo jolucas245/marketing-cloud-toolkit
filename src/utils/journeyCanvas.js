@@ -64,11 +64,10 @@ export const JOURNEY_ICON_PATHS = {
   join: ['M5 3v5a4 4 0 0 0 4 4h3m7-9v5a4 4 0 0 1-4 4h-3v9', 'm8 17 4 4 4-4'],
 }
 
-export function journeyActivityVisual(type) {
+export function journeyActivityVisual(type, isConfigured) {
   const key = String(type || '').replace(/[^a-z0-9]/gi, '').toUpperCase()
-  if (VISUALS[key]) return VISUALS[key]
-  if (key.includes('WAIT')) return visual('wait', 'diamond', FLOW)
-  return visual('custom', 'square', '#65758b')
+  const appearance = VISUALS[key] || (key.includes('WAIT') ? visual('wait', 'diamond', FLOW) : visual('custom', 'square', '#65758b'))
+  return isConfigured === false ? { ...appearance, color: '#a8b7c7' } : appearance
 }
 
 export function journeyCanvasModel(graph, layout, orientation = 'horizontal', selected = null) {
@@ -84,7 +83,7 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
       style: { pointerEvents: 'all' },
       data: {
         key: node.key, name: node.name || nodeTypeLabel(node.type), typeLabel: nodeTypeLabel(node.type),
-        summary: nodeSummary(node), visual: journeyActivityVisual(node.type), active: node.key === selected, orientation,
+        summary: nodeSummary(node), visual: journeyActivityVisual(node.type, node.raw?.metaData?.isConfigured), active: node.key === selected, orientation,
       },
     }]
   })
