@@ -20,8 +20,21 @@ const sourceStyle = computed(() => horizontal.value ? { right: '56px', top: '26p
       :data-activity-key="data.key" :aria-pressed="data.active" :aria-label="`${data.typeLabel}: ${data.name}${data.summary ? '. ' + data.summary : ''}`"
       @click="emit('select', $event)" @mouseenter="tooltipVisible = true" @focus="tooltipVisible = true" @keydown.esc="tooltipVisible = false">
       <span class="journey-activity-symbol" :class="`is-${data.visual.shape}`" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          :stroke-width="data.visual.icon === 'engagement' ? 1.4 : 1.7"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <path v-for="(path, index) in paths" :key="index" :d="path" />
+          <path
+            v-if="data.visual.icon === 'engagement'"
+            d="M12 10 22 18h-5l3 4-2.7 1.7-3-4.5-2.3 2.8Z"
+            fill="currentColor"
+            stroke="none"
+          />
         </svg>
       </span>
       <span class="journey-activity-name">{{ data.name }}</span>
