@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import { JOURNEY_ICON_PATHS, ACTIVITY_WIDTH } from '@/utils/journeyCanvas.js'
 import { journeyNodeAnchors } from '@/utils/journeyFlow.js'
@@ -8,6 +8,20 @@ const props = defineProps({ data: { type: Object, required: true } })
 defineOptions({ inheritAttrs: false })
 const emit = defineEmits(['select'])
 const tooltipVisible = ref(true)
+const loadedIconUrl = ref(null)
+const failedIconUrl = ref(null)
+const iconUrl = computed(() => props.data.iconUrl || null)
+const showIconImage = computed(() => iconUrl.value && failedIconUrl.value !== iconUrl.value)
+const iconImageLoaded = computed(() => showIconImage.value && loadedIconUrl.value === iconUrl.value)
+watch(iconUrl, () => { loadedIconUrl.value = null; failedIconUrl.value = null })
+function iconLoaded(event) {
+  const url = event.target.currentSrc || event.target.src
+  if (url === iconUrl.value) loadedIconUrl.value = url
+}
+function iconFailed(event) {
+  const url = event.target.currentSrc || event.target.src
+  if (url === iconUrl.value) failedIconUrl.value = url
+}
 const horizontal = computed(() => props.data.orientation !== 'vertical')
 const paths = computed(() => JOURNEY_ICON_PATHS[props.data.visual.icon] || JOURNEY_ICON_PATHS.custom)
 const anchors = computed(() => journeyNodeAnchors(props.data.orientation))
@@ -24,7 +38,11 @@ const sourceStyle = computed(() => horizontal.value
       :data-activity-key="data.key" :aria-pressed="data.active" :aria-label="`${data.typeLabel}: ${data.name}${data.summary ? '. ' + data.summary : ''}`"
       @click="emit('select', $event)" @mouseenter="tooltipVisible = true" @focus="tooltipVisible = true" @keydown.esc="tooltipVisible = false">
       <span class="journey-activity-symbol" :class="`is-${data.visual.shape}`" aria-hidden="true">
+        <img v-if="showIconImage" :key="iconUrl" :src="iconUrl" alt="" class="journey-activity-image"
+          :class="{ 'is-loaded': iconImageLoaded }" :draggable="false" decoding="async" referrerpolicy="no-referrer"
+          @load="iconLoaded" @error="iconFailed" />
         <svg
+          :class="{ 'is-image-fallback': iconImageLoaded }"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -71,8 +89,11 @@ const sourceStyle = computed(() => horizontal.value
 .journey-activity-symbol { display: grid; flex-shrink: 0; width: 44px; height: 44px; place-items: center; color: white; background: var(--activity-color); border: 1px solid transparent; border-radius: 7px; }
 .journey-activity-symbol.is-circle { border-radius: 50%; }
 .journey-activity-symbol.is-diamond { width: 34px; height: 34px; margin: 5px 0; border-radius: 4px; transform: rotate(45deg); }
-.journey-activity-symbol svg { width: 25px; height: 25px; }
-.journey-activity-symbol.is-diamond svg { width: 23px; height: 23px; transform: rotate(-45deg); }
+.journey-activity-symbol svg, .journey-activity-image { grid-area: 1 / 1; width: 25px; height: 25px; }
+.journey-activity-image { display: block; visibility: hidden; object-fit: contain; pointer-events: none; }
+.journey-activity-image.is-loaded { visibility: visible; }
+.journey-activity-symbol svg.is-image-fallback { visibility: hidden; }
+.journey-activity-symbol.is-diamond svg, .journey-activity-symbol.is-diamond .journey-activity-image { width: 23px; height: 23px; transform: rotate(-45deg); }
 .journey-activity-button:hover .journey-activity-symbol { box-shadow: 0 0 0 4px hsl(var(--primary) / .15); }
 .journey-activity-button:active .journey-activity-symbol { box-shadow: 0 0 0 5px hsl(var(--primary) / .25); }
 .journey-activity-button.is-selected .journey-activity-symbol { outline: 2px solid hsl(var(--ring)); outline-offset: 4px; }
@@ -83,4 +104,5 @@ const sourceStyle = computed(() => horizontal.value
 .journey-activity-button:hover .journey-activity-tooltip, .journey-activity-button:focus-visible .journey-activity-tooltip { display: block; }
 .journey-activity :deep(.vue-flow__handle) { min-width: 0; min-height: 0; width: 1px; height: 1px; border: 0; opacity: 0; pointer-events: none; }
 @media (forced-colors: active) { .journey-activity-symbol { border-color: ButtonText; color: ButtonText; background: Canvas; } .journey-activity-button.is-selected .journey-activity-symbol { outline-color: Highlight; } }
+@media (forced-colors: active) { .journey-activity-image { display: none; } .journey-activity-symbol svg.is-image-fallback { visibility: visible; } }
 </style>

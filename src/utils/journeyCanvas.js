@@ -70,6 +70,18 @@ export function journeyActivityVisual(type, isConfigured) {
   return isConfigured === false ? { ...appearance, color: '#a8b7c7' } : appearance
 }
 
+export function journeyActivityIcon(activity) {
+  for (const value of [activity?.metaData?.icon, activity?.icon, activity?.configurationArguments?.icon]) {
+    if (typeof value !== 'string') continue
+    try {
+      const url = new URL(value)
+      if (url.protocol === 'https:' && !url.username && !url.password && !url.port
+        && (url.hostname === 'sfmc-einstein.com' || url.hostname.endsWith('.sfmc-einstein.com'))) return url.href
+    } catch {}
+  }
+  return null
+}
+
 export function journeyCanvasModel(graph, layout, orientation = 'horizontal', selected = null) {
   const mergeTargets = new Set(graph.nodes.filter((node) => String(node.type || '').toUpperCase() === 'ABNTESTSTOP').map((node) => node.key))
   const flow = journeyFlowModel(graph, layout, orientation, { mergeTargets })
@@ -83,6 +95,7 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
       style: { pointerEvents: 'all' },
       data: {
         key: node.key, name: node.name || nodeTypeLabel(node.type), typeLabel: nodeTypeLabel(node.type),
+        iconUrl: journeyActivityIcon(node.raw),
         summary: nodeSummary(node), visual: journeyActivityVisual(node.type, node.raw?.metaData?.isConfigured), active: node.key === selected, orientation,
       },
     }]
