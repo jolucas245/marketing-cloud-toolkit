@@ -68,6 +68,49 @@ export function journeyActivityVisual(type) {
   return visual('custom', 'square', '#65758b')
 }
 
+function journeyJoinRoutes(graph, byId, horizontal) {
+  const incoming = new Map()
+  const outgoing = new Map()
+  const routes = new Map()
+  const markers = new Map()
+  const progress = (node) => horizontal ? node.position.x : node.position.y
+  const lane = (node) => horizontal ? node.position.y : node.position.x
+  graph.edges.forEach((edge, index) => {
+    if (!byId.has(edge.from) || !byId.has(edge.to)) return
+    if (!incoming.has(edge.to)) incoming.set(edge.to, [])
+    if (!outgoing.has(edge.from)) outgoing.set(edge.from, [])
+    incoming.get(edge.to).push({ ...edge, index })
+    outgoing.get(edge.from).push(edge.to)
+  })
+  for (const [key, edges] of incoming) {
+    if (new Set(edges.map((edge) => edge.from)).size < 2) continue
+    const reachable = new Set([key])
+    const pending = [key]
+    while (pending.length) {
+      for (const next of outgoing.get(pending.pop()) || []) {
+        if (!reachable.has(next)) { reachable.add(next); pending.push(next) }
+      }
+    }
+    const candidates = edges.filter((edge) => !reachable.has(edge.from))
+    if (new Set(candidates.map((edge) => edge.from)).size < 2) continue
+    const target = byId.get(key)
+    const primary = candidates.filter((edge) => progress(byId.get(edge.from)) < progress(target))
+      .sort((a, b) => Number(lane(byId.get(a.from)) !== lane(target)) - Number(lane(byId.get(b.from)) !== lane(target)) || a.index - b.index)[0]
+    if (!primary) continue
+    const branches = candidates.filter((edge) => edge.from !== primary.from)
+    const count = new Set(branches.map((edge) => edge.from)).size
+    const point = {
+      x: target.position.x + (horizontal ? -18 : 78),
+      y: target.position.y + (horizontal ? 26 : -32),
+      count, color: journeyActivityVisual('JOIN').color,
+      description: `${count} joining ${count === 1 ? 'path' : 'paths'} before ${target.data.name}`,
+    }
+    markers.set(primary.index, point)
+    branches.forEach((edge) => routes.set(edge.index, point))
+  }
+  return { routes, markers }
+}
+
 export function journeyCanvasModel(graph, layout, orientation = 'horizontal', selected = null) {
   const horizontal = orientation !== 'vertical'
   const nodes = graph.nodes.flatMap((node) => {
@@ -86,6 +129,7 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
     }]
   })
   const byId = new Map(nodes.map((node) => [node.id, node]))
+  const joins = journeyJoinRoutes(graph, byId, horizontal)
   const pairs = new Map()
   const edges = graph.edges.flatMap((edge, index) => {
     const a = byId.get(edge.from)?.position
@@ -94,10 +138,23 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
     const pair = JSON.stringify([edge.from, edge.to])
     const parallel = pairs.get(pair) || 0
     pairs.set(pair, parallel + 1)
+    const join = joins.routes.get(index)
+    const offset = 12 * parallel / (parallel + 1)
     let path, x, y
     if (horizontal) {
       const x1 = a.x + 100, y1 = a.y + 26, x2 = b.x + 56, y2 = b.y + 26
-      if (x2 <= x1) {
+      if (join) {
+        if (x1 < join.x) {
+          const bend = join.x - offset
+          path = `M${x1},${y1} H${bend} V${join.y} H${join.x}`
+          x = (x1 + bend) / 2; y = y1 - 12
+        } else {
+          const right = a.x + ACTIVITY_WIDTH + 18 + offset
+          const corridor = a.y > b.y ? a.y - 24 - offset : a.y + ACTIVITY_HEIGHT + 24 + offset
+          path = `M${x1},${y1} H${right} V${corridor} H${join.x} V${join.y}`
+          x = (right + join.x) / 2; y = corridor - 12
+        }
+      } else if (x2 <= x1) {
         const bottom = Math.max(a.y, b.y) + ACTIVITY_HEIGHT + 24 + parallel * 24
         path = `M${x1},${y1} H${x1 + 28} V${bottom} H${x2 - 28} V${y2} H${x2}`
         x = (x1 + x2) / 2; y = bottom - 12
@@ -109,7 +166,18 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
       }
     } else {
       const x1 = a.x + 78, y1 = a.y + ACTIVITY_HEIGHT, x2 = b.x + 78, y2 = b.y + 4
-      if (y2 <= y1) {
+      if (join) {
+        if (y1 < join.y) {
+          const bend = join.y - offset
+          path = `M${x1},${y1} V${bend} H${join.x} V${join.y}`
+          x = x1 + 36; y = (y1 + bend) / 2
+        } else {
+          const bottom = a.y + ACTIVITY_HEIGHT + 32 + offset
+          const corridor = a.x > b.x ? a.x - 24 - offset : a.x + ACTIVITY_WIDTH + 28 + offset
+          path = `M${x1},${y1} V${bottom} H${corridor} V${join.y} H${join.x}`
+          x = corridor + 24; y = (bottom + join.y) / 2
+        }
+      } else if (y2 <= y1) {
         const side = Math.max(a.x, b.x) + ACTIVITY_WIDTH + 32 + parallel * 24
         path = `M${x1},${y1} V${y1 + 20} H${side} V${y2 - 20} H${x2} V${y2}`
         x = side + 24; y = (y1 + y2) / 2
@@ -123,7 +191,7 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
     return [{
       id: `journey-edge-${index}`, source: edge.from, target: edge.to, type: 'journeyStep',
       selectable: false, focusable: false, updatable: false,
-      data: { path, x, y, label: String(edge.label || '') },
+      data: { path, x, y, label: String(edge.label || ''), ...(joins.markers.has(index) ? { junction: joins.markers.get(index) } : {}) },
     }]
   })
   return { nodes, edges }
