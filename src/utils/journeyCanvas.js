@@ -64,10 +64,11 @@ export const JOURNEY_ICON_PATHS = {
   join: ['M5 3v5a4 4 0 0 0 4 4h3m7-9v5a4 4 0 0 1-4 4h-3v9', 'm8 17 4 4 4-4'],
 }
 
-export function journeyActivityVisual(type, isConfigured) {
+export function journeyActivityVisual(type, isConfigured, isEinstein = false) {
   const key = String(type || '').replace(/[^a-z0-9]/gi, '').toUpperCase()
   const appearance = VISUALS[key] || (key.includes('WAIT') ? visual('wait', 'diamond', FLOW) : visual('custom', 'square', '#65758b'))
-  return isConfigured === false ? { ...appearance, color: '#a8b7c7' } : appearance
+  const color = isConfigured === false ? '#a8b7c7' : isEinstein ? EINSTEIN : appearance.color
+  return { ...appearance, color }
 }
 
 export function journeyActivityIcon(activity) {
@@ -88,15 +89,21 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
   const nodes = graph.nodes.flatMap((node) => {
     const at = flow.positions.get(node.key)
     if (!at) return []
+    const iconUrl = journeyActivityIcon(node.raw)
     return [{
       id: node.key, type: 'journeyActivity', position: at,
       width: ACTIVITY_WIDTH, height: ACTIVITY_HEIGHT,
       draggable: false, connectable: false, selectable: false, focusable: false,
       style: { pointerEvents: 'all' },
       data: {
-        key: node.key, name: node.name || nodeTypeLabel(node.type), typeLabel: nodeTypeLabel(node.type),
-        iconUrl: journeyActivityIcon(node.raw),
-        summary: nodeSummary(node), visual: journeyActivityVisual(node.type, node.raw?.metaData?.isConfigured), active: node.key === selected, orientation,
+        key: node.key,
+        name: node.name || nodeTypeLabel(node.type),
+        typeLabel: nodeTypeLabel(node.type),
+        iconUrl,
+        summary: nodeSummary(node),
+        visual: journeyActivityVisual(node.type, node.raw?.metaData?.isConfigured, Boolean(iconUrl)),
+        active: node.key === selected,
+        orientation,
       },
     }]
   })
