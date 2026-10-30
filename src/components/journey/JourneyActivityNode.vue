@@ -24,8 +24,8 @@ const sourceStyle = computed(() => horizontal.value ? { right: '56px', top: '26p
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          :stroke-width="data.visual.icon === 'engagement' ? 1.4 : 1.7"
-          stroke-linecap="round"
+          :stroke-width="data.visual.icon === 'engagement' ? 1.4 : data.visual.icon === 'decision' ? 2.4 : 1.7"
+          :stroke-linecap="data.visual.icon === 'decision' ? 'butt' : 'round'"
           stroke-linejoin="round"
         >
           <path v-for="(path, index) in paths" :key="index" :d="path" />

@@ -50,7 +50,7 @@ export const JOURNEY_ICON_PATHS = {
   mobile: ['M7 3h10v18H7Z', 'M10 6h4m-3 12h2'],
   inbox: ['M5 4h14l2 15H3L5 4Z', 'M4 13h5l1 3h4l1-3h5'],
   wait: ['M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18Z', 'M12 7v5l3 2'],
-  decision: ['M12 3v6M12 9H5v7m7-7h7v7', 'm2 13 3 3 3-3m8 0 3 3 3-3'],
+  decision: ['M7 7a5 5 0 0 1 10 0c0 3-5 4-5 8v1','M12 19v2.4',],
   engagement: ['M12 2.5v4M6.3 4.3l2.8 2.8M4 10h4M6.3 15.7l2.8-2.8M17.7 4.3l-2.8 2.8M20 10h-4',],
   random: ['M4 6h3c5 0 5 12 10 12h3M4 18h3c2 0 3-2 4-4m2-4c1-2 2-4 4-4h3', 'm17 3 3 3-3 3m0 6 3 3-3 3'],
   optimizer: ['M4 5v14M4 8h7m-7 8h12', 'M11 5v6m5 2v6m-5-3 5-5 4 4'],
