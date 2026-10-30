@@ -1,7 +1,8 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { JOURNEY_ICON_PATHS, ACTIVITY_HEIGHT } from '@/utils/journeyCanvas.js'
+import { JOURNEY_ICON_PATHS, ACTIVITY_WIDTH } from '@/utils/journeyCanvas.js'
+import { journeyNodeAnchors } from '@/utils/journeyFlow.js'
 
 const props = defineProps({ data: { type: Object, required: true } })
 defineOptions({ inheritAttrs: false })
@@ -9,8 +10,11 @@ const emit = defineEmits(['select'])
 const tooltipVisible = ref(true)
 const horizontal = computed(() => props.data.orientation !== 'vertical')
 const paths = computed(() => JOURNEY_ICON_PATHS[props.data.visual.icon] || JOURNEY_ICON_PATHS.custom)
-const targetStyle = computed(() => horizontal.value ? { left: '56px', top: '26px' } : { left: '78px', top: '4px' })
-const sourceStyle = computed(() => horizontal.value ? { right: '56px', top: '26px' } : { left: '78px', top: `${ACTIVITY_HEIGHT}px`, bottom: 'auto' })
+const anchors = computed(() => journeyNodeAnchors(props.data.orientation))
+const targetStyle = computed(() => ({ left: `${anchors.value.target.x}px`, top: `${anchors.value.target.y}px` }))
+const sourceStyle = computed(() => horizontal.value
+  ? { right: `${ACTIVITY_WIDTH - anchors.value.source.x}px`, top: `${anchors.value.source.y}px` }
+  : { left: `${anchors.value.source.x}px`, top: `${anchors.value.source.y}px`, bottom: 'auto' })
 </script>
 
 <template>

@@ -157,10 +157,11 @@ describe('Journey branch joins', () => {
     expect(model.edges.find((edge) => edge.target === 'engagement' && edge.data.junction).data.junction.count).toBe(1)
   })
 
-  it('does not invent a join for parallel outcomes from a single source', () => {
+  it('shows a branch join for separate split outcomes reaching the same destination', () => {
     const graph = journeyGraph({ activities: [activity('split', 'RANDOMSPLIT', ['email', 'email']), activity('email', 'EMAILV2', [])] })
     const model = journeyCanvasModel(graph, layoutJourney(graph))
-    expect(model.edges.some((edge) => edge.data.junction)).toBe(false)
+    expect(model.edges.find((edge) => edge.data.junction).data.junction.count).toBe(1)
+    expect(model.nodes.filter((node) => node.type === 'journeyRoute')).toHaveLength(1)
     expect(model.edges.filter((edge) => edge.source === 'split')).toHaveLength(2)
   })
 
@@ -172,6 +173,6 @@ describe('Journey branch joins', () => {
     expect(returns).toHaveLength(7)
     expect(new Set(returns.map((edge) => edge.data.path)).size).toBe(7)
     expect(model.edges.some((edge) => edge.source === 'missing' || edge.target === 'missing')).toBe(false)
-    expect(model.edges.find((edge) => edge.target === 'engagement' && edge.data.junction).data.junction.count).toBe(1)
+    expect(model.edges.find((edge) => edge.target === 'engagement' && edge.data.junction).data.junction.count).toBe(7)
   })
 })

@@ -127,7 +127,11 @@ defineExpose({ fit, focusActivity })
         <template #node-journeyActivity="node">
           <JourneyActivityNode :data="node.data" @select="selectNode({ event: $event, node })" />
         </template>
-        <MiniMap v-if="showMap" pannable zoomable position="bottom-right" :node-color="(node) => node.data.visual.color" />
+        <template #node-journeyRoute>
+          <span aria-hidden="true" :style="{ display: 'block', width: `${ACTIVITY_WIDTH}px`, height: `${ACTIVITY_HEIGHT}px` }" />
+        </template>
+        <MiniMap v-if="showMap" pannable zoomable position="bottom-right" :node-color="(node) => node.data.visual.color"
+          :node-class-name="(node) => node.type === 'journeyRoute' ? 'journey-minimap-route' : ''" />
       </VueFlow>
       <div class="journey-canvas-toolbar nopan nowheel" role="toolbar" aria-label="Journey view controls">
         <Button variant="ghost" size="icon" aria-label="Zoom out" title="Zoom out (−)" :disabled="percent <= MIN_JOURNEY_ZOOM * 100" @click="zoomOut()"><Minus class="h-4 w-4" /></Button>
@@ -155,6 +159,7 @@ defineExpose({ fit, focusActivity })
 .dark .journey-canvas { --journey-connector: #7189a2; }
 .journey-canvas:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
 .journey-canvas .vue-flow__node-journeyActivity { border: 0; padding: 0; background: none; }
+.journey-canvas .vue-flow__node-journeyRoute { border: 0; padding: 0; background: none; pointer-events: none; }
 .journey-canvas .vue-flow__pane { cursor: grab; }
 .journey-canvas .vue-flow__pane.dragging { cursor: grabbing; }
 .journey-canvas-toolbar { position: absolute; bottom: 16px; left: 16px; z-index: 5; display: flex; align-items: center; gap: 2px; padding: 4px; border: 1px solid hsl(var(--border)); border-radius: 8px; background: hsl(var(--card)); box-shadow: 0 2px 8px rgb(0 0 0 / .08); }
@@ -164,6 +169,7 @@ defineExpose({ fit, focusActivity })
 .journey-canvas-empty { display: grid; height: 100%; place-items: center; padding: 24px; color: hsl(var(--muted-foreground)); font-size: 13px; text-align: center; }
 .journey-canvas .vue-flow__minimap { width: 160px; height: 100px; margin: 16px; border: 1px solid hsl(var(--border)); border-radius: 6px; background: hsl(var(--card)); }
 .journey-canvas .vue-flow__minimap-mask { fill: hsl(var(--muted) / .6); }
+.journey-canvas .journey-minimap-route { fill: none; stroke: none; }
 @media (max-width: 640px) { .journey-canvas { min-height: 360px; height: 55vh; } .journey-canvas-toolbar { bottom: 10px; left: 10px; } .journey-canvas .vue-flow__minimap { top: 10px; right: 10px; bottom: auto; margin: 0; width: 120px; height: 75px; } }
 @media (forced-colors: active) { .journey-canvas { --journey-connector: CanvasText; } }
 </style>
