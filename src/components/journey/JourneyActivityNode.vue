@@ -28,13 +28,18 @@ const sourceStyle = computed(() => horizontal.value
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          :stroke-width="data.visual.icon === 'engagement' ? 1.4 : data.visual.icon === 'decision' ? 2.4 : 1.7"
+          :stroke-width="data.visual.icon === 'optimizer' ? 1.2 : data.visual.icon === 'engagement' ? 1.4 : data.visual.icon === 'decision' ? 2.4 : 1.7"
           :stroke-linecap="data.visual.icon === 'decision' ? 'butt' : 'round'"
           stroke-linejoin="round"
         >
           <path v-for="(path, index) in paths" :key="index" :d="path" />
           <g v-if="data.visual.icon === 'random'" fill="currentColor" stroke="none">
             <circle v-for="y in [5, 12, 19]" :key="y" cx="17" :cy="y" r="2.5" />
+          </g>
+          <g v-if="data.visual.icon === 'optimizer'">
+            <path d="M7 13.5c2 1.5 3.7-1.2 5.8-.4l1.2.5-1.4 2.4H11v3.4H5.3c-.5 0-.8-.5-.5-1Z" fill="currentColor" stroke="none" />
+            <path d="M20 14h-5v8h5M12 18h8" />
+            <circle v-for="y in [14, 18, 22]" :key="y" cx="20" :cy="y" r="1.3" fill="currentColor" stroke="none" />
           </g>
           <path
             v-if="data.visual.icon === 'engagement'"
