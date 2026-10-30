@@ -36,6 +36,10 @@ const sourceStyle = computed(() => horizontal.value
           <g v-if="data.visual.icon === 'random'" fill="currentColor" stroke="none">
             <circle v-for="y in [5, 12, 19]" :key="y" cx="17" :cy="y" r="2.5" />
           </g>
+          <g v-if="data.visual.icon === 'winner'" fill="currentColor" stroke="none">
+            <circle cx="6" cy="4" r="1.4" />
+            <path d="M9 5c1.2-.8 2.4-.7 3.7-.4v3L9 8.2ZM16.3 5.7c1.2.2 2.4.1 3.7-.7v3l-3.7.7ZM12.7 7.6l3.6 1.1v3l-3.6-1.1ZM9 11.2l3.7-.6v3c-1.3-.3-2.5-.4-3.7.4ZM16.3 11.7L20 11v3c-1.3.5-2.5.5-3.7.4Z" />
+          </g>
           <g v-if="data.visual.icon === 'optimizer'">
             <path d="M7 13.5c2 1.5 3.7-1.2 5.8-.4l1.2.5-1.4 2.4H11v3.4H5.3c-.5 0-.8-.5-.5-1Z" fill="currentColor" stroke="none" />
             <path d="M20 14h-5v8h5M12 18h8" />
@@ -49,7 +53,7 @@ const sourceStyle = computed(() => horizontal.value
           />
         </svg>
       </span>
-      <span class="journey-activity-name">{{ data.name }}</span>
+      <span class="journey-activity-name" :class="{ 'is-winner': data.visual.icon === 'winner' }">{{ data.name }}</span>
       <span v-if="data.summary" class="journey-activity-summary">{{ data.summary }}</span>
       <span v-if="tooltipVisible" class="journey-activity-tooltip" role="tooltip">{{ data.typeLabel }} · {{ data.name }}<template v-if="data.summary"> · {{ data.summary }}</template></span>
     </button>
@@ -70,6 +74,7 @@ const sourceStyle = computed(() => horizontal.value
 .journey-activity-button:active .journey-activity-symbol { box-shadow: 0 0 0 5px hsl(var(--primary) / .25); }
 .journey-activity-button.is-selected .journey-activity-symbol { outline: 2px solid hsl(var(--ring)); outline-offset: 4px; }
 .journey-activity-name { display: -webkit-box; width: 148px; margin-top: 10px; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 11px; font-weight: 500; line-height: 15px; overflow-wrap: anywhere; text-align: center; }
+.journey-activity-name.is-winner { width: max-content; max-width: 148px; padding: 0 4px; background: hsl(var(--card)); }
 .journey-activity-summary { display: block; max-width: 148px; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; line-height: 14px; color: hsl(var(--muted-foreground)); }
 .journey-activity-tooltip { position: absolute; bottom: calc(100% + 10px); left: 50%; z-index: 10; display: none; width: max-content; max-width: 260px; padding: 8px 10px; border: 1px solid hsl(var(--border)); border-radius: 6px; background: hsl(var(--popover)); color: hsl(var(--popover-foreground)); box-shadow: 0 2px 8px rgb(0 0 0 / .12); transform: translateX(-50%); font-size: 11px; line-height: 16px; text-align: left; pointer-events: none; }
 .journey-activity-button:hover .journey-activity-tooltip, .journey-activity-button:focus-visible .journey-activity-tooltip { display: block; }

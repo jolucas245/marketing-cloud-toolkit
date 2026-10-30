@@ -51,7 +51,7 @@ const TYPE_LABELS = {
   WAIT: 'Wait', WAITBYDURATION: 'Wait by duration', WAITBYATTRIBUTE: 'Wait by attribute', WAITUNTILDATE: 'Wait until date',
   WAITUNTILEVENT: 'Wait until event', STOWAIT: 'Einstein STO', MULTICRITERIADECISION: 'Decision split',
   RANDOMSPLIT: 'Random split', ENGAGEMENTSPLIT: 'Engagement split', ENGAGEMENTDECISION: 'Engagement split',
-  ABNTEST: 'Path optimizer', EINSTEINSPLIT: 'Einstein split', UPDATECONTACTDATA: 'Update contact',
+  ABNTEST: 'Path optimizer', ABNTESTSTOP: 'Winner', EINSTEINSPLIT: 'Einstein split', UPDATECONTACTDATA: 'Update contact',
   CONTACTDECISION: 'Decision split', SALESCLOUDACTIVITY: 'Salesforce activity', SALESFORCESALESCLOUDACTIVITY: 'Salesforce activity',
   OBJECTACTIVITY: 'Salesforce activity', REST: 'Custom activity', EVENT: 'Event', JOIN: 'Join',
 }
@@ -61,6 +61,7 @@ export function nodeKind(type) {
   const t = String(type || '').toUpperCase()
   if (t === 'ENTRY') return 'entry'
   if (t === 'EXIT') return 'exit'
+  if (t === 'ABNTESTSTOP') return 'action'
   if (/WAIT/.test(t)) return 'wait'
   if (/SPLIT|DECISION|ABNTEST/.test(t)) return 'split'
   if (/EMAIL|SMS|PUSH|INAPP|INBOX|WHATSAPP/.test(t)) return 'message'
@@ -115,7 +116,8 @@ export function journeyGraph(journey) {
 
   let exitCount = 0
   for (const a of activities) {
-    nodes.push({ key: a.key, type: a.type, name: a.name || nodeTypeLabel(a.type), raw: a })
+    const name = String(a.type || '').toUpperCase() === 'ABNTESTSTOP' && a.name === a.type ? nodeTypeLabel(a.type) : a.name || nodeTypeLabel(a.type)
+    nodes.push({ key: a.key, type: a.type, name, raw: a })
     const outs = a.outcomes || []
     const multi = outs.length > 1
     outs.forEach((o, i) => {

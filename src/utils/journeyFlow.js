@@ -6,6 +6,8 @@ export const JOURNEY_GEOMETRY = Object.freeze({
     source: Object.freeze({ x: 100, y: 26 }),
     target: Object.freeze({ x: 56, y: 26 }),
     junction: Object.freeze({ x: -18, y: 26 }),
+    mergeBefore: Object.freeze({ x: 78, y: 4 }),
+    mergeAfter: Object.freeze({ x: 78, y: 48 }),
     step: 44, returnStep: 28, returnMargin: 18, corridor: 24,
   }),
   vertical: Object.freeze({
@@ -13,6 +15,8 @@ export const JOURNEY_GEOMETRY = Object.freeze({
     source: Object.freeze({ x: 78, y: 112 }),
     target: Object.freeze({ x: 78, y: 4 }),
     junction: Object.freeze({ x: 78, y: -32 }),
+    mergeBefore: Object.freeze({ x: 56, y: 26 }),
+    mergeAfter: Object.freeze({ x: 100, y: 26 }),
     step: 28, returnStep: 20, returnMargin: 32, corridor: 28,
   }),
 })
@@ -96,7 +100,7 @@ function flowLayout(topology, layout) {
   return { pos: !branches.size && layout ? layout.pos : pos, branches }
 }
 
-function flowJunctions(topology, positions, branches, horizontal, geometry) {
+function flowJunctions(topology, positions, branches, horizontal, geometry, mergeTargets) {
   const routes = new Map(), markers = new Map()
   const progress = (key) => horizontal ? positions.get(key).x : positions.get(key).y
   const lane = (key) => horizontal ? positions.get(key).y : positions.get(key).x
@@ -111,6 +115,16 @@ function flowJunctions(topology, positions, branches, horizontal, geometry) {
     const count = new Set(returns.map((edge) => branches.has(edge.index) ? `outcome:${edge.index}` : `source:${edge.from}`)).size
     if (!count) continue
     const target = positions.get(key)
+    if (mergeTargets.has(key)) {
+      for (const edge of returns) {
+        const source = branches.get(edge.index)?.position || positions.get(edge.from)
+        const sourceLane = horizontal ? source.y : source.x
+        const targetLane = horizontal ? target.y : target.x
+        const anchor = sourceLane > targetLane ? geometry.mergeAfter : sourceLane < targetLane ? geometry.mergeBefore : geometry.target
+        routes.set(edge.index, { x: target.x + anchor.x, y: target.y + anchor.y })
+      }
+      continue
+    }
     const point = { x: target.x + geometry.junction.x, y: target.y + geometry.junction.y, count, target: key }
     markers.set(primary.index, point)
     for (const edge of returns) routes.set(edge.index, point)
@@ -170,7 +184,7 @@ function pathData(points) {
   }).join(' ')
 }
 
-export function journeyFlowModel(graph, layout = null, orientation = 'horizontal') {
+export function journeyFlowModel(graph, layout = null, orientation = 'horizontal', options = {}) {
   const horizontal = orientation !== 'vertical'
   const geometry = JOURNEY_GEOMETRY[horizontal ? 'horizontal' : 'vertical']
   const topology = flowTopology(graph, layout)
@@ -179,7 +193,7 @@ export function journeyFlowModel(graph, layout = null, orientation = 'horizontal
   const positions = new Map(topology.nodes.map((node) => [node.key, position(display.pos.get(node.key))]))
   const branches = [...display.branches].map(([edgeIndex, branch]) => ({ id: branch.id, edgeIndex, position: position(branch) }))
   const byIndex = new Map(branches.map((branch) => [branch.edgeIndex, branch]))
-  const junctions = flowJunctions(topology, positions, display.branches, horizontal, geometry)
+  const junctions = flowJunctions(topology, positions, byIndex, horizontal, geometry, new Set(options.mergeTargets || []))
   const pairs = new Map()
   const edges = topology.edges.map((edge) => {
     const origin = positions.get(edge.from), target = positions.get(edge.to)

@@ -30,6 +30,7 @@ const VISUALS = {
   ENGAGEMENTDECISION: visual('engagement', 'diamond', FLOW),
   RANDOMSPLIT: visual('random', 'diamond', FLOW),
   ABNTEST: visual('optimizer', 'diamond', FLOW),
+  ABNTESTSTOP: visual('winner', 'circle', FLOW),
   EINSTEINSPLIT: visual('engagement', 'diamond', EINSTEIN),
   STOWAIT: visual('wait', 'diamond', EINSTEIN),
   UPDATECONTACTDATA: visual('contact', 'square', MESSAGE),
@@ -55,6 +56,7 @@ export const JOURNEY_ICON_PATHS = {
   engagement: ['M12 2.5v4M6.3 4.3l2.8 2.8M4 10h4M6.3 15.7l2.8-2.8M17.7 4.3l-2.8 2.8M20 10h-4',],
   random: ['M17 5H8v14h9M5 12h12'],
   optimizer: ['M8 2h6v1H8Z', 'M9 3v7l-4.7 8.4A1.1 1.1 0 0 0 5.3 20H12M13 3v7l2.7 4.8'],
+  winner: ['M6 4v17', 'M9 5c3-2 6 2 11 0v9c-5 2-8-2-11 0Z'],
   contact: ['M10 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z', 'M3 20v-3a5 5 0 0 1 8-4m3 5 5-5 2 2-5 5-3 1 1-3Z'],
   cloud: ['M6 18a4 4 0 0 1-1-8 5 5 0 0 1 9-3 4 4 0 0 1 5 4 3.5 3.5 0 0 1-1 7H6Z'],
   custom: ['m8 6-5 6 5 6m8-12 5 6-5 6M14 4l-4 16'],
@@ -70,7 +72,8 @@ export function journeyActivityVisual(type) {
 }
 
 export function journeyCanvasModel(graph, layout, orientation = 'horizontal', selected = null) {
-  const flow = journeyFlowModel(graph, layout, orientation)
+  const mergeTargets = new Set(graph.nodes.filter((node) => String(node.type || '').toUpperCase() === 'ABNTESTSTOP').map((node) => node.key))
+  const flow = journeyFlowModel(graph, layout, orientation, { mergeTargets })
   const nodes = graph.nodes.flatMap((node) => {
     const at = flow.positions.get(node.key)
     if (!at) return []
