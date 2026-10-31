@@ -111,6 +111,7 @@ export function journeyActivityIcon(activity) {
 export function journeyCanvasModel(graph, layout, orientation = 'horizontal', selected = null) {
   const mergeTargets = new Set(graph.nodes.filter((node) => String(node.type || '').toUpperCase() === 'ABNTESTSTOP').map((node) => node.key))
   const flow = journeyFlowModel(graph, layout, orientation, { mergeTargets })
+  const branchExits = new Set(flow.edges.filter((edge) => edge.sourceHandle === 'branch').map((edge) => edge.from))
   const nodes = graph.nodes.flatMap((node) => {
     const at = flow.positions.get(node.key)
     if (!at) return []
@@ -128,6 +129,7 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
         summary: nodeSummary(node),
         visual: journeyActivityVisual(node.type, node.raw?.metaData?.isConfigured, Boolean(iconUrl)),
         active: node.key === selected,
+        branchExit: branchExits.has(node.key),
         orientation,
       },
     }]
@@ -150,6 +152,7 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
     return {
       id: `journey-edge-${edge.index}`, source: edge.from, target: edge.to, type: 'journeyStep',
       selectable: false, focusable: false, updatable: false,
+      ...(edge.sourceHandle ? { sourceHandle: edge.sourceHandle } : {}),
       data: { path: edge.path, x: edge.x, y: edge.y, label: edge.label, ...(junction ? { junction } : {}) },
     }
   })

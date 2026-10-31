@@ -26,13 +26,14 @@ const horizontal = computed(() => props.data.orientation !== 'vertical')
 const paths = computed(() => JOURNEY_ICON_PATHS[props.data.visual.icon] || JOURNEY_ICON_PATHS.custom)
 const anchors = computed(() => journeyNodeAnchors(props.data.orientation))
 const targetStyle = computed(() => ({ left: `${anchors.value.target.x}px`, top: `${anchors.value.target.y}px` }))
+const branchStyle = computed(() => horizontal.value ? { left: `${anchors.value.branch.x}px`, top: `${anchors.value.branch.y}px`, bottom: 'auto' } : null)
 const sourceStyle = computed(() => horizontal.value
   ? { right: `${ACTIVITY_WIDTH - anchors.value.source.x}px`, top: `${anchors.value.source.y}px` }
   : { left: `${anchors.value.source.x}px`, top: `${anchors.value.source.y}px`, bottom: 'auto' })
 </script>
 
 <template>
-  <div class="journey-activity" :style="{ '--activity-color': data.visual.color }">
+  <div class="journey-activity" :class="{ 'has-branch-exit': data.branchExit }" :style="{ '--activity-color': data.visual.color }">
     <Handle type="target" :position="horizontal ? Position.Left : Position.Top" :connectable="false" :style="targetStyle" />
     <button type="button" class="journey-activity-button" :class="{ 'is-selected': data.active }"
       :data-activity-key="data.key" :aria-pressed="data.active" :aria-label="`${data.typeLabel}: ${data.name}${data.summary ? '. ' + data.summary : ''}`"
@@ -79,6 +80,7 @@ const sourceStyle = computed(() => horizontal.value
       <span v-if="tooltipVisible" class="journey-activity-tooltip" role="tooltip">{{ data.typeLabel }} · {{ data.name }}<template v-if="data.summary"> · {{ data.summary }}</template></span>
     </button>
     <Handle type="source" :position="horizontal ? Position.Right : Position.Bottom" :connectable="false" :style="sourceStyle" />
+    <Handle v-if="horizontal && data.branchExit" id="branch" type="source" :position="Position.Bottom" :connectable="false" :style="branchStyle" />
   </div>
 </template>
 
@@ -99,6 +101,7 @@ const sourceStyle = computed(() => horizontal.value
 .journey-activity-button.is-selected .journey-activity-symbol { outline: 2px solid hsl(var(--ring)); outline-offset: 4px; }
 .journey-activity-name { display: -webkit-box; width: 148px; margin-top: 10px; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 11px; font-weight: 500; line-height: 15px; overflow-wrap: anywhere; text-align: center; }
 .journey-activity-name.is-winner { width: max-content; max-width: 148px; padding: 0 4px; background: hsl(var(--card)); }
+.has-branch-exit .journey-activity-name, .has-branch-exit .journey-activity-summary { box-sizing: content-box; width: max-content; max-width: 148px; padding: 0 4px; background: hsl(var(--card)); }
 .journey-activity-summary { display: block; max-width: 148px; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; line-height: 14px; color: hsl(var(--muted-foreground)); }
 .journey-activity-tooltip { position: absolute; bottom: calc(100% + 10px); left: 50%; z-index: 10; display: none; width: max-content; max-width: 260px; padding: 8px 10px; border: 1px solid hsl(var(--border)); border-radius: 6px; background: hsl(var(--popover)); color: hsl(var(--popover-foreground)); box-shadow: 0 2px 8px rgb(0 0 0 / .12); transform: translateX(-50%); font-size: 11px; line-height: 16px; text-align: left; pointer-events: none; }
 .journey-activity-button:hover .journey-activity-tooltip, .journey-activity-button:focus-visible .journey-activity-tooltip { display: block; }

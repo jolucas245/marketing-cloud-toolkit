@@ -20,7 +20,8 @@ function assertContinuous(flow, input, orientation) {
   const markers = flow.edges.filter((edge) => edge.junction).map((edge) => edge.junction)
   for (const edge of flow.edges) {
     const source = flow.positions.get(edge.from), target = flow.positions.get(edge.to)
-    expect(edge.points[0]).toEqual({ x: source.x + anchors.source.x, y: source.y + anchors.source.y })
+    const anchor = edge.sourceHandle === 'branch' ? anchors.branch : anchors.source
+    expect(edge.points[0]).toEqual({ x: source.x + anchor.x, y: source.y + anchor.y })
     const end = edge.points.at(-1)
     const targetAnchor = { x: target.x + anchors.target.x, y: target.y + anchors.target.y }
     expect([targetAnchor, ...markers.filter((marker) => marker.target === edge.to).map(({ x, y }) => ({ x, y }))]).toContainEqual(end)

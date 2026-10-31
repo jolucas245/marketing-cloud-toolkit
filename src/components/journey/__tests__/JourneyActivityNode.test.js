@@ -89,3 +89,29 @@ describe('Journey activity remote image', () => {
     wrapper.unmount()
   })
 })
+
+describe('Journey activity branch exit', () => {
+  it('exposes the lower handle without changing activity selection', async () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data({ branchExit: true, iconUrl: null }) } })
+    expect(wrapper.get('.journey-activity').classes()).toContain('has-branch-exit')
+    expect(wrapper.get('#branch').attributes('style')).toContain('left: 78px')
+    expect(wrapper.get('#branch').attributes('style')).toContain('top: 48px')
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.emitted('select')).toHaveLength(1)
+    expect(wrapper.get('button').attributes('data-activity-key')).toBe('einstein-original-key')
+    wrapper.unmount()
+  })
+
+  it('omits the lower handle when there is no descending branch', () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data({ branchExit: false, iconUrl: null }) } })
+    expect(wrapper.find('#branch').exists()).toBe(false)
+    expect(wrapper.get('.journey-activity').classes()).not.toContain('has-branch-exit')
+    wrapper.unmount()
+  })
+
+  it('does not add the horizontal branch handle in vertical orientation', () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data({ branchExit: true, orientation: 'vertical', iconUrl: null }) } })
+    expect(wrapper.find('#branch').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})

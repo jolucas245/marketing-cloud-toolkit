@@ -4,6 +4,7 @@ export const JOURNEY_GEOMETRY = Object.freeze({
   horizontal: Object.freeze({
     depth: 192, lane: 160,
     source: Object.freeze({ x: 100, y: 26 }),
+    branch: Object.freeze({ x: 78, y: 48 }),
     target: Object.freeze({ x: 56, y: 26 }),
     junction: Object.freeze({ x: -18, y: 26 }),
     mergeBefore: Object.freeze({ x: 78, y: 4 }),
@@ -23,7 +24,7 @@ export const JOURNEY_GEOMETRY = Object.freeze({
 
 export function journeyNodeAnchors(orientation = 'horizontal') {
   const geometry = JOURNEY_GEOMETRY[orientation === 'vertical' ? 'vertical' : 'horizontal']
-  return { source: { ...geometry.source }, target: { ...geometry.target } }
+  return { source: { ...geometry.source }, target: { ...geometry.target }, ...(geometry.branch ? { branch: { ...geometry.branch } } : {}) }
 }
 
 function flowTopology(graph, layout) {
@@ -132,7 +133,7 @@ function flowJunctions(topology, positions, branches, horizontal, geometry, merg
   return { routes, markers }
 }
 
-function routeConnection(origin, source, target, junction, parallel, branch, hasBranches, horizontal, geometry) {
+function routeConnection(origin, source, target, junction, parallel, branch, hasBranches, horizontal, geometry, branchExit) {
   const axes = ({ x, y }) => horizontal ? [x, y] : [y, x]
   const point = ([p, q]) => horizontal ? { x: p, y: q } : { x: q, y: p }
   const [ap, aq] = axes(source), [bp, bq] = axes(target)
@@ -173,6 +174,10 @@ function routeConnection(origin, source, target, junction, parallel, branch, has
     points = [[op + sp, oq + sq], [bend, oq + sq], [bend, aq + tq], [ap + tp, aq + tq], ...points]
     label = horizontal ? [(bend + ap + tp) / 2, q1 - 12] : [(bend + ap + tp) / 2, q1 + 36]
   }
+  if (branchExit) {
+    const start = [origin.x + geometry.branch.x, origin.y + geometry.branch.y]
+    points = [start, [start[0], points[2][1]], ...points.slice(3)]
+  }
   return { points: points.map(point), ...point(label) }
 }
 
@@ -201,13 +206,16 @@ export function journeyFlowModel(graph, layout = null, orientation = 'horizontal
     const pair = JSON.stringify([edge.from, edge.to])
     const parallel = pairs.get(pair) || 0
     pairs.set(pair, parallel + 1)
-    const route = routeConnection(origin, branch?.position || origin, target, junctions.routes.get(edge.index), parallel, branch, branches.length > 0, horizontal, geometry)
+    const branchExit = horizontal && topology.outgoing.get(edge.from).length > 1
+      && (branch?.position || target).y > origin.y && (branch || target.x > origin.x)
+    const route = routeConnection(origin, branch?.position || origin, target, junctions.routes.get(edge.index), parallel, branch, branches.length > 0, horizontal, geometry, branchExit)
     if (horizontal && topology.outgoing.get(edge.from).length > 1 && (branch || target.x > origin.x)) {
       route.x = origin.x + (geometry.source.x + geometry.step + geometry.depth + geometry.target.x) / 2
     }
     return {
       index: edge.index, from: edge.from, to: edge.to, label: String(edge.label || ''),
       ...route, path: pathData(route.points),
+      ...(branchExit ? { sourceHandle: 'branch' } : {}),
       ...(junctions.markers.has(edge.index) ? { junction: junctions.markers.get(edge.index) } : {}),
     }
   })
