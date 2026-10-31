@@ -51,7 +51,8 @@ const TYPE_LABELS = {
   WHATSAPPSESSIONTRANSFERACTIVITY: 'WhatsApp Session Transfer',
   EMAILV2: 'Email', EMAIL: 'Email', SMSSYNC: 'SMS', SMS: 'SMS', PUSHNOTIFICATIONACTIVITY: 'Push notification',
   INAPPSYNCACTIVITY: 'In-App Message', INBOXACTIVITY: 'Inbox message', WHATSAPPACTIVITY: 'WhatsApp',
-  WAIT: 'Wait', WAITBYDURATION: 'Wait by duration', WAITBYATTRIBUTE: 'Wait by attribute', WAITUNTILDATE: 'Wait until date',
+  WAIT: 'Wait', WAITBYDURATION: 'Wait by duration', WAITBYATTRIBUTE: 'Wait by attribute', WAITUNTILDATE: 'Wait Until Date',
+  WAITUNTILSPECIFICDATE: 'Wait Until Date',
   WAITUNTILEVENT: 'Wait until event', STOWAIT: 'Einstein STO', MULTICRITERIADECISION: 'Decision split',
   RANDOMSPLIT: 'Random split', ENGAGEMENTSPLIT: 'Engagement split', ENGAGEMENTDECISION: 'Engagement split',
   ABNTEST: 'Path optimizer', ABNTESTSTOP: 'Winner', EINSTEINSPLIT: 'Einstein split', UPDATECONTACTDATA: 'Update contact',
@@ -59,6 +60,14 @@ const TYPE_LABELS = {
   OBJECTACTIVITY: 'Salesforce activity', REST: 'Custom activity', EVENT: 'Event', JOIN: 'Join',
 }
 export const nodeTypeLabel = (type) => TYPE_LABELS[String(type || '').toUpperCase()] || (type ? String(type) : 'Activity')
+
+const WAIT_DATE_TYPES = new Set(['WAITUNTILSPECIFICDATE', 'WAITUNTILDATE'])
+
+export function nodeDisplayType(node) {
+  const type = node?.type || ''
+  const uiType = String((node?.raw || node)?.metaData?.uiType || '').toUpperCase()
+  return String(type).toUpperCase() === 'WAIT' && WAIT_DATE_TYPES.has(uiType) ? uiType : type
+}
 
 export function nodeKind(type) {
   const t = String(type || '').toUpperCase()
@@ -77,12 +86,12 @@ const ca = (a) => a?.configurationArguments || {}
 export function nodeSummary(n) {
   // A canvas node (with `raw`) or the activity itself.
   const a = n.raw && n.type !== 'ENTRY' ? n.raw : n
-  const t = String(a.type || '').toUpperCase()
+  const t = String(nodeDisplayType(a)).toUpperCase()
   const c = ca(a)
   if (t === 'ENTRY') return a.eventDefinitionKey ? `Event ${a.eventDefinitionKey}` : nodeTypeLabel(a.triggerType)
   if (t === 'EMAILV2' || t === 'EMAIL') return c.triggeredSend?.emailSubject ? `Subject: ${c.triggeredSend.emailSubject}` : ''
   if (t === 'WAIT' || t === 'WAITBYDURATION') return c.waitDuration != null ? `${c.waitDuration} ${String(c.waitUnit || '').toLowerCase()}` : ''
-  if (t === 'WAITUNTILDATE') return c.specifiedDateTime ? `Until ${formatDateTime(c.specifiedDateTime)}` : ''
+  if (WAIT_DATE_TYPES.has(t)) return c.specifiedDateTime ? `Until ${formatDateTime(c.specifiedDateTime)}` : ''
   if (t === 'WAITBYATTRIBUTE') return c.attributeName || c.waitForAttribute || ''
   if (a.outcomes?.length > 1) return `${a.outcomes.length} paths`
   return ''
@@ -140,7 +149,11 @@ export function journeyGraph(journey) {
   let exitCount = 0
   for (const a of activities) {
     const type = String(a.type || '').toUpperCase()
-    const name = ['ABNTESTSTOP', 'SENDTOLINESYNC', 'WHATSAPPSESSIONTRANSFERACTIVITY', 'INAPPSYNCACTIVITY', 'PUSHINBOXACTIVITY'].includes(type) && String(a.name || '').toUpperCase() === type ? nodeTypeLabel(a.type) : a.name || nodeTypeLabel(a.type)
+    const displayType = nodeDisplayType(a)
+    const nameKey = String(a.name || '').toUpperCase()
+    const automaticName = ['ABNTESTSTOP', 'SENDTOLINESYNC', 'WHATSAPPSESSIONTRANSFERACTIVITY', 'INAPPSYNCACTIVITY', 'PUSHINBOXACTIVITY'].includes(type) && nameKey === type
+    const dateName = WAIT_DATE_TYPES.has(String(displayType).toUpperCase()) && (nameKey === 'WAIT' || nameKey === 'WAIT UNTIL DATE' || WAIT_DATE_TYPES.has(nameKey))
+    const name = automaticName || dateName ? nodeTypeLabel(displayType) : a.name || nodeTypeLabel(displayType)
     nodes.push({ key: a.key, type: a.type, name, raw: a })
     const outs = a.outcomes || []
     const multi = outs.length > 1
@@ -322,7 +335,7 @@ export function describeJourneyNode(node, nameOf = (k) => k) {
   if (a.metaData && t !== 'ENTRY') tables.push(kvTable('Details', a.metaData, true))
 
   return {
-    typeLabel: t === 'ENTRY' ? 'Entry' : t === 'EXIT' ? 'Exit' : nodeTypeLabel(a.type),
+    typeLabel: t === 'ENTRY' ? 'Entry' : t === 'EXIT' ? 'Exit' : nodeTypeLabel(nodeDisplayType(node) || a.type),
     title: node.name,
     link: null,
     main: main.filter(([, v]) => v !== '—'),

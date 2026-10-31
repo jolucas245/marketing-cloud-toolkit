@@ -1,4 +1,4 @@
-import { nodeSummary, nodeTypeLabel } from './journeys.js'
+import { nodeDisplayType, nodeSummary, nodeTypeLabel } from './journeys.js'
 import { JOURNEY_GEOMETRY, journeyFlowModel } from './journeyFlow.js'
 
 export const ACTIVITY_WIDTH = JOURNEY_GEOMETRY.width
@@ -36,6 +36,8 @@ const VISUALS = {
   ABNTESTSTOP: visual('winner', 'circle', FLOW),
   EINSTEINSPLIT: visual('engagement', 'diamond', EINSTEIN),
   STOWAIT: visual('wait', 'diamond', EINSTEIN),
+  WAITUNTILSPECIFICDATE: visual('waitDate', 'diamond', FLOW),
+  WAITUNTILDATE: visual('waitDate', 'diamond', FLOW),
   UPDATECONTACTDATA: visual('contact', 'square', MESSAGE),
   SALESCLOUDACTIVITY: visual('cloud', 'square', '#167bbb'),
   SALESFORCESALESCLOUDACTIVITY: visual('cloud', 'square', '#167bbb'),
@@ -73,6 +75,11 @@ export const JOURNEY_ICON_PATHS = {
     'M8.6 8h6.8a.6.6 0 0 1 .6.6v5a.6.6 0 0 1-.6.6H8.6a.6.6 0 0 1-.6-.6v-5a.6.6 0 0 1 .6-.6ZM8 9.2l3.3 2.9c.4.4 1 .4 1.4 0L16 9.2v-.9l-3.7 3.2a.45.45 0 0 1-.6 0L8 8.3Z',
   ],
   wait: ['M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18Z', 'M12 7v5l3 2'],
+  waitDate: [
+    'M10.5 16.35A7.5 7.5 0 1 1 16.35 10.5L14.3 10.5A5.5 5.5 0 1 0 10.5 14.3Z',
+    'M8.1 4.5h1.8v4.1l3 2.8-1.2 1.3-3.6-3.4Z',
+    'M13.5 12.5H21a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-7.5a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1ZM14 14.2v.8h6.5v-.8ZM14 16v1.3h1.3V16ZM16.7 16v1.3H18V16ZM19.4 16v1.3h1.3V16ZM14 18.2v1.3h1.3v-1.3ZM16.7 18.2v1.3H18v-1.3ZM19.4 18.2v1.3h1.3v-1.3ZM14 20.4v1.3h1.3v-1.3ZM16.7 20.4v1.3H18v-1.3ZM19.4 20.4v1.3h1.3v-1.3ZM14 11h1.2v2.5H14ZM19.2 11h1.2v2.5h-1.2Z',
+  ],
   decision: ['M7 7a5 5 0 0 1 10 0c0 3-5 4-5 8v1','M12 19v2.4',],
   engagement: ['M12 2.5v4M6.3 4.3l2.8 2.8M4 10h4M6.3 15.7l2.8-2.8M17.7 4.3l-2.8 2.8M20 10h-4',],
   random: ['M17 5H8v14h9M5 12h12'],
@@ -116,6 +123,7 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
     const at = flow.positions.get(node.key)
     if (!at) return []
     const iconUrl = journeyActivityIcon(node.raw)
+    const displayType = nodeDisplayType(node)
     return [{
       id: node.key, type: 'journeyActivity', position: at,
       width: ACTIVITY_WIDTH, height: ACTIVITY_HEIGHT,
@@ -123,11 +131,11 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
       style: { pointerEvents: 'all' },
       data: {
         key: node.key,
-        name: node.name || nodeTypeLabel(node.type),
-        typeLabel: nodeTypeLabel(node.type),
+        name: node.name || nodeTypeLabel(displayType),
+        typeLabel: nodeTypeLabel(displayType),
         iconUrl,
         summary: nodeSummary(node),
-        visual: journeyActivityVisual(node.type, node.raw?.metaData?.isConfigured, Boolean(iconUrl)),
+        visual: journeyActivityVisual(displayType, node.raw?.metaData?.isConfigured, Boolean(iconUrl)),
         active: node.key === selected,
         branchExit: branchExits.has(node.key),
         orientation,
