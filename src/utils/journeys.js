@@ -85,10 +85,30 @@ export function nodeSummary(n) {
   return ''
 }
 
+const OUTCOME_LABELS = new Map([
+  ['undersaturatedLabel', 'Undersaturated'],
+  ['winbackLabel', 'Winback'],
+  ['selectiveLabel', 'Selective Subscriber'],
+  ['windowShopperLabel', 'Window Shopper'],
+  ['loyalistLabel', 'Loyalist'],
+  ['mostLikelyLabel', 'Most Likely'],
+  ['moreLikelyLabel', 'More Likely'],
+  ['lessLikelyLabel', 'Less Likely'],
+  ['leastLikelyLabel', 'Least Likely'],
+  ['mostEngagedLabel', 'Most Engaged'],
+  ['moreEngagedLabel', 'More Engaged'],
+  ['lessEngagedLabel', 'Less Engaged'],
+  ['leastEngagedLabel', 'Least Engaged'],
+  ['remainderLabel', 'Remainder'],
+  ['almostSaturatedLabel', 'Almost Saturated'],
+  ['onTargetLabel', 'On Target'],
+  ['saturatedLabel', 'Saturated'],
+])
+
 export function outcomeLabel(o, i) {
   const m = o?.metaData || {}
   const pct = o?.arguments?.percentage
-  return m.label || m.pathName || o?.arguments?.branchResult || (pct != null ? `${pct}%` : '') || (i != null ? `Path ${i + 1}` : '')
+  return OUTCOME_LABELS.get(m.label) || m.label || m.pathName || OUTCOME_LABELS.get(m.i18nLabel) || o?.arguments?.branchResult || (pct != null ? `${pct}%` : '') || (i != null ? `Path ${i + 1}` : '')
 }
 
 // ── Graph ──────────────────────────────────────────────────
@@ -282,15 +302,16 @@ export function describeJourneyNode(node, nameOf = (k) => k) {
   // Paths of a split or decision, with their criteria.
   const outs = a.outcomes || []
   if (outs.length > 1) {
+    const criteriaFor = (o) => o.arguments?.criteria || c.criteria?.[o.key]
     tables.push({
       title: 'Paths', columns: ['Path', 'Criteria or share', 'Leads to'],
       rows: outs.map((o, i) => [
         outcomeLabel(o, i),
-        o.arguments?.criteria ? describeCriteria(o.arguments.criteria) : o.arguments?.percentage != null ? `${o.arguments.percentage}%` : formatValue(o.arguments?.branchResult ?? ''),
+        criteriaFor(o) ? describeCriteria(criteriaFor(o)) : o.arguments?.percentage != null ? `${o.arguments.percentage}%` : formatValue(OUTCOME_LABELS.get(o.metaData?.i18nLabel) || OUTCOME_LABELS.get(o.metaData?.label) || (o.arguments?.branchResult ?? '')),
         o.next ? nameOf(o.next) : 'Exit',
       ]),
     })
-    const criteria = outs.map((o, i) => (o.arguments?.criteria ? `-- ${outcomeLabel(o, i)}\n${o.arguments.criteria}` : null)).filter(Boolean)
+    const criteria = outs.map((o, i) => (criteriaFor(o) ? `-- ${outcomeLabel(o, i)}\n${criteriaFor(o)}` : null)).filter(Boolean)
     if (criteria.length) tables.push({ title: 'Criteria as defined (XML)', columns: ['Value'], rows: [[criteria.join('\n\n')]], extra: true })
   }
   if (a.arguments && t !== 'ENTRY') tables.push(kvTable('Arguments', a.arguments, true))
