@@ -46,6 +46,7 @@ export function journeyBuilderUrl(stack, journey) {
 
 // ── Node types ─────────────────────────────────────────────
 const TYPE_LABELS = {
+  PUSHINBOXACTIVITY: 'Inbox',
   SENDTOLINESYNC: 'LINE Message',
   WHATSAPPSESSIONTRANSFERACTIVITY: 'WhatsApp Session Transfer',
   EMAILV2: 'Email', EMAIL: 'Email', SMSSYNC: 'SMS', SMS: 'SMS', PUSHNOTIFICATIONACTIVITY: 'Push notification',
@@ -139,7 +140,7 @@ export function journeyGraph(journey) {
   let exitCount = 0
   for (const a of activities) {
     const type = String(a.type || '').toUpperCase()
-    const name = ['ABNTESTSTOP', 'SENDTOLINESYNC', 'WHATSAPPSESSIONTRANSFERACTIVITY', 'INAPPSYNCACTIVITY'].includes(type) && String(a.name || '').toUpperCase() === type ? nodeTypeLabel(a.type) : a.name || nodeTypeLabel(a.type)
+    const name = ['ABNTESTSTOP', 'SENDTOLINESYNC', 'WHATSAPPSESSIONTRANSFERACTIVITY', 'INAPPSYNCACTIVITY', 'PUSHINBOXACTIVITY'].includes(type) && String(a.name || '').toUpperCase() === type ? nodeTypeLabel(a.type) : a.name || nodeTypeLabel(a.type)
     nodes.push({ key: a.key, type: a.type, name, raw: a })
     const outs = a.outcomes || []
     const multi = outs.length > 1

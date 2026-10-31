@@ -25,6 +25,7 @@ const VISUALS = {
   PUSHNOTIFICATIONACTIVITY: visual('push', 'square', MESSAGE),
   INAPPSYNCACTIVITY: visual('mobile', 'square', MESSAGE),
   INBOXACTIVITY: visual('inbox', 'square', MESSAGE),
+  PUSHINBOXACTIVITY: visual('inbox', 'square', MESSAGE),
   MULTICRITERIADECISION: visual('decision', 'diamond', FLOW),
   DECISIONSPLIT: visual('decision', 'diamond', FLOW),
   CONTACTDECISION: visual('decision', 'diamond', FLOW),
@@ -51,7 +52,10 @@ export const JOURNEY_ICON_PATHS = {
   exit: ['M11 5H5v14h6', 'M9 12h11m-4-4 4 4-4 4'],
   email: ['M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z','M2 7l7.4 6.2a4 4 0 0 0 5.2 0L22 7M2 17l6-5m14 5-6-5',],
   sms: ['M4 4h16v12H9l-5 4V4Z', 'M8 8h8M8 12h5'],
-  whatsapp: ['M20 11.5a8 8 0 0 1-11.6 7.2L3 21l1.8-5.2A8 8 0 1 1 20 11.5Z', 'm8 7 2 3-1 1c1 2 2 3 4 3l1-1 3 2c-1 3-4 3-7 0S6 9 8 7Z'],
+  whatsapp: [
+    'M12 2a9.5 9.5 0 0 1 0 19 9.4 9.4 0 0 1-4.5-1.1L2 21.5l1.5-5.4A9.5 9.5 0 0 1 12 2ZM12 3.7a7.8 7.8 0 0 0-6.6 12l.3.5-.9 3.1 3.2-.8.5.3A7.8 7.8 0 1 0 12 3.7Z',
+    'M9.5 6.6c-.3-.3-.8-.3-1.1-.1l-.9.8c-.5.5-.6 1.2-.4 1.9.8 3.5 3.5 6.2 7 7 .7.2 1.4 0 1.9-.4l.8-.9c.3-.3.2-.8-.1-1.1l-2-1.2c-.3-.2-.7-.1-.9.1l-.8 1c-1.7-.7-3-2-3.8-3.8l1-.8c.3-.2.3-.6.1-.9Z',
+  ],
   push: [
     'M8 1.5h8a2 2 0 0 1 2 2v17a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-17a2 2 0 0 1 2-2ZM7.5 4.5v14h9v-14ZM10.3 2.7v.4h3.4v-.4ZM10.8 20v1.2h2.4V20Z',
     'M12 6a1.6 1.6 0 0 1 1.6 1.6c0 1.8-1 5.3-1.6 5.3s-1.6-3.5-1.6-5.3A1.6 1.6 0 0 1 12 6Z',
@@ -61,7 +65,10 @@ export const JOURNEY_ICON_PATHS = {
     'M8 1.5h8a2 2 0 0 1 2 2v17a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-17a2 2 0 0 1 2-2ZM7.5 4.5v14h9v-14ZM10.3 2.7v.4h3.4v-.4ZM10.8 20v1.2h2.4V20Z',
     'M9 8h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1ZM9.5 9.5v2h2v-2ZM12.2 9.5v.6h2.3v-.6ZM12.2 10.8v.6h2.3v-.6ZM9.5 12.5v.6h5v-.6ZM9.5 14v.6h4.3V14Z',
   ],
-  inbox: ['M5 4h14l2 15H3L5 4Z', 'M4 13h5l1 3h4l1-3h5'],
+  inbox: [
+    'M8 1.5h8a2 2 0 0 1 2 2v17a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-17a2 2 0 0 1 2-2ZM7.5 4.5v14h9v-14ZM10.3 2.7v.4h3.4v-.4ZM10.8 20v1.2h2.4V20Z',
+    'M8.6 8h6.8a.6.6 0 0 1 .6.6v5a.6.6 0 0 1-.6.6H8.6a.6.6 0 0 1-.6-.6v-5a.6.6 0 0 1 .6-.6ZM8 9.2l3.3 2.9c.4.4 1 .4 1.4 0L16 9.2v-.9l-3.7 3.2a.45.45 0 0 1-.6 0L8 8.3Z',
+  ],
   wait: ['M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18Z', 'M12 7v5l3 2'],
   decision: ['M7 7a5 5 0 0 1 10 0c0 3-5 4-5 8v1','M12 19v2.4',],
   engagement: ['M12 2.5v4M6.3 4.3l2.8 2.8M4 10h4M6.3 15.7l2.8-2.8M17.7 4.3l-2.8 2.8M20 10h-4',],
