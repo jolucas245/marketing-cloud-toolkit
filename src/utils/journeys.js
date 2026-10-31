@@ -51,7 +51,7 @@ const TYPE_LABELS = {
   WHATSAPPSESSIONTRANSFERACTIVITY: 'WhatsApp Session Transfer',
   EMAILV2: 'Email', EMAIL: 'Email', SMSSYNC: 'SMS', SMS: 'SMS', PUSHNOTIFICATIONACTIVITY: 'Push notification',
   INAPPSYNCACTIVITY: 'In-App Message', INBOXACTIVITY: 'Inbox message', WHATSAPPACTIVITY: 'WhatsApp',
-  WAIT: 'Wait', WAITBYDURATION: 'Wait by duration', WAITBYATTRIBUTE: 'Wait by attribute', WAITUNTILDATE: 'Wait Until Date',
+  WAIT: 'Wait', WAITBYDURATION: 'Wait by duration', WAITBYATTRIBUTE: 'Wait By Attribute', WAITUNTILDATE: 'Wait Until Date',
   WAITUNTILSPECIFICDATE: 'Wait Until Date',
   WAITUNTILEVENT: 'Wait until event', STOWAIT: 'Einstein STO', MULTICRITERIADECISION: 'Decision split',
   RANDOMSPLIT: 'Random split', ENGAGEMENTSPLIT: 'Engagement split', ENGAGEMENTDECISION: 'Engagement split',
@@ -66,7 +66,7 @@ const WAIT_DATE_TYPES = new Set(['WAITUNTILSPECIFICDATE', 'WAITUNTILDATE'])
 export function nodeDisplayType(node) {
   const type = node?.type || ''
   const uiType = String((node?.raw || node)?.metaData?.uiType || '').toUpperCase()
-  return String(type).toUpperCase() === 'WAIT' && WAIT_DATE_TYPES.has(uiType) ? uiType : type
+  return String(type).toUpperCase() === 'WAIT' && (WAIT_DATE_TYPES.has(uiType) || uiType === 'WAITBYATTRIBUTE') ? uiType : type
 }
 
 export function nodeKind(type) {
@@ -153,7 +153,8 @@ export function journeyGraph(journey) {
     const nameKey = String(a.name || '').toUpperCase()
     const automaticName = ['ABNTESTSTOP', 'SENDTOLINESYNC', 'WHATSAPPSESSIONTRANSFERACTIVITY', 'INAPPSYNCACTIVITY', 'PUSHINBOXACTIVITY'].includes(type) && nameKey === type
     const dateName = WAIT_DATE_TYPES.has(String(displayType).toUpperCase()) && (nameKey === 'WAIT' || nameKey === 'WAIT UNTIL DATE' || WAIT_DATE_TYPES.has(nameKey))
-    const name = automaticName || dateName ? nodeTypeLabel(displayType) : a.name || nodeTypeLabel(displayType)
+    const attributeName = String(displayType).toUpperCase() === 'WAITBYATTRIBUTE' && ['WAIT', 'WAITBYATTRIBUTE', 'WAIT BY ATTRIBUTE'].includes(nameKey)
+    const name = automaticName || dateName || attributeName ? nodeTypeLabel(displayType) : a.name || nodeTypeLabel(displayType)
     nodes.push({ key: a.key, type: a.type, name, raw: a })
     const outs = a.outcomes || []
     const multi = outs.length > 1
