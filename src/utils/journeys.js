@@ -46,6 +46,7 @@ export function journeyBuilderUrl(stack, journey) {
 
 // ── Node types ─────────────────────────────────────────────
 const TYPE_LABELS = {
+  SENDTOLINESYNC: 'LINE Message',
   EMAILV2: 'Email', EMAIL: 'Email', SMSSYNC: 'SMS', SMS: 'SMS', PUSHNOTIFICATIONACTIVITY: 'Push notification',
   INAPPSYNCACTIVITY: 'In-app message', INBOXACTIVITY: 'Inbox message', WHATSAPPACTIVITY: 'WhatsApp',
   WAIT: 'Wait', WAITBYDURATION: 'Wait by duration', WAITBYATTRIBUTE: 'Wait by attribute', WAITUNTILDATE: 'Wait until date',
@@ -64,7 +65,7 @@ export function nodeKind(type) {
   if (t === 'ABNTESTSTOP') return 'action'
   if (/WAIT/.test(t)) return 'wait'
   if (/SPLIT|DECISION|ABNTEST/.test(t)) return 'split'
-  if (/EMAIL|SMS|PUSH|INAPP|INBOX|WHATSAPP/.test(t)) return 'message'
+  if (/EMAIL|SMS|PUSH|INAPP|INBOX|WHATSAPP|SENDTOLINESYNC/.test(t)) return 'message'
   return 'action'
 }
 
@@ -136,7 +137,8 @@ export function journeyGraph(journey) {
 
   let exitCount = 0
   for (const a of activities) {
-    const name = String(a.type || '').toUpperCase() === 'ABNTESTSTOP' && a.name === a.type ? nodeTypeLabel(a.type) : a.name || nodeTypeLabel(a.type)
+    const type = String(a.type || '').toUpperCase()
+    const name = ['ABNTESTSTOP', 'SENDTOLINESYNC'].includes(type) && String(a.name || '').toUpperCase() === type ? nodeTypeLabel(a.type) : a.name || nodeTypeLabel(a.type)
     nodes.push({ key: a.key, type: a.type, name, raw: a })
     const outs = a.outcomes || []
     const multi = outs.length > 1

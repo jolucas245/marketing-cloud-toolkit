@@ -18,6 +18,7 @@ const VISUALS = {
   SMSSYNC: visual('sms', 'square', MESSAGE),
   SMS: visual('sms', 'square', MESSAGE),
   SENDSMS: visual('sms', 'square', MESSAGE),
+  SENDTOLINESYNC: visual('line', 'square', MESSAGE),
   WHATSAPPACTIVITY: visual('whatsapp', 'square', MESSAGE),
   PUSH: visual('push', 'square', MESSAGE),
   PUSHNOTIFICATIONACTIVITY: visual('push', 'square', MESSAGE),
@@ -43,6 +44,7 @@ const VISUALS = {
 }
 
 export const JOURNEY_ICON_PATHS = {
+  line: ['M12 2.5C5.9 2.5 1 6.4 1 11.3c0 4.2 3.7 7.7 8.7 8.6.7.2.8.5.7 1.1l-.3 1.8c-.1.5.3.8.8.6 2.1-.8 6.8-3.8 9-6.4C22 14.9 23 13.3 23 11.3 23 6.4 18.1 2.5 12 2.5Z'],
   entry: ['M6 4h12a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z', 'M8 8h1m3 0h4M8 12h1m3 0h4M8 16h1m3 0h4'],
   exit: ['M11 5H5v14h6', 'M9 12h11m-4-4 4 4-4 4'],
   email: ['M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z','M2 7l7.4 6.2a4 4 0 0 0 5.2 0L22 7M2 17l6-5m14 5-6-5',],
