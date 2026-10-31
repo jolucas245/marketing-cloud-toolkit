@@ -51,8 +51,8 @@ const sourceStyle = computed(() => horizontal.value
           stroke-linejoin="round"
         >
           <path v-for="(path, index) in paths" :key="index" :d="path"
-          :fill="['push', 'line'].includes(data.visual.icon) || (data.visual.icon === 'email' && index === 0) ? 'currentColor' : 'none'"
-          :stroke="['push', 'line'].includes(data.visual.icon) ? 'none' : data.visual.icon === 'email' ? (index === 0 ? 'none' : 'var(--activity-color)') : 'currentColor'"
+          :fill="['push', 'line', 'sessionTransfer'].includes(data.visual.icon) || (data.visual.icon === 'email' && index === 0) ? 'currentColor' : 'none'"
+          :stroke="['push', 'line', 'sessionTransfer'].includes(data.visual.icon) ? 'none' : data.visual.icon === 'email' ? (index === 0 ? 'none' : 'var(--activity-color)') : 'currentColor'"
           :stroke-width="data.visual.icon === 'email' ? 1.1 : undefined" />
           <g v-if="data.visual.icon === 'random'" fill="currentColor" stroke="none">
             <circle v-for="y in [5, 12, 19]" :key="y" cx="17" :cy="y" r="2.5" />
