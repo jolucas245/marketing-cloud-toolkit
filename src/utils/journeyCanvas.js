@@ -10,6 +10,7 @@ const visual = (icon, shape, color) => ({ icon, shape, color })
 const MESSAGE = '#48c6c2'
 const FLOW = '#f58a00'
 const EINSTEIN = '#032d60'
+const SALESFORCE = '#00a1e0'
 const VISUALS = {
   ENTRY: visual('entry', 'circle', '#95d160'),
   EXIT: visual('exit', 'circle', '#95d160'),
@@ -43,12 +44,50 @@ const VISUALS = {
   SALESCLOUDACTIVITY: visual('cloud', 'square', '#167bbb'),
   SALESFORCESALESCLOUDACTIVITY: visual('cloud', 'square', '#167bbb'),
   OBJECTACTIVITY: visual('cloud', 'square', '#167bbb'),
+  SALESFORCEACCOUNTACTIVITY: visual('salesforceAccount', 'square', SALESFORCE),
+  SALESFORCECAMPAIGNMEMBERACTIVITY: visual('salesforceCampaign', 'square', SALESFORCE),
+  SALESFORCECASEANDCONTACTACTIVITY: visual('salesforceCase', 'square', SALESFORCE),
+  SALESFORCECONTACTACTIVITY: visual('salesforceContact', 'square', SALESFORCE),
+  SALESFORCELEADCONVERSIONACTIVITY: visual('salesforceConvertLead', 'square', SALESFORCE),
+  SALESFORCELEADACTIVITY: visual('salesforceLead', 'square', SALESFORCE),
+  SALESFORCEGENERICOBJECTACTIVITY: visual('salesforceObject', 'square', SALESFORCE),
+  SALESFORCEOPPORTUNITY: visual('salesforceOpportunity', 'square', SALESFORCE),
+  SALESFORCETASKACTIVITY: visual('salesforceTask', 'square', SALESFORCE),
   REST: visual('custom', 'square', '#65758b'),
   EVENT: visual('event', 'square', '#167bbb'),
   JOIN: visual('join', 'diamond', FLOW),
 }
 
 export const JOURNEY_ICON_PATHS = {
+  salesforceAccount: [
+    'M2 0h20a2 2 0 0 1 2 2v20a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2ZM7.5 1l4 4H23V2a1 1 0 0 0-1-1Z',
+  ],
+  salesforceCampaign: [
+    'M10.5 0a10.5 10.5 0 0 1 10.45 11.5h-1.8a8.7 8.7 0 1 0-7.65 7.65v1.8A10.5 10.5 0 1 1 10.5 0ZM10.5 3.5a7 7 0 0 1 6.92 8h-1.85a5.2 5.2 0 1 0-4.07 4.07v1.85a7 7 0 1 1-1-13.92ZM14 10.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 1 1 7 0Z',
+    'M24 18a6 6 0 1 1-12 0 6 6 0 1 1 12 0ZM17 13.5V17h-3.5v2H17v3.5h2V19h3.5v-2H19v-3.5Z',
+  ],
+  salesforceCase: [
+    'M7 0h10a1 1 0 0 1 1 1v3h-2V2H8v2H6V1a1 1 0 0 1 1-1ZM2 4h20a2 2 0 0 1 2 2v5H14V9h-4v2H0V6a2 2 0 0 1 2-2ZM0 12h10v4h4v-4h10v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2Z',
+  ],
+  salesforceContact: [
+    'M10 4a4.5 4.5 0 0 1 7.1-.5A5.3 5.3 0 1 1 19 14a5 5 0 0 1-7.9 2.7 4.7 4.7 0 0 1-7.5-1.6A3.5 3.5 0 0 1 2 8.5a4.6 4.6 0 0 1 8-4.5ZM10 6.5c-1.5 0-2.2 1.1-2 2.5.1.8.4 1.5.9 2v.8c-.3.5-1.4.8-2.7 1.2-.9.3-1.2 1-1.2 1.6h10c0-.6-.3-1.3-1.2-1.6-1.3-.4-2.4-.7-2.7-1.2V11c.5-.5.8-1.2.9-2 .2-1.4-.5-2.5-2-2.5ZM14 7.5v1h4v-1ZM14 10v1h3v-1Z',
+  ],
+  salesforceConvertLead: [
+    'M7 2a2 2 0 1 1-4 0 2 2 0 1 1 4 0ZM.5 4h9c.5 0 .7.6.3.9L7 7l1 3.6c.2.6-.4 1-.8.5L5 8.6l-2.2 2.5c-.4.5-1 .1-.8-.5L3 7 .2 4.9c-.4-.3-.2-.9.3-.9ZM15 7c-2 0-3 1.5-2.7 3.5.1 1.1.5 2 1.2 2.7v1.2c-.5.7-1.9 1.2-3.7 1.8-1.3.4-1.8 1.3-1.8 2.3V21h14v-2.5c0-1-.5-1.9-1.8-2.3-1.8-.6-3.2-1.1-3.7-1.8v-1.2c.7-.7 1.1-1.6 1.2-2.7C18 8.5 17 7 15 7ZM19 7h5v1.5h-5ZM19 10h5v1.5h-5Z',
+  ],
+  salesforceLead: [
+    'M15.5 3.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 1 1 7 0ZM1.5 9h21c1.1 0 1.5 1.4.5 1.9l-6.4 3.4 2.8 8.1c.4 1.2-1.1 2-1.8 1L12 17.3l-5.6 6.1c-.7 1-2.2.2-1.8-1l2.8-8.1L1 10.9c-1-.5-.6-1.9.5-1.9Z',
+  ],
+  salesforceObject: [
+    'M2 0h16a2 2 0 0 1 2 2v9a7 7 0 0 0-9 9H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2ZM3.5 4v2h3V4ZM8 4v2h8V4ZM3.5 8v2H16V8ZM3.5 12v2h7v-2Z',
+    'M24 18a6 6 0 1 1-12 0 6 6 0 1 1 12 0ZM13.5 18c1.2-1.9 2.8-2.8 4.5-2.8s3.3.9 4.5 2.8c-1.2 1.9-2.8 2.8-4.5 2.8s-3.3-.9-4.5-2.8ZM19.8 18a1.8 1.8 0 1 1-3.6 0 1.8 1.8 0 1 1 3.6 0Z',
+  ],
+  salesforceOpportunity: [
+    'M3 8.5 8 11l4-6 4 6 5-2.5-3 11H6ZM3.4 8a1.7 1.7 0 1 1-3.4 0 1.7 1.7 0 1 1 3.4 0ZM13.7 3.4a1.7 1.7 0 1 1-3.4 0 1.7 1.7 0 1 1 3.4 0ZM24 8a1.7 1.7 0 1 1-3.4 0A1.7 1.7 0 1 1 24 8Z',
+  ],
+  salesforceTask: [
+    'M2 0h20a2 2 0 0 1 2 2v20a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2ZM4.3 13.7l4 4a1.7 1.7 0 0 0 2.4 0l9-9a1.7 1.7 0 0 0-2.4-2.4l-7.8 7.8-2.8-2.8a1.7 1.7 0 0 0-2.4 2.4Z',
+  ],
   sessionTransfer: ['M6 2h12a4 4 0 0 1 4 4v12a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4Z'],
   line: ['M12 2.5C5.9 2.5 1 6.4 1 11.3c0 4.2 3.7 7.7 8.7 8.6.7.2.8.5.7 1.1l-.3 1.8c-.1.5.3.8.8.6 2.1-.8 6.8-3.8 9-6.4C22 14.9 23 13.3 23 11.3 23 6.4 18.1 2.5 12 2.5Z'],
   entry: ['M6 4h12a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z', 'M8 8h1m3 0h4M8 12h1m3 0h4M8 16h1m3 0h4'],

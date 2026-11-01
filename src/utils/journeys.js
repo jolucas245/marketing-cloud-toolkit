@@ -58,14 +58,33 @@ const TYPE_LABELS = {
   ABNTEST: 'Path optimizer', ABNTESTSTOP: 'Winner', EINSTEINSPLIT: 'Einstein split', UPDATECONTACTDATA: 'Update contact',
   CONTACTDECISION: 'Decision split', SALESCLOUDACTIVITY: 'Salesforce activity', SALESFORCESALESCLOUDACTIVITY: 'Salesforce activity',
   OBJECTACTIVITY: 'Salesforce activity', REST: 'Custom activity', EVENT: 'Event', JOIN: 'Join',
+  SALESFORCEACCOUNTACTIVITY: 'Account', SALESFORCECAMPAIGNMEMBERACTIVITY: 'Campaign Member',
+  SALESFORCECASEANDCONTACTACTIVITY: 'Case', SALESFORCECONTACTACTIVITY: 'Contact',
+  SALESFORCELEADCONVERSIONACTIVITY: 'Convert Lead', SALESFORCELEADACTIVITY: 'Lead',
+  SALESFORCEGENERICOBJECTACTIVITY: 'Object Activity', SALESFORCEOPPORTUNITY: 'Opportunity', SALESFORCETASKACTIVITY: 'Task',
 }
 export const nodeTypeLabel = (type) => TYPE_LABELS[String(type || '').toUpperCase()] || (type ? String(type) : 'Activity')
 
 const WAIT_DATE_TYPES = new Set(['WAITUNTILSPECIFICDATE', 'WAITUNTILDATE'])
+const SALESFORCE_EXTENSION_TYPES = new Map([
+  ['Salesforce_Activity_Account', 'SALESFORCEACCOUNTACTIVITY'],
+  ['Salesforce_Activity_CampaignMember', 'SALESFORCECAMPAIGNMEMBERACTIVITY'],
+  ['Salesforce_Activity_Case', 'SALESFORCECASEANDCONTACTACTIVITY'],
+  ['Salesforce_Activity_Contact', 'SALESFORCECONTACTACTIVITY'],
+  ['Salesforce_Activity_Lead', 'SALESFORCELEADACTIVITY'],
+  ['Salesforce_Activity', 'SALESFORCEGENERICOBJECTACTIVITY'],
+  ['Salesforce_Activity_Opportunity', 'SALESFORCEOPPORTUNITY'],
+  ['Salesforce_Activity_Task', 'SALESFORCETASKACTIVITY'],
+])
+const SALESFORCE_DISPLAY_TYPES = new Set([...SALESFORCE_EXTENSION_TYPES.values(), 'SALESFORCELEADCONVERSIONACTIVITY'])
 
 export function nodeDisplayType(node) {
   const type = node?.type || ''
-  const uiType = String((node?.raw || node)?.metaData?.uiType || '').toUpperCase()
+  const activity = node?.raw || node
+  if (String(type).toUpperCase() === 'SALESCLOUDACTIVITY') {
+    return SALESFORCE_EXTENSION_TYPES.get(activity?.configurationArguments?.applicationExtensionKey) || type
+  }
+  const uiType = String(activity?.metaData?.uiType || '').toUpperCase()
   return String(type).toUpperCase() === 'WAIT' && (WAIT_DATE_TYPES.has(uiType) || uiType === 'WAITBYATTRIBUTE') ? uiType : type
 }
 
@@ -154,7 +173,8 @@ export function journeyGraph(journey) {
     const automaticName = ['ABNTESTSTOP', 'SENDTOLINESYNC', 'WHATSAPPSESSIONTRANSFERACTIVITY', 'INAPPSYNCACTIVITY', 'PUSHINBOXACTIVITY'].includes(type) && nameKey === type
     const dateName = WAIT_DATE_TYPES.has(String(displayType).toUpperCase()) && (nameKey === 'WAIT' || nameKey === 'WAIT UNTIL DATE' || WAIT_DATE_TYPES.has(nameKey))
     const attributeName = String(displayType).toUpperCase() === 'WAITBYATTRIBUTE' && ['WAIT', 'WAITBYATTRIBUTE', 'WAIT BY ATTRIBUTE'].includes(nameKey)
-    const name = automaticName || dateName || attributeName ? nodeTypeLabel(displayType) : a.name || nodeTypeLabel(displayType)
+    const salesforceName = SALESFORCE_DISPLAY_TYPES.has(String(displayType).toUpperCase()) && (nameKey === type || nameKey === String(displayType).toUpperCase())
+    const name = automaticName || dateName || attributeName || salesforceName ? nodeTypeLabel(displayType) : a.name || nodeTypeLabel(displayType)
     nodes.push({ key: a.key, type: a.type, name, raw: a })
     const outs = a.outcomes || []
     const multi = outs.length > 1

@@ -115,3 +115,27 @@ describe('Journey activity branch exit', () => {
     wrapper.unmount()
   })
 })
+
+describe('Salesforce activity icons', () => {
+  it.each([
+    'SALESFORCEACCOUNTACTIVITY', 'SALESFORCECAMPAIGNMEMBERACTIVITY', 'SALESFORCECASEANDCONTACTACTIVITY',
+    'SALESFORCECONTACTACTIVITY', 'SALESFORCELEADCONVERSIONACTIVITY', 'SALESFORCELEADACTIVITY',
+    'SALESFORCEGENERICOBJECTACTIVITY', 'SALESFORCEOPPORTUNITY', 'SALESFORCETASKACTIVITY',
+  ])('renders %s as a filled local icon and keeps unconfigured activities selectable', async (type) => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data({
+      iconUrl: null, visual: journeyActivityVisual(type, false), name: 'Synthetic Salesforce activity', typeLabel: 'Salesforce activity',
+    }) } })
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.get('.journey-activity-symbol').classes()).toContain('is-square')
+    expect(wrapper.get('.journey-activity').attributes('style')).toContain('--activity-color: #a8b7c7')
+    for (const path of wrapper.findAll('svg path')) {
+      expect(path.attributes()).toMatchObject({ fill: 'currentColor', stroke: 'none', 'fill-rule': 'evenodd' })
+    }
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.emitted('select')).toHaveLength(1)
+    await wrapper.setProps({ data: data({ iconUrl: null, visual: journeyActivityVisual(type, true), active: true }) })
+    expect(wrapper.get('.journey-activity').attributes('style')).toContain('--activity-color: #00a1e0')
+    expect(wrapper.get('button').attributes('aria-pressed')).toBe('true')
+    wrapper.unmount()
+  })
+})

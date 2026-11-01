@@ -24,6 +24,7 @@ function iconFailed(event) {
 }
 const horizontal = computed(() => props.data.orientation !== 'vertical')
 const paths = computed(() => JOURNEY_ICON_PATHS[props.data.visual.icon] || JOURNEY_ICON_PATHS.custom)
+const filledIcon = computed(() => ['push', 'line', 'sessionTransfer', 'mobile', 'inbox', 'whatsapp', 'sms', 'contact', 'waitDate', 'waitAttribute'].includes(props.data.visual.icon) || props.data.visual.icon.startsWith('salesforce'))
 const anchors = computed(() => journeyNodeAnchors(props.data.orientation))
 const targetStyle = computed(() => ({ left: `${anchors.value.target.x}px`, top: `${anchors.value.target.y}px` }))
 const branchStyle = computed(() => horizontal.value ? { left: `${anchors.value.branch.x}px`, top: `${anchors.value.branch.y}px`, bottom: 'auto' } : null)
@@ -52,8 +53,9 @@ const sourceStyle = computed(() => horizontal.value
           stroke-linejoin="round"
         >
           <path v-for="(path, index) in paths" :key="index" :d="path"
-          :fill="['push', 'line', 'sessionTransfer', 'mobile', 'inbox', 'whatsapp', 'sms', 'contact', 'waitDate', 'waitAttribute'].includes(data.visual.icon) || (data.visual.icon === 'email' && index === 0) ? 'currentColor' : 'none'"
-          :stroke="['push', 'line', 'sessionTransfer', 'mobile', 'inbox', 'whatsapp', 'sms', 'contact', 'waitDate', 'waitAttribute'].includes(data.visual.icon) ? 'none' : data.visual.icon === 'email' ? (index === 0 ? 'none' : 'var(--activity-color)') : 'currentColor'"
+          :fill="filledIcon || (data.visual.icon === 'email' && index === 0) ? 'currentColor' : 'none'"
+          :stroke="filledIcon ? 'none' : data.visual.icon === 'email' ? (index === 0 ? 'none' : 'var(--activity-color)') : 'currentColor'"
+          :fill-rule="data.visual.icon.startsWith('salesforce') ? 'evenodd' : undefined"
           :stroke-width="data.visual.icon === 'email' ? 1.1 : undefined" />
           <g v-if="data.visual.icon === 'random'" fill="currentColor" stroke="none">
             <circle v-for="y in [5, 12, 19]" :key="y" cx="17" :cy="y" r="2.5" />
