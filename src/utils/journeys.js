@@ -54,6 +54,7 @@ const TYPE_LABELS = {
   WAIT: 'Wait', WAITBYDURATION: 'Wait by duration', WAITBYATTRIBUTE: 'Wait By Attribute', WAITUNTILDATE: 'Wait Until Date',
   WAITUNTILSPECIFICDATE: 'Wait Until Date',
   WAITUNTILCHATRESPONSE: 'Wait Until Chat Response',
+  WAITUNTILPUSHINAPPENGAGEMENT: 'Wait Until In-App Event',
   WAITUNTILAPI: 'Wait Until Event', WAITUNTILEVENT: 'Wait Until Event', STOWAIT: 'Einstein STO', MULTICRITERIADECISION: 'Decision split',
   RANDOMSPLIT: 'Random split', ENGAGEMENTSPLIT: 'Engagement split', ENGAGEMENTDECISION: 'Engagement split',
   ABNTEST: 'Path optimizer', ABNTESTSTOP: 'Winner', EINSTEINSPLIT: 'Einstein split', UPDATECONTACTDATA: 'Update contact',
@@ -68,7 +69,7 @@ export const nodeTypeLabel = (type) => TYPE_LABELS[String(type || '').toUpperCas
 
 const WAIT_DATE_TYPES = new Set(['WAITUNTILSPECIFICDATE', 'WAITUNTILDATE'])
 const WAIT_EVENT_TYPES = new Set(['WAITUNTILAPI', 'WAITUNTILEVENT'])
-const WAIT_UI_TYPES = new Set([...WAIT_DATE_TYPES, ...WAIT_EVENT_TYPES, 'WAITBYATTRIBUTE', 'WAITUNTILCHATRESPONSE'])
+const WAIT_UI_TYPES = new Set([...WAIT_DATE_TYPES, ...WAIT_EVENT_TYPES, 'WAITBYATTRIBUTE', 'WAITUNTILCHATRESPONSE', 'WAITUNTILPUSHINAPPENGAGEMENT'])
 const SALESFORCE_EXTENSION_TYPES = new Map([
   ['Salesforce_Activity_Account', 'SALESFORCEACCOUNTACTIVITY'],
   ['Salesforce_Activity_CampaignMember', 'SALESFORCECAMPAIGNMEMBERACTIVITY'],
@@ -178,8 +179,9 @@ export function journeyGraph(journey) {
     const attributeName = String(displayType).toUpperCase() === 'WAITBYATTRIBUTE' && ['WAIT', 'WAITBYATTRIBUTE', 'WAIT BY ATTRIBUTE'].includes(nameKey)
     const chatName = String(displayType).toUpperCase() === 'WAITUNTILCHATRESPONSE' && ['WAIT', 'WAITUNTILCHATRESPONSE', 'WAIT UNTIL CHAT RESPONSE'].includes(nameKey)
     const eventName = WAIT_EVENT_TYPES.has(String(displayType).toUpperCase()) && (nameKey === 'WAIT' || nameKey === 'WAIT UNTIL EVENT' || WAIT_EVENT_TYPES.has(nameKey))
+    const inAppName = String(displayType).toUpperCase() === 'WAITUNTILPUSHINAPPENGAGEMENT' && ['WAIT', 'WAITUNTILPUSHINAPPENGAGEMENT', 'WAIT UNTIL IN-APP EVENT'].includes(nameKey)
     const salesforceName = SALESFORCE_DISPLAY_TYPES.has(String(displayType).toUpperCase()) && (nameKey === type || nameKey === String(displayType).toUpperCase())
-    const name = automaticName || dateName || attributeName || chatName || eventName || salesforceName ? nodeTypeLabel(displayType) : a.name || nodeTypeLabel(displayType)
+    const name = automaticName || dateName || attributeName || chatName || eventName || inAppName || salesforceName ? nodeTypeLabel(displayType) : a.name || nodeTypeLabel(displayType)
     nodes.push({ key: a.key, type: a.type, name, raw: a })
     const outs = a.outcomes || []
     const multi = outs.length > 1

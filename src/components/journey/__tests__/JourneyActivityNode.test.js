@@ -177,3 +177,22 @@ describe('Wait Until Event icon', () => {
     wrapper.unmount()
   })
 })
+
+describe('Wait Until In-App Event icon', () => {
+  it('uses a filled local clock and phone icon while keeping gray activities selectable', async () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data({
+      key: 'in-app-wait-synthetic', name: 'Wait Until In-App Event', typeLabel: 'Wait Until In-App Event',
+      iconUrl: null, visual: journeyActivityVisual('WAITUNTILPUSHINAPPENGAGEMENT', false),
+    }) } })
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.get('.journey-activity-symbol').classes()).toContain('is-diamond')
+    expect(wrapper.get('.journey-activity').attributes('style')).toContain('--activity-color: #a8b7c7')
+    for (const path of wrapper.findAll('svg path')) {
+      expect(path.attributes()).toMatchObject({ fill: 'currentColor', stroke: 'none' })
+    }
+    expect(wrapper.get('button').attributes('aria-label')).toBe('Wait Until In-App Event: Wait Until In-App Event')
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.emitted('select')).toHaveLength(1)
+    wrapper.unmount()
+  })
+})
