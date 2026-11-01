@@ -50,7 +50,7 @@ describe('Journey canvas adapter', () => {
   it.each([
     ['ABNTEST', 'optimizer'], ['INAPPSYNCACTIVITY', 'mobile'], ['INBOXACTIVITY', 'inbox'],
     ['SALESCLOUDACTIVITY', 'cloud'], ['WHATSAPPACTIVITY', 'whatsapp'], ['ENGAGEMENTSPLIT', 'engagement'],
-    ['WAITUNTILEVENT', 'wait'], ['PartnerSpecificType', 'custom'],
+    ['WAITUNTILAPI', 'waitEvent'], ['WAITUNTILEVENT', 'waitEvent'], ['PartnerSpecificType', 'custom'],
   ])('provides a local icon for %s', (type, icon) => {
     expect(journeyActivityVisual(type).icon).toBe(icon)
     expect(JOURNEY_ICON_PATHS[icon].length).toBeGreaterThan(0)

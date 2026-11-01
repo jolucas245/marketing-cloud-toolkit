@@ -54,7 +54,7 @@ const TYPE_LABELS = {
   WAIT: 'Wait', WAITBYDURATION: 'Wait by duration', WAITBYATTRIBUTE: 'Wait By Attribute', WAITUNTILDATE: 'Wait Until Date',
   WAITUNTILSPECIFICDATE: 'Wait Until Date',
   WAITUNTILCHATRESPONSE: 'Wait Until Chat Response',
-  WAITUNTILEVENT: 'Wait until event', STOWAIT: 'Einstein STO', MULTICRITERIADECISION: 'Decision split',
+  WAITUNTILAPI: 'Wait Until Event', WAITUNTILEVENT: 'Wait Until Event', STOWAIT: 'Einstein STO', MULTICRITERIADECISION: 'Decision split',
   RANDOMSPLIT: 'Random split', ENGAGEMENTSPLIT: 'Engagement split', ENGAGEMENTDECISION: 'Engagement split',
   ABNTEST: 'Path optimizer', ABNTESTSTOP: 'Winner', EINSTEINSPLIT: 'Einstein split', UPDATECONTACTDATA: 'Update contact',
   CONTACTDECISION: 'Decision split', SALESCLOUDACTIVITY: 'Salesforce activity', SALESFORCESALESCLOUDACTIVITY: 'Salesforce activity',
@@ -67,6 +67,8 @@ const TYPE_LABELS = {
 export const nodeTypeLabel = (type) => TYPE_LABELS[String(type || '').toUpperCase()] || (type ? String(type) : 'Activity')
 
 const WAIT_DATE_TYPES = new Set(['WAITUNTILSPECIFICDATE', 'WAITUNTILDATE'])
+const WAIT_EVENT_TYPES = new Set(['WAITUNTILAPI', 'WAITUNTILEVENT'])
+const WAIT_UI_TYPES = new Set([...WAIT_DATE_TYPES, ...WAIT_EVENT_TYPES, 'WAITBYATTRIBUTE', 'WAITUNTILCHATRESPONSE'])
 const SALESFORCE_EXTENSION_TYPES = new Map([
   ['Salesforce_Activity_Account', 'SALESFORCEACCOUNTACTIVITY'],
   ['Salesforce_Activity_CampaignMember', 'SALESFORCECAMPAIGNMEMBERACTIVITY'],
@@ -86,7 +88,7 @@ export function nodeDisplayType(node) {
     return SALESFORCE_EXTENSION_TYPES.get(activity?.configurationArguments?.applicationExtensionKey) || type
   }
   const uiType = String(activity?.metaData?.uiType || '').toUpperCase()
-  return String(type).toUpperCase() === 'WAIT' && (WAIT_DATE_TYPES.has(uiType) || uiType === 'WAITBYATTRIBUTE' || uiType === 'WAITUNTILCHATRESPONSE') ? uiType : type
+  return String(type).toUpperCase() === 'WAIT' && WAIT_UI_TYPES.has(uiType) ? uiType : type
 }
 
 export function nodeKind(type) {
@@ -175,8 +177,9 @@ export function journeyGraph(journey) {
     const dateName = WAIT_DATE_TYPES.has(String(displayType).toUpperCase()) && (nameKey === 'WAIT' || nameKey === 'WAIT UNTIL DATE' || WAIT_DATE_TYPES.has(nameKey))
     const attributeName = String(displayType).toUpperCase() === 'WAITBYATTRIBUTE' && ['WAIT', 'WAITBYATTRIBUTE', 'WAIT BY ATTRIBUTE'].includes(nameKey)
     const chatName = String(displayType).toUpperCase() === 'WAITUNTILCHATRESPONSE' && ['WAIT', 'WAITUNTILCHATRESPONSE', 'WAIT UNTIL CHAT RESPONSE'].includes(nameKey)
+    const eventName = WAIT_EVENT_TYPES.has(String(displayType).toUpperCase()) && (nameKey === 'WAIT' || nameKey === 'WAIT UNTIL EVENT' || WAIT_EVENT_TYPES.has(nameKey))
     const salesforceName = SALESFORCE_DISPLAY_TYPES.has(String(displayType).toUpperCase()) && (nameKey === type || nameKey === String(displayType).toUpperCase())
-    const name = automaticName || dateName || attributeName || chatName || salesforceName ? nodeTypeLabel(displayType) : a.name || nodeTypeLabel(displayType)
+    const name = automaticName || dateName || attributeName || chatName || eventName || salesforceName ? nodeTypeLabel(displayType) : a.name || nodeTypeLabel(displayType)
     nodes.push({ key: a.key, type: a.type, name, raw: a })
     const outs = a.outcomes || []
     const multi = outs.length > 1

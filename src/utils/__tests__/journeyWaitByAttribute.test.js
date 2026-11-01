@@ -70,7 +70,7 @@ describe('Wait By Attribute presentation', () => {
     expect(modelOf(raw).model.nodes.find((node) => node.id === raw.key).data).toMatchObject({ name: 'Wait Until Date', typeLabel: 'Wait Until Date', visual: { icon: 'waitDate' } })
   })
 
-  it.each(['WAITBYDURATION', 'WAITUNTILAPI', 'UnknownType'])('keeps the unrelated subtype %s unchanged', (uiType) => {
+  it.each(['WAITBYDURATION', 'WAITUNTILPUSHENGAGEMENT', 'UnknownType'])('keeps the unrelated subtype %s unchanged', (uiType) => {
     const raw = activity({ metaData: { uiType, isConfigured: true } })
     expect(nodeDisplayType(raw)).toBe('WAIT')
     expect(modelOf(raw).model.nodes.find((node) => node.id === raw.key).data.visual.icon).toBe('wait')

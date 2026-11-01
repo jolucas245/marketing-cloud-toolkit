@@ -24,7 +24,7 @@ function iconFailed(event) {
 }
 const horizontal = computed(() => props.data.orientation !== 'vertical')
 const paths = computed(() => JOURNEY_ICON_PATHS[props.data.visual.icon] || JOURNEY_ICON_PATHS.custom)
-const filledIcon = computed(() => ['push', 'line', 'sessionTransfer', 'mobile', 'inbox', 'whatsapp', 'sms', 'contact', 'waitDate', 'waitAttribute', 'waitChat'].includes(props.data.visual.icon) || props.data.visual.icon.startsWith('salesforce'))
+const filledIcon = computed(() => ['push', 'line', 'sessionTransfer', 'mobile', 'inbox', 'whatsapp', 'sms', 'contact', 'waitDate', 'waitAttribute', 'waitChat', 'waitEvent'].includes(props.data.visual.icon) || props.data.visual.icon.startsWith('salesforce'))
 const anchors = computed(() => journeyNodeAnchors(props.data.orientation))
 const targetStyle = computed(() => ({ left: `${anchors.value.target.x}px`, top: `${anchors.value.target.y}px` }))
 const branchStyle = computed(() => horizontal.value ? { left: `${anchors.value.branch.x}px`, top: `${anchors.value.branch.y}px`, bottom: 'auto' } : null)

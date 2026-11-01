@@ -41,6 +41,8 @@ const VISUALS = {
   WAITUNTILDATE: visual('waitDate', 'diamond', FLOW),
   WAITBYATTRIBUTE: visual('waitAttribute', 'diamond', FLOW),
   WAITUNTILCHATRESPONSE: visual('waitChat', 'diamond', FLOW),
+  WAITUNTILAPI: visual('waitEvent', 'diamond', FLOW),
+  WAITUNTILEVENT: visual('waitEvent', 'diamond', FLOW),
   UPDATECONTACTDATA: visual('contact', 'square', MESSAGE),
   SALESCLOUDACTIVITY: visual('cloud', 'square', '#167bbb'),
   SALESFORCESALESCLOUDACTIVITY: visual('cloud', 'square', '#167bbb'),
@@ -116,6 +118,11 @@ export const JOURNEY_ICON_PATHS = {
     'M8.6 8h6.8a.6.6 0 0 1 .6.6v5a.6.6 0 0 1-.6.6H8.6a.6.6 0 0 1-.6-.6v-5a.6.6 0 0 1 .6-.6ZM8 9.2l3.3 2.9c.4.4 1 .4 1.4 0L16 9.2v-.9l-3.7 3.2a.45.45 0 0 1-.6 0L8 8.3Z',
   ],
   wait: ['M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18Z', 'M12 7v5l3 2'],
+  waitEvent: [
+    'M13 20.8A10 10 0 1 1 20.8 13L18.55 12.58A7.7 7.7 0 1 0 12.58 18.55Z',
+    'M11 5a1.1 1.1 0 0 1 1.1 1.1v4.8l2.6 2.6a1.1 1.1 0 0 1-1.6 1.6l-2.9-2.9a1.1 1.1 0 0 1-.3-.8V6.1A1.1 1.1 0 0 1 11 5Z',
+    'M18.6 13.8h-1.7l-1.9 4.4h2.5l-.4 4.1 4.3-5.9h-2.8Z',
+  ],
   waitChat: [
     'M13 20.8A10 10 0 1 1 20.8 13L18.55 12.58A7.7 7.7 0 1 0 12.58 18.55Z',
     'M11 5a1.1 1.1 0 0 1 1.1 1.1v4.8l2.6 2.6a1.1 1.1 0 0 1-1.6 1.6l-2.9-2.9a1.1 1.1 0 0 1-.3-.8V6.1A1.1 1.1 0 0 1 11 5Z',
