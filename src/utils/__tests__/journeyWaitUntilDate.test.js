@@ -68,7 +68,7 @@ describe('Wait Until Date presentation', () => {
     expect(model.nodes.find((node) => node.id === raw.key).data).toMatchObject({ name: 'Wait', typeLabel: 'Wait', visual: { icon: 'wait' } })
   })
 
-  it.each(['WAITBYDURATION', 'WAITUNTILCHATRESPONSE', 'UnknownType'])('preserves existing behavior for the unrelated uiType %s', (uiType) => {
+  it.each(['WAITBYDURATION', 'WAITUNTILAPI', 'UnknownType'])('preserves existing behavior for the unrelated uiType %s', (uiType) => {
     const raw = activity({ key: 'plain-wait', name: '3 days', configurationArguments: { waitDuration: 3, waitUnit: 'DAYS' }, metaData: { uiType, isConfigured: true } })
     expect(nodeDisplayType(raw)).toBe('WAIT')
     const { model } = modelOf(raw)

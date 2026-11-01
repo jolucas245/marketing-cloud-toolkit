@@ -53,6 +53,7 @@ const TYPE_LABELS = {
   INAPPSYNCACTIVITY: 'In-App Message', INBOXACTIVITY: 'Inbox message', WHATSAPPACTIVITY: 'WhatsApp',
   WAIT: 'Wait', WAITBYDURATION: 'Wait by duration', WAITBYATTRIBUTE: 'Wait By Attribute', WAITUNTILDATE: 'Wait Until Date',
   WAITUNTILSPECIFICDATE: 'Wait Until Date',
+  WAITUNTILCHATRESPONSE: 'Wait Until Chat Response',
   WAITUNTILEVENT: 'Wait until event', STOWAIT: 'Einstein STO', MULTICRITERIADECISION: 'Decision split',
   RANDOMSPLIT: 'Random split', ENGAGEMENTSPLIT: 'Engagement split', ENGAGEMENTDECISION: 'Engagement split',
   ABNTEST: 'Path optimizer', ABNTESTSTOP: 'Winner', EINSTEINSPLIT: 'Einstein split', UPDATECONTACTDATA: 'Update contact',
@@ -85,7 +86,7 @@ export function nodeDisplayType(node) {
     return SALESFORCE_EXTENSION_TYPES.get(activity?.configurationArguments?.applicationExtensionKey) || type
   }
   const uiType = String(activity?.metaData?.uiType || '').toUpperCase()
-  return String(type).toUpperCase() === 'WAIT' && (WAIT_DATE_TYPES.has(uiType) || uiType === 'WAITBYATTRIBUTE') ? uiType : type
+  return String(type).toUpperCase() === 'WAIT' && (WAIT_DATE_TYPES.has(uiType) || uiType === 'WAITBYATTRIBUTE' || uiType === 'WAITUNTILCHATRESPONSE') ? uiType : type
 }
 
 export function nodeKind(type) {
@@ -173,8 +174,9 @@ export function journeyGraph(journey) {
     const automaticName = ['ABNTESTSTOP', 'SENDTOLINESYNC', 'WHATSAPPSESSIONTRANSFERACTIVITY', 'INAPPSYNCACTIVITY', 'PUSHINBOXACTIVITY'].includes(type) && nameKey === type
     const dateName = WAIT_DATE_TYPES.has(String(displayType).toUpperCase()) && (nameKey === 'WAIT' || nameKey === 'WAIT UNTIL DATE' || WAIT_DATE_TYPES.has(nameKey))
     const attributeName = String(displayType).toUpperCase() === 'WAITBYATTRIBUTE' && ['WAIT', 'WAITBYATTRIBUTE', 'WAIT BY ATTRIBUTE'].includes(nameKey)
+    const chatName = String(displayType).toUpperCase() === 'WAITUNTILCHATRESPONSE' && ['WAIT', 'WAITUNTILCHATRESPONSE', 'WAIT UNTIL CHAT RESPONSE'].includes(nameKey)
     const salesforceName = SALESFORCE_DISPLAY_TYPES.has(String(displayType).toUpperCase()) && (nameKey === type || nameKey === String(displayType).toUpperCase())
-    const name = automaticName || dateName || attributeName || salesforceName ? nodeTypeLabel(displayType) : a.name || nodeTypeLabel(displayType)
+    const name = automaticName || dateName || attributeName || chatName || salesforceName ? nodeTypeLabel(displayType) : a.name || nodeTypeLabel(displayType)
     nodes.push({ key: a.key, type: a.type, name, raw: a })
     const outs = a.outcomes || []
     const multi = outs.length > 1

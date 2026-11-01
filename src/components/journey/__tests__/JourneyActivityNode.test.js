@@ -139,3 +139,22 @@ describe('Salesforce activity icons', () => {
     wrapper.unmount()
   })
 })
+
+describe('Wait Until Chat Response icon', () => {
+  it('uses a filled local clock and chat icon while keeping gray activities selectable', async () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data({
+      key: 'chat-response-synthetic', name: 'Wait Until Chat Response', typeLabel: 'Wait Until Chat Response',
+      iconUrl: null, visual: journeyActivityVisual('WAITUNTILCHATRESPONSE', false),
+    }) } })
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.get('.journey-activity-symbol').classes()).toContain('is-diamond')
+    expect(wrapper.get('.journey-activity').attributes('style')).toContain('--activity-color: #a8b7c7')
+    for (const path of wrapper.findAll('svg path')) {
+      expect(path.attributes()).toMatchObject({ fill: 'currentColor', stroke: 'none' })
+    }
+    expect(wrapper.get('button').attributes('aria-label')).toBe('Wait Until Chat Response: Wait Until Chat Response')
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.emitted('select')).toHaveLength(1)
+    wrapper.unmount()
+  })
+})
