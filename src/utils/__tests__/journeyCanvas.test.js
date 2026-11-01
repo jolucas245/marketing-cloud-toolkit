@@ -7,7 +7,7 @@ const journey = {
   activities: [
     { key: 'email-original-key', type: 'EMAILV2', name: 'Welcome', configurationArguments: { triggeredSend: { emailId: 123, emailSubject: 'Hello' } }, outcomes: [{ next: 'split' }] },
     { key: 'split', type: 'MULTICRITERIADECISION', name: 'Opened?', outcomes: [{ next: 'wait', metaData: { label: 'Yes' } }, { next: 'mobile', metaData: { label: 'No' } }] },
-    { key: 'wait', type: 'WAIT', name: 'Wait', configurationArguments: { waitDuration: 3, waitUnit: 'DAYS' }, outcomes: [] },
+    { key: 'wait', type: 'WAIT', name: '1 day', configurationArguments: { waitDuration: 1, waitUnit: 'DAYS' }, outcomes: [] },
     { key: 'mobile', type: 'WHATSAPPACTIVITY', name: 'Reminder', outcomes: [] },
   ],
 }
@@ -20,7 +20,7 @@ describe('Journey canvas adapter', () => {
     const before = JSON.stringify(graph)
     const model = journeyCanvasModel(graph, layout, 'horizontal', 'email-original-key')
     expect(model.nodes.find((node) => node.id === 'email-original-key').data).toMatchObject({ key: 'email-original-key', active: true, summary: 'Subject: Hello', visual: { icon: 'email' } })
-    expect(model.nodes.find((node) => node.id === 'wait').data.summary).toBe('3 days')
+    expect(model.nodes.find((node) => node.id === 'wait').data).toMatchObject({ name: '1 day', summary: '' })
     expect(JSON.stringify(graph)).toBe(before)
     expect(model.nodes.every((node) => !node.draggable && !node.connectable)).toBe(true)
   })

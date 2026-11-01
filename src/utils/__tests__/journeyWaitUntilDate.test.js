@@ -68,11 +68,11 @@ describe('Wait Until Date presentation', () => {
     expect(model.nodes.find((node) => node.id === raw.key).data).toMatchObject({ name: 'Wait', typeLabel: 'Wait', visual: { icon: 'wait' } })
   })
 
-  it.each(['WAITBYDURATION', 'WAITUNTILAPI', 'UnknownType'])('preserves existing behavior for the unrelated uiType %s', (uiType) => {
+  it.each(['WAITBYDURATION', 'WAITUNTILAPI', 'UnknownType'])('keeps the unrelated uiType %s as a duration wait without repeating its name', (uiType) => {
     const raw = activity({ key: 'plain-wait', name: '3 days', configurationArguments: { waitDuration: 3, waitUnit: 'DAYS' }, metaData: { uiType, isConfigured: true } })
     expect(nodeDisplayType(raw)).toBe('WAIT')
     const { model } = modelOf(raw)
-    expect(model.nodes.find((node) => node.id === raw.key).data).toMatchObject({ name: '3 days', typeLabel: 'Wait', summary: '3 days', visual: { icon: 'wait', color: '#f58a00' } })
+    expect(model.nodes.find((node) => node.id === raw.key).data).toMatchObject({ name: '3 days', typeLabel: 'Wait', summary: '', visual: { icon: 'wait', color: '#f58a00' } })
   })
 
   it.each(['STOWAIT', 'EMAILV2', 'PartnerSpecificType'])('does not override the real type %s based on uiType', (type) => {

@@ -175,6 +175,8 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
     if (!at) return []
     const iconUrl = journeyActivityIcon(node.raw)
     const displayType = nodeDisplayType(node)
+    const name = node.name || nodeTypeLabel(displayType)
+    const summary = ['WAIT', 'WAITBYDURATION'].includes(String(displayType).toUpperCase()) ? '' : nodeSummary(node)
     return [{
       id: node.key, type: 'journeyActivity', position: at,
       width: ACTIVITY_WIDTH, height: ACTIVITY_HEIGHT,
@@ -182,10 +184,10 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
       style: { pointerEvents: 'all' },
       data: {
         key: node.key,
-        name: node.name || nodeTypeLabel(displayType),
+        name,
         typeLabel: nodeTypeLabel(displayType),
         iconUrl,
-        summary: nodeSummary(node),
+        summary,
         visual: journeyActivityVisual(displayType, node.raw?.metaData?.isConfigured, Boolean(iconUrl)),
         active: node.key === selected,
         branchExit: branchExits.has(node.key),
