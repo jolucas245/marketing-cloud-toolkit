@@ -14,9 +14,9 @@ describe('fetchContactMembership', () => {
 })
 
 describe('fetchContactHistory', () => {
-  it('builds the body for the period and one journey', () => {
-    const b = historyBody('c1', { days: 7, definitionIds: ['d1'], now: new Date('2026-11-02T00:00:00Z') })
-    expect(b).toEqual({ contactKey: 'c1', start: '2026-10-26T00:00:00.000Z', end: '2026-11-02T00:00:00.000Z', definitionIds: ['d1'] })
+  it("builds the body Journey Builder's page sends", () => {
+    const b = historyBody('c1', { days: 7, now: new Date('2026-11-02T00:00:00Z') })
+    expect(b).toEqual({ start: '2026-10-26T00:00:00.000Z', end: '2026-11-02T00:00:00.000Z', contactKeys: ['c1'], journeySearchKey: '' })
   })
   it('pages until a short page and keeps only this contact', async () => {
     const full = Array.from({ length: HISTORY_PAGE_SIZE }, (_, i) => ({ contactKey: 'c1', activityName: `s${i}` }))

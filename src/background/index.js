@@ -21,6 +21,7 @@ import {
 } from './stack.js'
 import { restoreCsrfTokens, sniffCsrf, getCoreCsrf } from './csrf.js'
 import { restorePageHeaders, sniffPageHeaders } from './pageHeaders.js'
+import { restoreJbCsrf, sniffJbCsrf } from './jbCsrf.js'
 import {
   getMcaToken, isMcaTokenReady, mintBackoff, dropMcaToken, handleCapturedToken, setOnMintFailure,
 } from './mcaToken.js'
@@ -46,6 +47,7 @@ onForgetStack(dropMcaToken)
 setOnMintFailure(forgetStack)
 restoreCsrfTokens()
 restorePageHeaders()
+restoreJbCsrf()
 loadEmailSaverPrefs()
 watchForUpdates()
 watchPolicy()
@@ -83,6 +85,9 @@ chrome.webRequest?.onBeforeSendHeaders.addListener(
 // Contact Builder's own headers for the contacts calls (pageHeaders.js).
 chrome.webRequest?.onBeforeSendHeaders.addListener(
   sniffPageHeaders, { urls: ['https://*.marketingcloudapps.com/contactsmeta/*'] }, ['requestHeaders', 'extraHeaders'])
+// Journey Builder's own CSRF token for its POST calls (jbCsrf.js).
+chrome.webRequest?.onBeforeSendHeaders.addListener(
+  sniffJbCsrf, { urls: ['https://*.marketingcloudapps.com/fuelapi/*'] }, ['requestHeaders', 'extraHeaders'])
 // Query Studio 2's host is an optional permission; Chrome only delivers its
 // requests once the user has granted it (Settings > Running queries).
 chrome.webRequest?.onBeforeRequest.addListener(

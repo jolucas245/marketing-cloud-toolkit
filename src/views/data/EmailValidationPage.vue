@@ -244,7 +244,7 @@ const openRow = ref(null)
       <h1 class="text-base font-semibold flex-1">Email validation</h1>
     </div>
     <p class="text-xs text-muted-foreground max-w-3xl">
-      Checks addresses with SFMC's own validation API (one call per address). Each check you pick runs in order and the first one that fails is the reason.
+      Checks addresses with SFMC's own validation API (one call per address). SFMC names one failed check per address, even when several fail, and does not always follow the order shown.
       Nothing is sent to anyone.
     </p>
 

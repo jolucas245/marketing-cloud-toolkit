@@ -4,8 +4,10 @@
 // Contact Key, or a data extension column. For a data extension the results go into
 // three columns of that DE (upsert by primary key) or into a new DE.
 //
-// Not checked against a live org: the endpoint through mc.<stack>.exacttarget.com/cloud/fuelapi,
-// and how SFMC counts these calls against the account's API limits.
+// Checked live 2026-11-02 (through mc.<stack>.exacttarget.com/cloud/fuelapi): answers
+// { email, valid, failedValidation } with one failed validator even when several fail, and
+// not in the order sent (a domain with no mail server came back as ListDetectiveValidator
+// with all three picked, MXValidator alone). How SFMC counts the calls against API limits: unknown.
 import { sfmcFetch, createTargetDE, insertDERowsAsync, upsertDERowsAsync } from './sfmcApi.js'
 
 const AS_BASE = (stack) => `https://mc.${stack}.exacttarget.com/cloud/fuelapi`
@@ -26,7 +28,7 @@ export const WRITE_BATCH = 500
 const REASONS = {
   SyntaxValidator: 'Syntax: the address is not written correctly',
   MXValidator: 'Mail server: the domain has no mail server (MX record)',
-  ListDetectiveValidator: 'List Detective: SFMC lists this address as known bad, a role address or a spam trap',
+  ListDetectiveValidator: 'List Detective: SFMC treats this address as known bad, a role address, a spam trap or a domain that takes no mail',
 }
 
 /** A readable reason for a failed validation, keeping the validator's name. */

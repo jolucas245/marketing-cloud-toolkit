@@ -5,9 +5,11 @@
 // - POST interactions/contactMembership { ContactKeyList: [key] }: the journeys (key and
 //   version) the contact is in now (public REST endpoint).
 // - POST interactions/journeyhistory/search: the steps a contact went through (the
-//   call behind Journey Builder's Journey History). Body and response field names are
-//   NOT confirmed against a live org; the parser below accepts several spellings and
-//   the raw items are kept so the page can show them.
+//   call behind Journey Builder's Journey History; its body is confirmed, see historyBody).
+//   POSTs need Journey Builder's CSRF token (background/jbCsrf.js). The item field names
+//   are NOT confirmed (the test account had no history); the parser accepts several
+//   spellings, following the page's columns (Contact Key, Journey, Activity Type,
+//   Activity Name, Activity ID, Status, Status Detail, Time), and the raw items are kept.
 // The data-view SQL (`journeySendsSql`) is the fallback: email sends only, from _Sent
 // joined to _JourneyActivity and _Journey.
 import { sfmcFetch } from './sfmcApi.js'
@@ -36,12 +38,14 @@ export async function fetchContactMembership(stack, contactKey, fetcher = sfmcFe
   }
 }
 
-export function historyBody(contactKey, { days = 30, definitionIds = [], now = new Date() } = {}) {
+// The body Journey Builder's own Journey History page sends (captured live 2026-11-02):
+// { start, end, contactKeys: [...], journeySearchKey: '' }. Its journey filter only lists
+// journeys that have history, so that field was not seen; "within one journey" is
+// filtered here instead (ContactJourneysPage `inScope`).
+export function historyBody(contactKey, { days = 30, now = new Date() } = {}) {
   const end = new Date(now)
   const start = new Date(end.getTime() - days * 86400000)
-  const body = { contactKey, start: start.toISOString(), end: end.toISOString() }
-  if (definitionIds.length) body.definitionIds = definitionIds
-  return body
+  return { start: start.toISOString(), end: end.toISOString(), contactKeys: [contactKey], journeySearchKey: '' }
 }
 
 /** Every history item for a contact (pages of 500, up to HISTORY_MAX), newest first as SFMC sends them. */
@@ -83,7 +87,7 @@ export function parseHistoryItem(it) {
     activityType: String(pick(it, 'activityType', 'ActivityType') ?? ''),
     status: String(pick(it, 'status', 'Status', 'activityStatus') ?? ''),
     time: String(pick(it, 'transactionTime', 'TransactionTime', 'createdDate', 'eventDate') ?? ''),
-    message: String(pick(it, 'message', 'Message', 'errorMessage', 'statusMessage') ?? ''),
+    message: String(pick(it, 'statusDetail', 'StatusDetail', 'message', 'Message', 'errorMessage', 'statusMessage') ?? ''),
     raw: it,
   }
 }

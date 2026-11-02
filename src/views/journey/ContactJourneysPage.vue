@@ -2,7 +2,7 @@
 // Contact journeys: one contact across every journey, or within one journey. Lists
 // the journeys the contact is in now and the ones it went through, and for each the
 // path it took: its steps in order and the same path on the journey's canvas.
-// Read-only. Journey Builder's history search is not confirmed live (utils/contactJourneys.js).
+// Read-only. The history items' field names are not confirmed live (utils/contactJourneys.js).
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Loader2, Search, Route as RouteIcon, ChevronDown, ChevronRight, ExternalLink, Database, X } from 'lucide-vue-next'
@@ -58,11 +58,10 @@ async function find() {
   history.value = null
   open.value = {}
   paths.value = {}
-  const definitionIds = scope.value === 'one' ? [journey.value.id] : []
   searched.value = { key, scope: scope.value, journey: journey.value, days: days.value }
   const [m, h] = await Promise.allSettled([
     withReconnect(stack.value, () => fetchContactMembership(stack.value, key)),
-    withReconnect(stack.value, () => fetchContactHistory(stack.value, key, { days: days.value, definitionIds })),
+    withReconnect(stack.value, () => fetchContactHistory(stack.value, key, { days: days.value })),
   ])
   membership.value = m.status === 'fulfilled' ? m.value : { error: m.reason?.message || String(m.reason) }
   history.value = h.status === 'fulfilled' ? h.value : { error: h.reason?.message || String(h.reason) }
