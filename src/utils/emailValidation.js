@@ -8,7 +8,7 @@
 // { email, valid, failedValidation } with one failed validator even when several fail, and
 // not in the order sent (a domain with no mail server came back as ListDetectiveValidator
 // with all three picked, MXValidator alone). How SFMC counts the calls against API limits: unknown.
-import { sfmcFetch, createTargetDE, insertDERowsAsync, upsertDERowsAsync } from './sfmcApi.js'
+import { sfmcFetch, createTargetDE, insertDERowsAsync, upsertDERowsAsync, searchDEsAllSources } from './sfmcApi.js'
 
 const AS_BASE = (stack) => `https://mc.${stack}.exacttarget.com/cloud/fuelapi`
 
@@ -252,3 +252,24 @@ export function resultsTable(results) {
     APIresponse: r.response,
   }))
 }
+
+/** Whether a data extension with this name (any case) exists in the business unit. */
+export async function deNameTaken(stack, name, search = searchDEsAllSources) {
+  const n = String(name || '').trim().toLowerCase()
+  if (!n) return false
+  const items = (await search(stack, String(name).trim(), 25))?.items || []
+  return items.some((d) => String(d.name || '').toLowerCase() === n)
+}
+
+/** The first of `base`, `base_2`, `base_3`, ... that is not taken (SFMC refuses a second DE with the same name). */
+export async function freeDEName(stack, base, taken = deNameTaken) {
+  const b = String(base || '').trim()
+  if (!(await taken(stack, b))) return b
+  for (let i = 2; i <= 50; i++) {
+    const n = `${b.slice(0, 120)}_${i}`
+    if (!(await taken(stack, n))) return n
+  }
+  return `${b.slice(0, 110)}_${Date.now()}`
+}
+
+export const isNameClash = (e) => e?.status === 409 || /already exists/i.test(String(e?.message || ''))

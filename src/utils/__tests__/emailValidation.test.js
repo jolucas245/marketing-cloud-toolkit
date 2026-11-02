@@ -135,3 +135,22 @@ describe('createResultsDE', () => {
     expect(sent.fields.map((f) => [f.name, f.type, f.length])).toEqual([['Email', 0, 254], ['isValidEmail', 3, undefined], ['invalidReason', 0, 500], ['APIresponse', 0, 4000]])
   })
 })
+
+describe('new DE names', async () => {
+  const { deNameTaken, freeDEName, isNameClash } = await import('../emailValidation.js')
+  it('matches the name exactly, ignoring case', async () => {
+    const search = async () => ({ items: [{ name: 'Leads_EmailValidation_2' }, { name: 'leads_emailvalidation' }] })
+    expect(await deNameTaken('s10', 'Leads_EmailValidation', search)).toBe(true)
+    expect(await deNameTaken('s10', 'Leads_EmailValidation_3', search)).toBe(false)
+  })
+  it('finds the first free suffix', async () => {
+    const used = new Set(['a', 'a_2'])
+    expect(await freeDEName('s10', 'a', async (_s, n) => used.has(n))).toBe('a_3')
+    expect(await freeDEName('s10', 'b', async (_s, n) => used.has(n))).toBe('b')
+  })
+  it('recognises SFMC\'s clash answer', () => {
+    expect(isNameClash({ status: 409 })).toBe(true)
+    expect(isNameClash(new Error('SFMC API error 409: {"message":"A CustomObject with that name already exists."}'))).toBe(true)
+    expect(isNameClash(new Error('other'))).toBe(false)
+  })
+})

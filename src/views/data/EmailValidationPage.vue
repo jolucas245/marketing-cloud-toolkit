@@ -20,6 +20,7 @@ import { csvQuote } from '@/utils/queryCsv.js'
 import {
   VALIDATORS, DEFAULT_VALIDATORS, RESULT_COLUMNS, MAX_BULK, MAX_DE_ROWS, parseEmailList, validateMany, contactEmails,
   guessEmailField, guessResultFields, checkInPlace, newDEFields, rowForResult, createResultWriter, createResultsDE, resultsTable,
+  deNameTaken, freeDEName, isNameClash,
 } from '@/utils/emailValidation.js'
 
 const { stack } = useStack()
@@ -135,6 +136,18 @@ const emailField = ref('')
 const outMode = ref('inplace') // inplace | new
 const mapping = ref({ isValidEmail: '', invalidReason: '', APIresponse: '' })
 const newName = ref('')
+const nameTaken = ref(null) // { name, suggestion } when a DE with the new name exists
+let nameTimer = null
+watch(newName, (n) => {
+  clearTimeout(nameTimer)
+  nameTaken.value = null
+  if (!n.trim() || !stack.value) return
+  nameTimer = setTimeout(async () => {
+    try {
+      if (await deNameTaken(stack.value, n)) nameTaken.value = { name: n.trim(), suggestion: await freeDEName(stack.value, n) }
+    } catch { /* checked again on Validate */ }
+  }, 400)
+})
 const newFolderId = ref(null)
 const newFolderPath = ref('')
 const deStage = ref('') // reading | checking | writing
@@ -159,7 +172,10 @@ async function pickDE(d) {
     fields.value = await fetchDEFieldList(stack.value, d.id)
     emailField.value = guessEmailField(fields.value)
     mapping.value = guessResultFields(fields.value)
-    newName.value = `${String(d.name || 'DE').replace(/[^A-Za-z0-9_ -]/g, '').slice(0, 80)}_EmailValidation`
+    // A free name, since SFMC refuses a second DE with the same name (409; an earlier run made this one).
+    const base = `${String(d.name || 'DE').replace(/[^A-Za-z0-9_ -]/g, '').slice(0, 80)}_EmailValidation`
+    newName.value = base
+    freeDEName(stack.value, base).then((n) => { if (newName.value === base) newName.value = n }).catch(() => {})
   } catch (e) {
     fieldsError.value = `Could not read the fields: ${e.message}`
   }
@@ -176,6 +192,17 @@ async function runDE() {
   if (outMode.value === 'new' && (!newName.value.trim() || newFolderId.value == null)) { error.value = 'Name the new data extension and pick its folder.'; return }
   if (!validators.value.length) { error.value = 'Pick at least one check.'; return }
   busy.value = true
+  if (outMode.value === 'new') {
+    // Checked before reading any row, so a clash costs nothing.
+    try {
+      if (await deNameTaken(stack.value, newName.value)) {
+        nameTaken.value = { name: newName.value.trim(), suggestion: await freeDEName(stack.value, newName.value) }
+        error.value = `A data extension named "${nameTaken.value.name}" already exists. Pick another name (for example "${nameTaken.value.suggestion}").`
+        busy.value = false
+        return
+      }
+    } catch { /* the create call says so if it clashes */ }
+  }
   const key = de.value.customerKey || de.value.key
   try {
     deStage.value = 'reading'
@@ -190,7 +217,15 @@ async function runDE() {
 
     let target = { key, name: de.value.name, created: false }
     if (outMode.value === 'new') {
-      const made = await createResultsDE(stack.value, { name: newName.value.trim(), categoryID: Number.parseInt(newFolderId.value, 10), fields: newDEFields(fields.value, emailField.value) })
+      let made
+      try {
+        made = await createResultsDE(stack.value, { name: newName.value.trim(), categoryID: Number.parseInt(newFolderId.value, 10), fields: newDEFields(fields.value, emailField.value) })
+      } catch (e) {
+        if (!isNameClash(e)) throw e
+        const suggestion = await freeDEName(stack.value, newName.value).catch(() => `${newName.value.trim()}_2`)
+        nameTaken.value = { name: newName.value.trim(), suggestion }
+        throw new Error(`A data extension named "${newName.value.trim()}" already exists. Pick another name (for example "${suggestion}"); no rows were checked.`)
+      }
       target = { key: made.key, name: made.name, created: true }
     }
     const writer = createResultWriter(stack.value, { key: target.key, mode: outMode.value })
@@ -339,6 +374,9 @@ const openRow = ref(null)
             <label class="flex items-center gap-1.5"><input v-model="outMode" type="radio" value="new" /> A new data extension</label>
             <div v-if="outMode === 'new'" class="ml-5 space-y-1 max-w-xl">
               <Input v-model="newName" class="h-8 text-xs" aria-label="New data extension name" />
+              <p v-if="nameTaken" class="text-amber-700 dark:text-amber-300">A data extension named "{{ nameTaken.name }}" already exists.
+                <button type="button" class="text-primary hover:underline" @click="newName = nameTaken.suggestion">Use "{{ nameTaken.suggestion }}"</button>
+              </p>
               <p class="text-muted-foreground">Fields: {{ newDEFields(fields, emailField).map((f) => f.name).join(', ') }}. Rows are added, not matched.</p>
               <DEFolderPicker v-model="newFolderId" v-model:path="newFolderPath" :stack="stack" @error="(m) => (error = m)" />
             </div>

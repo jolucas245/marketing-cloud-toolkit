@@ -25,6 +25,11 @@ Security and privacy review (October 2026). Details: `docs/security-summary.md`,
 - Data > Email validation: check addresses with SFMC's email validation API (syntax, mail server, List Detective; pick which). One address, a pasted or loaded list (up to 5,000), the email addresses of contacts found by Contact Key, or a data extension column (up to 50,000 rows). For a data extension the results go into three fields you pick in it (isValidEmail, invalidReason, APIresponse; rows matched by primary key) or into a new data extension. CSV download. One SFMC call per address.
 - Journey > Contact journeys: one contact across all journeys or within one: the journeys it is in now, the journeys it went through in the last 7, 30 or 90 days, each step in order with status and errors, and the path outlined on the journey canvas. Email sends in Run Query opens data-view SQL for the contact's journey emails. Journey Builder's history search is not yet checked against a live org.
 
+- Automation > Templates > Email address validation: an automation that adds new and changed subscribers to an Email Validation data extension, picks the next batch not yet validated (50,000 by default), and validates it with a Script activity (SSJS) that uses the client ID and secret you put in a settings data extension. Each run stops before SFMC's 30-minute Script activity limit; what it did not reach is in the next batch. A run log data extension records each run. Needs Script activities turned on in the business unit (the template checks and stops before creating anything if not). The script has not been run against a live org.
+- Email validation: a new results data extension gets a name that is not taken yet (SFMC refuses a second one with the same name), checked before any row is read.
+
+**Fixed:** Journey Builder calls that send data (Contact journeys) were refused with "invalid csrf token"; error pages from Journey Builder now show SFMC's message.
+
 **Other:** the creator credit shows the full name (Created by Matheswaran Kanagarajan, Ateko). The source is MIT licensed.
 
 ## 2.0.17 (2026-10-27)

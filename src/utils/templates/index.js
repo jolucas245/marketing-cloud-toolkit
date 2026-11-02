@@ -4,12 +4,14 @@
 import { orphanContacts } from './orphanContacts.js'
 import { dataViewArchive } from './dataViewArchive.js'
 import { unengagedSubscribers, heldBounced, automationRunLog, crmUnsubscribes } from './engagement.js'
+import { emailValidationTemplate } from './emailValidation.js'
 import {
   buildDEFields, createTemplateDE, createQueryActivity, createAutomation, getDERootFolderId, getQueryRootFolderId,
   getAnyQueryActivityId, validateQueryText, deleteDE, deleteQueryActivity, deleteAutomation,
+  createScriptActivity, deleteScriptActivity, getScriptRootFolderId,
 } from '../sfmcApi.js'
 
-export const TEMPLATES = [orphanContacts, dataViewArchive, unengagedSubscribers, heldBounced, automationRunLog, crmUnsubscribes]
+export const TEMPLATES = [orphanContacts, dataViewArchive, unengagedSubscribers, heldBounced, automationRunLog, crmUnsubscribes, emailValidationTemplate]
 
 const mentions = (sql, name) => sql.toLowerCase().includes(`[${name.toLowerCase()}]`)
 
@@ -40,8 +42,8 @@ export async function checkPlan(stack, plan) {
 
 /** Deletes what a stopped run created: automation first, then queries, then data extensions. */
 export async function deleteCreated(stack, created) {
-  const order = { automation: 0, query: 1, de: 2 }
-  const del = { automation: deleteAutomation, query: deleteQueryActivity, de: deleteDE }
+  const order = { automation: 0, query: 1, script: 1, de: 2 }
+  const del = { automation: deleteAutomation, query: deleteQueryActivity, script: deleteScriptActivity, de: deleteDE }
   const failed = []
   for (const c of [...created].sort((a, b) => order[a.kind] - order[b.kind])) {
     if (!c.id) { failed.push({ ...c, error: 'No ID was returned when it was created; delete it in SFMC.' }); continue }
@@ -81,6 +83,16 @@ export async function createFromPlan(stack, plan, progress = () => {}, where = {
       return { created, failed: entry }
     }
     progress({ kind: 'check', name: 'Checking the queries with SFMC', status: 'done', note: problems.skipped ? 'Skipped: this business unit has no Query activity to check through.' : '' })
+    // Script activities need a Scripts folder; without one the BU most likely has them turned off.
+    let scriptFolder = null
+    if (plan.scripts?.length) {
+      scriptFolder = where.scriptFolderId ?? await getScriptRootFolderId(stack).catch(() => null)
+      if (scriptFolder == null) {
+        const entry = { kind: 'check', name: 'Script activities', status: 'failed', error: 'This business unit has no Scripts folder in Automation Studio, so Script activities are most likely turned off (SFMC calls it the SERVER_SIDE_JS_ACTIVITY business rule). Ask Salesforce support to turn them on, then try again.' }
+        progress(entry)
+        return { created, failed: entry }
+      }
+    }
     // Folders the user picked (feedback #152), else the root folders.
     const deFolder = where.deFolderId != null ? Number.parseInt(where.deFolderId, 10) : await getDERootFolderId(stack)
     const queryFolder = where.queryFolderId ?? await getQueryRootFolderId(stack).catch(() => null)
@@ -105,11 +117,24 @@ export async function createFromPlan(stack, plan, progress = () => {}, where = {
         return { id: r?.queryDefinitionId ?? r?.id ?? null }
       })
     }
+    const scriptByRef = {}
+    for (const sc of plan.scripts || []) {
+      scriptByRef[sc.ref] = await step('script', sc.name, async () => {
+        const r = await createScriptActivity(stack, { name: sc.name, key: sc.key, description: 'Created by Marketing Cloud Toolkit (Automation Templates).', script: sc.script, categoryId: scriptFolder })
+        return { id: r?.ssjsActivityId ?? r?.id ?? null }
+      })
+    }
     const a = plan.automation
     await step('automation', a.name, async () => {
       const r = await createAutomation(stack, {
         name: a.name, description: a.description, categoryId: where.automationFolderId, notifyEmail: where.notifyEmail,
-        steps: a.steps.map((s) => ({ name: s.name, activities: s.queries.map((ref) => ({ name: queryByRef[ref].name, id: queryByRef[ref].id })) })),
+        steps: a.steps.map((s) => ({
+          name: s.name,
+          activities: [
+            ...(s.queries || []).map((ref) => ({ name: queryByRef[ref].name, id: queryByRef[ref].id, objectTypeId: 300 })),
+            ...(s.scripts || []).map((ref) => ({ name: scriptByRef[ref].name, id: scriptByRef[ref].id, objectTypeId: 423 })),
+          ],
+        })),
       })
       return { id: r?.id ?? null, note: r?.notificationsFailed ? 'SFMC did not take the email notifications; set them in Automation Studio (the automation > Notifications).' : '' }
     })

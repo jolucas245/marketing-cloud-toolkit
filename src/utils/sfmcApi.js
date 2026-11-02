@@ -506,7 +506,7 @@ export async function createAutomation(stack, { name, key, description, steps, c
     steps: steps.map((s, i) => ({
       name: s.name,
       step: i + 1,
-      activities: s.activities.map((a, j) => ({ name: a.name, objectTypeId: 300, activityObjectId: a.id, displayOrder: j + 1 })),
+      activities: s.activities.map((a, j) => ({ name: a.name, objectTypeId: a.objectTypeId || 300, activityObjectId: a.id, displayOrder: j + 1 })),
     })),
   }
   const email = String(notifyEmail || '').trim()
@@ -520,6 +520,30 @@ export async function createAutomation(stack, { name, key, description, steps, c
     const r = await proxyFetch(url, 'POST', body)
     return { ...r, notificationsFailed: true }
   }
+}
+
+/**
+ * Script activity (SSJS) for Automation Templates: POST automation/v1/scripts. A business
+ * unit without the SERVER_SIDE_JS_ACTIVITY business rule refuses it, and SFMC needs a
+ * script folder (categoryId 0 is refused); both seen live 2026-11-02. The body's
+ * other fields follow the scripts GET shape and are not confirmed.
+ */
+export async function createScriptActivity(stack, { name, key, description, script, categoryId }) {
+  _logInfo(`Creating Script activity "${name}"`)
+  return proxyFetch(`${AS_BASE(stack)}/automation/v1/scripts`, 'POST', { name, key, description: description || '', script, ...(categoryId ? { categoryId: Number(categoryId) } : {}) })
+}
+
+export async function deleteScriptActivity(stack, id) {
+  _logInfo(`Deleting Script activity (id: ${id})`)
+  await proxyFetch(`${AS_BASE(stack)}/automation/v1/scripts/${encodeURIComponent(id)}`, 'DELETE', null)
+}
+
+/** ID of the root Scripts folder in Automation Studio, or null (none: Script activities are probably not turned on). */
+export async function getScriptRootFolderId(stack) {
+  const data = await proxyFetch(`${MCA_AS(stack)}/automation/v1/folders/?$filter=categorytype%20eq%20ssjsactivity`, 'GET', null)
+  const items = data?.items || []
+  const root = items.find((f) => f.parentId === 0) || items[0]
+  return root?.categoryId ?? null
 }
 
 /** Automation Studio's automation folders ({ items }), as for Query Activity folders. Not checked live. */

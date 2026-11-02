@@ -88,7 +88,7 @@ async function create() {
   creating.value = false
 }
 
-const KIND = { check: 'Check', de: 'Data extension', query: 'Query activity', automation: 'Automation', setup: 'Setup' }
+const KIND = { check: 'Check', de: 'Data extension', query: 'Query activity', script: 'Script activity', automation: 'Automation', setup: 'Setup' }
 
 // A stopped run leaves what it created; this removes it so the template can run again.
 const undoing = ref(false)
@@ -221,11 +221,18 @@ async function undo() {
               </div>
             </details>
           </div>
+          <div v-if="plan.ok.scripts?.length">
+            <div class="text-xs font-medium mb-1">Script activities (SSJS)</div>
+            <details v-for="sc in plan.ok.scripts" :key="sc.ref" class="mb-1">
+              <summary class="cursor-pointer text-xs"><span class="font-mono">{{ sc.name }}</span> <span class="text-muted-foreground">· key {{ sc.key }}</span></summary>
+              <CodeView :code="sc.script" lang="javascript" class="mt-1" />
+            </details>
+          </div>
           <div>
             <div class="text-xs font-medium mb-1">Automation (not scheduled, not run)</div>
             <p class="text-xs font-mono">{{ plan.ok.automation.name }}</p>
             <ol class="list-decimal pl-5 text-xs text-muted-foreground">
-              <li v-for="s in plan.ok.automation.steps" :key="s.name">{{ s.queries.map((r) => plan.ok.queries.find((q) => q.ref === r).name).join(', ') }}</li>
+              <li v-for="s in plan.ok.automation.steps" :key="s.name">{{ [...(s.queries || []).map((r) => plan.ok.queries.find((q) => q.ref === r).name), ...(s.scripts || []).map((r) => plan.ok.scripts.find((x) => x.ref === r).name)].join(', ') }}</li>
             </ol>
           </div>
           <div class="flex items-center gap-3">
@@ -274,6 +281,7 @@ async function undo() {
             <ul class="text-xs list-disc pl-5 space-y-1">
               <li>{{ plan.ok.des.length }} data extension{{ plan.ok.des.length === 1 ? '' : 's' }} in {{ deFolderPath || 'the Data Extensions folder' }}</li>
               <li>{{ plan.ok.queries.length }} Query activit{{ plan.ok.queries.length === 1 ? 'y' : 'ies' }} in {{ qaFolders.find((f) => f.id === qaFolderId)?.path || 'the Query folder' }}</li>
+              <li v-if="plan.ok.scripts?.length">{{ plan.ok.scripts.length }} Script activit{{ plan.ok.scripts.length === 1 ? 'y' : 'ies' }} in the Scripts folder</li>
               <li>The automation "{{ plan.ok.automation.name }}"{{ autoFolders.find((f) => f.id === autoFolderId) ? ` in ${autoFolders.find((f) => f.id === autoFolderId).path}` : '' }}{{ notifyEmail ? `, emailing ${notifyEmail} on completion and errors` : '' }}</li>
             </ul>
             <div class="flex justify-end gap-2 pt-1">
