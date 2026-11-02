@@ -21,6 +21,10 @@ Security and privacy review (October 2026). Details: `docs/security-summary.md`,
 
 **Fixed:** #1013 Reorder columns on Data Extensions; #1014 Query Studio 2 no longer tied to one Heroku host name; #1015 Saved Activities > Changes uses the same code editor look as Run Query (highlighting, line numbers, changed words marked, unchanged lines folded) and says when lines differ only in spaces or tabs.
 
+**New:**
+- Data > Email validation: check addresses with SFMC's email validation API (syntax, mail server, List Detective; pick which). One address, a pasted or loaded list (up to 5,000), the email addresses of contacts found by Contact Key, or a data extension column (up to 50,000 rows). For a data extension the results go into three fields you pick in it (isValidEmail, invalidReason, APIresponse; rows matched by primary key) or into a new data extension. CSV download. One SFMC call per address.
+- Journey > Contact journeys: one contact across all journeys or within one: the journeys it is in now, the journeys it went through in the last 7, 30 or 90 days, each step in order with status and errors, and the path outlined on the journey canvas. Email sends in Run Query opens data-view SQL for the contact's journey emails. Journey Builder's history search is not yet checked against a live org.
+
 **Other:** the creator credit shows the full name (Created by Matheswaran Kanagarajan, Ateko). The source is MIT licensed.
 
 ## 2.0.17 (2026-10-27)

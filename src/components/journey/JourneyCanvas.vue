@@ -12,6 +12,11 @@ const props = defineProps({
   layout: { type: Object, required: true },
   orientation: { type: String, default: 'horizontal' },
   selected: { type: String, default: null },
+  // Contact journeys: the path one contact took (node keys, edge indexes into graph.edges)
+  // and the step numbers per node. When `visited` is set, other nodes and edges are dimmed.
+  visited: { type: Set, default: null },
+  visitedEdges: { type: Set, default: null },
+  steps: { type: Map, default: null },
 })
 const emit = defineEmits(['select'])
 
@@ -38,14 +43,14 @@ const KIND = {
           <path d="M0,0 L8,4 L0,8 z" fill="currentColor" />
         </marker>
       </defs>
-      <g v-for="e in edges" :key="e.id">
-        <path :d="e.d" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#jarrow)" />
+      <g v-for="e in edges" :key="e.id" :class="visitedEdges ? (visitedEdges.has(e.id) ? 'text-primary' : 'opacity-30') : ''">
+        <path :d="e.d" fill="none" stroke="currentColor" :stroke-width="visitedEdges?.has(e.id) ? 3 : 1.5" marker-end="url(#jarrow)" />
         <text v-if="e.label" :x="e.lx" :y="e.ly" class="fill-foreground" font-size="10">{{ e.label.length > 28 ? e.label.slice(0, 27) + '…' : e.label }}</text>
       </g>
     </svg>
     <button v-for="n in nodes" :key="n.key" type="button"
       class="absolute text-left rounded-lg border-2 px-2.5 py-1.5 shadow-sm hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      :class="[KIND[n.kind].cls, selected === n.key ? 'ring-2 ring-primary' : '']"
+      :class="[KIND[n.kind].cls, selected === n.key ? 'ring-2 ring-primary' : '', visited ? (visited.has(n.key) ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : 'opacity-40') : '']"
       :style="{ left: `${n.box.x}px`, top: `${n.box.y}px`, width: `${NODE_W}px`, height: `${n.kind === 'exit' ? EXIT_H : NODE_H}px` }"
       :aria-pressed="selected === n.key" :title="n.name" @click="emit('select', n.key)">
       <div class="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide" :class="KIND[n.kind].tag">
@@ -54,6 +59,8 @@ const KIND = {
       </div>
       <div v-if="n.kind !== 'exit'" class="text-xs font-medium truncate text-foreground">{{ n.name }}</div>
       <div v-if="n.summary" class="text-[10px] text-muted-foreground truncate">{{ n.summary }}</div>
+      <span v-if="steps?.get(n.key)" class="absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold flex items-center justify-center"
+        :title="`Step ${steps.get(n.key).join(', ')} of this contact's path`">{{ steps.get(n.key).join(',') }}</span>
     </button>
   </div>
 </template>
