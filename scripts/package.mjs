@@ -13,7 +13,7 @@
 // stores no extra attributes (-X) or directory entries (-D). Needs `zip` (Info-ZIP).
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, readdirSync, statSync, utimesSync, rmSync, mkdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync, utimesSync, chmodSync, rmSync, mkdirSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -56,7 +56,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 
   const dist = join(root, 'dist')
   const files = listFiles(dist)
-  for (const f of files) utimesSync(join(dist, f), epoch, epoch)
+  // Same time and mode on every machine (zip stores both; a umask of 002 gave rw-rw-r-- and another hash).
+  for (const f of files) { chmodSync(join(dist, f), 0o644); utimesSync(join(dist, f), epoch, epoch) }
   mkdirSync(dirname(out), { recursive: true })
   rmSync(out, { force: true })
   execFileSync('zip', ['-X', '-D', '-q', out, '-@'], { cwd: dist, input: files.join('\n') + '\n', stdio: ['pipe', 'inherit', 'inherit'], env: { ...process.env, TZ: 'UTC' } })
