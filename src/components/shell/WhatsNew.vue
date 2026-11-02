@@ -5,7 +5,7 @@
 import { ref } from 'vue'
 import { X } from 'lucide-vue-next'
 
-const VERSION = '2.0.17'
+const VERSION = '2.0.18'
 const open = ref(false)
 const fromQuerySaver = ref(false)
 
@@ -35,6 +35,12 @@ function close() {
       </div>
       <h2 id="whatsnew-title" class="px-5 mt-3 text-lg font-bold">{{ fromQuerySaver ? 'SFMC Query Saver is now Marketing Cloud Toolkit' : 'What\'s new in Marketing Cloud Toolkit' }}</h2>
       <ul v-if="!fromQuerySaver" class="px-5 mt-3 mb-5 space-y-3 text-sm">
+        <li><strong class="block">Email validation</strong><span class="text-muted-foreground">Data > Email validation checks addresses with SFMC's validation API: one, a list, contacts by Contact Key, or a data extension column, with the results written back to that data extension or a new one.</span></li>
+        <li><strong class="block">Contact journeys</strong><span class="text-muted-foreground">Journey > Contact journeys shows the journeys a contact is in and the path it took through each, step by step and outlined on the journey canvas.</span></li>
+        <li><strong class="block">Email address validation template</strong><span class="text-muted-foreground">Automation > Templates builds an automation that validates every subscriber's address a batch at a time (needs Script activities in your business unit).</span></li>
+        <li><strong class="block">Automation Summary with step details</strong><span class="text-muted-foreground">The Automation Summary tab in Automation Studio shows what each step's activities do (targets, SQL, scripts, waits).</span></li>
+        <li><strong class="block">Reorder columns</strong><span class="text-muted-foreground">Data Extensions > Fields > Reorder columns, and Saved Activities shows changes in the code editor's diff view.</span></li>
+        <li><strong class="block">Privacy: you choose what is saved and sent</strong><span class="text-muted-foreground">Saved Emails, Saved Activities, saving Query Studio runs and Share are off until you turn them on in Settings. Usage analytics are gone. Feedback shows exactly what it sends.</span></li>
         <li><strong class="block">Column values and duplicates</strong><span class="text-muted-foreground">The chart icon by a column name in Preview data and Run Query results lists its distinct values with counts; tick values to filter, or keep only duplicates.</span></li>
         <li><strong class="block">View a CloudPage</strong><span class="text-muted-foreground">CloudPages: View shows the page itself (scripts off), its code (landing pages included), and the raw record; for code resources, their code.</span></li>
         <li><strong class="block">The journey diagram in downloads</strong><span class="text-muted-foreground">HTML and PDF downloads of a journey include its canvas.</span></li>

@@ -2,7 +2,7 @@
 
 All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are published to the Chrome Web Store as updates to the former SFMC Query Saver listing (1.x). Entries before 2.0.18 are the GitHub release notes, unchanged; "Checked headless" notes describe testing at the time.
 
-## Unreleased (2.0.18)
+## 2.0.18 (2026-11-02)
 
 Security and privacy review (October 2026). Details: `docs/security-summary.md`, `PRIVACY.md`, `security/audits/`.
 

@@ -6,10 +6,12 @@
 //   version) the contact is in now (public REST endpoint).
 // - POST interactions/journeyhistory/search: the steps a contact went through (the
 //   call behind Journey Builder's Journey History; its body is confirmed, see historyBody).
-//   POSTs need Journey Builder's CSRF token (background/jbCsrf.js). The item field names
-//   are NOT confirmed (the test account had no history); the parser accepts several
-//   spellings, following the page's columns (Contact Key, Journey, Activity Type,
-//   Activity Name, Activity ID, Status, Status Detail, Time), and the raw items are kept.
+//   POSTs need Journey Builder's CSRF token (background/jbCsrf.js). Item fields seen live
+//   (2026-11-02, a test journey with a random split): definitionId, definitionName,
+//   contactKey, transactionTime, epochTimeInMilliseconds, status, clientStatus, message,
+//   activityId (the published activity's id), activityType (WaitActivity, RANDOMSPLIT,
+//   Trigger, StartInteractionActivity, StopInteractionActivity, ...), activityName,
+//   outcomeActivityId. No version field. Other spellings are still accepted.
 // The data-view SQL (`journeySendsSql`) is the fallback: email sends only, from _Sent
 // joined to _JourneyActivity and _Journey.
 import { sfmcFetch } from './sfmcApi.js'
@@ -87,6 +89,8 @@ export function parseHistoryItem(it) {
     activityType: String(pick(it, 'activityType', 'ActivityType') ?? ''),
     status: String(pick(it, 'status', 'Status', 'activityStatus') ?? ''),
     time: String(pick(it, 'transactionTime', 'TransactionTime', 'createdDate', 'eventDate') ?? ''),
+    ms: Number(pick(it, 'epochTimeInMilliseconds')) || null,
+    clientStatus: String(pick(it, 'clientStatus') ?? ''),
     message: String(pick(it, 'statusDetail', 'StatusDetail', 'message', 'Message', 'errorMessage', 'statusMessage') ?? ''),
     raw: it,
   }
@@ -113,11 +117,28 @@ export function groupByJourney(items) {
   return out.sort((a, b) => timeOf({ time: b.last }) - timeOf({ time: a.last }))
 }
 
-const timeOf = (s) => { const t = Date.parse(s.time); return Number.isFinite(t) ? t : 0 }
+const timeOf = (s) => { if (s.ms) return s.ms; const t = Date.parse(s.time); return Number.isFinite(t) ? t : 0 }
+
+// Rows Journey Builder logs around entry and exit that are not canvas activities
+// (seen live 2026-11-02): an entry attempt with no activity, the Trigger (entry event),
+// StartInteractionActivity, and StopInteractionActivity when the contact leaves.
+const ENTRY_TYPES = /^(trigger|startinteractionactivity)$/i
+const EXIT_TYPES = /^(stopinteractionactivity)$/i
+export const isEntryRow = (s) => !s.activityType || ENTRY_TYPES.test(s.activityType)
+export const isExitRow = (s) => EXIT_TYPES.test(s.activityType)
+
+/** A readable label for a history row's step. */
+export function stepLabel(s) {
+  if (!s.activityType && !s.activityName) return s.status === 'ContactAttempted' ? 'Entry attempted' : (s.status || 'Entry')
+  if (ENTRY_TYPES.test(s.activityType)) return s.activityType.toLowerCase() === 'trigger' ? `Entry: ${s.activityName || 'event'}` : 'Journey started'
+  if (isExitRow(s)) return 'Left the journey'
+  return s.activityName || s.activityKey || s.activityId
+}
 
 /**
  * The canvas node keys the steps match in a journey definition, in step order:
- * by activity id, then key, then (when unique) name. Returns { keys, unmatched }.
+ * by activity id, then key, then (when unique) name. Entry and exit rows are not
+ * activities; `ended` says the contact left the journey. Returns { keys, unmatched, ended }.
  */
 export function matchSteps(journey, steps) {
   const acts = journey?.activities || []
@@ -131,12 +152,15 @@ export function matchSteps(journey, steps) {
   }
   const keys = []
   const unmatched = []
+  let ended = false
   for (const s of steps) {
+    if (isEntryRow(s)) continue
+    if (isExitRow(s)) { ended = true; continue }
     const k = byId.get(s.activityId.toLowerCase()) || byKey.get(s.activityKey.toLowerCase()) || byKey.get(s.activityId.toLowerCase())
       || (s.activityName && names.get(s.activityName.toLowerCase())) || null
     if (k) { if (keys[keys.length - 1] !== k) keys.push(k) } else unmatched.push(s)
   }
-  return { keys, unmatched }
+  return { keys, unmatched, ended }
 }
 
 /**

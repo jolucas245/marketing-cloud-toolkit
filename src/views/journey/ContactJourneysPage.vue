@@ -14,7 +14,7 @@ import SfmcErrorNotice from '@/components/results/SfmcErrorNotice.vue'
 import { useStack } from '@/composables/useStack.js'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
 import { searchJourneys, fetchJourney, journeyGraph, layoutJourney } from '@/utils/journeys.js'
-import { fetchContactMembership, fetchContactHistory, groupByJourney, matchSteps, pathOnGraph, stepNumbers, journeySendsSql, RANGES } from '@/utils/contactJourneys.js'
+import { fetchContactMembership, fetchContactHistory, groupByJourney, matchSteps, pathOnGraph, stepNumbers, journeySendsSql, stepLabel, RANGES } from '@/utils/contactJourneys.js'
 import { formatDateTime } from '@/utils/format.js'
 
 const router = useRouter()
@@ -90,8 +90,7 @@ async function toggle(g) {
     const def = await withReconnect(stack.value, () => fetchJourney(stack.value, id, g.version))
     const graph = journeyGraph(def)
     const layout = layoutJourney(graph)
-    const { keys, unmatched } = matchSteps(def, g.steps)
-    const ended = g.steps.some((s) => /exit|complete/i.test(`${s.activityType} ${s.status}`))
+    const { keys, unmatched, ended } = matchSteps(def, g.steps)
     const { nodes, edges } = pathOnGraph(graph, keys, { ended })
     paths.value = { ...paths.value, [g.id]: { status: 'ok', graph, layout, visited: nodes, visitedEdges: edges, steps: stepNumbers(keys), unmatched, journeyId: def.id, version: def.version, name: def.name } }
   } catch (e) {
@@ -102,7 +101,7 @@ async function toggle(g) {
 function openSendsSql() {
   router.push({ path: '/queries/workspace', query: { sql: journeySendsSql(searched.value?.key || contactKey.value.trim()) } })
 }
-const statusClass = (s) => (/fail|error/i.test(s) ? 'text-red-600' : /complete|success|executed/i.test(s) ? 'text-green-700 dark:text-green-400' : 'text-muted-foreground')
+const statusClass = (s) => (/fail|error/i.test(s) ? 'text-red-600' : /complete|success|executed|metcriteria/i.test(s) ? 'text-green-700 dark:text-green-400' : 'text-muted-foreground')
 </script>
 
 <template>
@@ -179,7 +178,7 @@ const statusClass = (s) => (/fail|error/i.test(s) ? 'text-red-600' : /complete|s
                 <tr v-for="(s, i) in g.steps" :key="i" class="border-b border-border/50 align-top">
                   <td class="py-1 pr-3 tabular-nums">{{ i + 1 }}</td>
                   <td class="py-1 pr-3 whitespace-nowrap">{{ s.time ? formatDateTime(s.time) : '' }}</td>
-                  <td class="py-1 pr-3">{{ s.activityName || s.activityKey || s.activityId }}</td>
+                  <td class="py-1 pr-3">{{ stepLabel(s) }}</td>
                   <td class="py-1 pr-3">{{ s.activityType }}</td>
                   <td class="py-1 pr-3" :class="statusClass(s.status)">{{ s.status }}</td>
                   <td class="py-1 pr-3 break-words">{{ s.message }}</td>
