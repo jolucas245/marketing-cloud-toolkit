@@ -172,8 +172,11 @@ async function copy() {
             <p v-if="answer.note" class="whitespace-pre-line">{{ answer.note }}</p>
             <p v-if="!answer.sql" class="text-amber-700 dark:text-amber-300">The answer has no SQL. Try rewording the request.</p>
             <template v-else>
-              <div class="text-muted-foreground">Left: the current SQL. Right: the suggestion.</div>
-              <DiffView :left="sql" :right="answer.sql" />
+              <template v-if="sql.trim()">
+                <div class="text-muted-foreground">Left: the current SQL. Right: the suggestion.</div>
+                <DiffView :left="sql" :right="answer.sql" />
+              </template>
+              <CodeView v-else :code="answer.sql" max-height="320px" data-ai-sql />
               <div class="flex flex-wrap gap-2">
                 <Button size="sm" class="h-8 text-xs" :title="applyTitle" @click="emit('apply', answer.sql)">{{ applyLabel }}</Button>
                 <Button variant="outline" size="sm" class="h-8 text-xs" @click="emit('new-panel', answer.sql)">Open in a new panel</Button>
