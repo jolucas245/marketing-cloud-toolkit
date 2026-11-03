@@ -1,7 +1,8 @@
 <script setup>
 // One automation: overview, schedule, error notifications and every step's activities,
-// as an Overview (steps side by side, like Automation Studio) or a Full view (every
-// activity's details). Read-only.
+// as an Overview (the canvas: starting source and step lanes, like Automation Studio,
+// components/automation/AutomationCanvas.vue) or a Full view (every activity's details).
+// Read-only.
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -14,10 +15,11 @@ import ProgressBar from '@/components/ui/ProgressBar.vue'
 import DownloadMenu from '@/components/results/DownloadMenu.vue'
 import RunHistory from '@/components/automation/RunHistory.vue'
 import WatchButton from '@/components/automation/WatchButton.vue'
+import AutomationCanvas from '@/components/automation/AutomationCanvas.vue'
 import { useStack } from '@/composables/useStack.js'
 import { fetchAutomation, fetchActivityDetails, fetchAutomationStatus, fetchLatestRun } from '@/utils/automationApi.js'
 import { automationRunState, createPoller } from '@/utils/runProgress.js'
-import { describeActivity, activityTypeLabel, automationUrl } from '@/utils/activityTypes.js'
+import { describeActivity, automationUrl } from '@/utils/activityTypes.js'
 import { openInSfmc } from '@/utils/sfmcLinks.js'
 import { automationOverviewRows, scheduleRows, automationDoc } from '@/utils/automationDoc.js'
 import { runInBatches } from '@/utils/batchRunner.js'
@@ -35,7 +37,7 @@ const notifications = ref(null)
 const loading = ref(true)
 const error = ref('')
 const acts = reactive({}) // "si.ai" → { status: 'loading' | 'ok' | 'error', desc, error }
-const view = ref('full')
+const view = ref('overview') // the canvas first, as Automation Studio opens (feedback #1035)
 const showAllFields = ref(false)
 const open = reactive({ schedule: true, notifications: false })
 const modal = ref(null) // "si.ai" of the activity shown in the Overview modal
@@ -178,33 +180,9 @@ const summaryPrompt = (extra) => buildAiTaskPrompt('automation', { text: docText
 
         <RunHistory :stack="stack" :automation-id="id" :refresh-key="historyKey" />
 
-        <!-- Overview: steps left to right, like Automation Studio -->
-        <section v-if="view === 'overview'" class="overflow-x-auto pb-2">
-          <div class="flex items-start gap-1 min-w-max">
-            <template v-for="(step, si) in steps" :key="si">
-              <div v-if="si" class="self-center px-1 text-muted-foreground" aria-hidden="true">→</div>
-              <div class="w-56 rounded-lg border bg-card" :class="runState.running && runState.step === si + 1 ? 'border-primary ring-1 ring-primary' : 'border-border'">
-                <div class="px-3 py-2 border-b border-border bg-muted/40 rounded-t-lg">
-                  <div class="text-xs font-bold text-primary">Step {{ si + 1 }}</div>
-                  <ProgressBar v-if="runState.running && runState.step === si + 1" indeterminate size="xs" aria-label="This step is running" class="mt-1" />
-                  <div v-if="step.name" class="text-[11px] text-muted-foreground line-clamp-2">{{ step.name }}</div>
-                </div>
-                <div class="p-2 space-y-1.5">
-                  <button v-for="(a, ai) in step.activities || []" :key="ai" class="w-full text-left rounded-md border border-border px-2 py-1.5 hover:bg-accent" @click="modal = key(si, ai)">
-                    <div class="flex items-center gap-1 text-[10px] font-semibold uppercase text-primary">
-                      <ActivityIcon :type="a.objectTypeId" size="h-3 w-3" />
-                      {{ activityTypeLabel(a.objectTypeId) }}
-                      <Loader2 v-if="acts[key(si, ai)]?.status === 'loading'" class="h-3 w-3 animate-spin" />
-                      <span class="ml-auto text-muted-foreground font-normal">{{ si + 1 }}.{{ ai + 1 }}</span>
-                    </div>
-                    <div class="text-xs truncate" :title="a.name">{{ a.name }}</div>
-                  </button>
-                  <p v-if="!step.activities?.length" class="text-xs text-muted-foreground italic">No activities.</p>
-                </div>
-              </div>
-            </template>
-          </div>
-        </section>
+        <!-- Overview: the canvas, like Automation Studio's (feedback #1035) -->
+        <AutomationCanvas v-if="view === 'overview'" :details="details" :acts="acts"
+          :running-step="runState.running ? runState.step || 0 : 0" @select="modal = $event" />
 
         <!-- Full view: every activity's details -->
         <section v-else class="space-y-5">

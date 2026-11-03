@@ -6,6 +6,7 @@ import { activityBlocks, activityTypeLabel, describeActivity } from './activityT
 import { formatDateTime } from './format.js'
 import { fetchAutomation, fetchActivityDetails } from './automationApi.js'
 import { runInBatches } from './batchRunner.js'
+import { automationSvg } from './automationSvg.js'
 
 export function automationOverviewRows(d) {
   return [
@@ -38,6 +39,10 @@ export function automationDoc(details, notifications, descFor) {
   if (workers.length) {
     blocks.push({ type: 'h', level: 2, text: 'Error notifications' },
       { type: 'table', columns: ['Type', 'Recipient', 'Channel'], rows: workers.map((w) => [w.notificationType || '', w.definition || '', w.channelType || '']) })
+  }
+  // The canvas (feedback #1035): drawn in the HTML and PDF downloads, a note elsewhere.
+  if ((details.steps || []).length) {
+    blocks.push({ type: 'h', level: 2, text: 'Steps' }, { type: 'svg', svg: automationSvg(details), note: 'Automation diagram: in the HTML and PDF downloads.' })
   }
   ;(details.steps || []).forEach((step, si) => {
     blocks.push({ type: 'h', level: 2, text: `Step ${si + 1}${step.name ? `: ${step.name}` : ''}` })

@@ -6,13 +6,15 @@ import {
   Pencil, Check, X, Play, ShieldCheck, ChevronDown, LogIn, History,
   FolderOpen, RefreshCw, Search, Share2, Copy, ExternalLink, Maximize2, Minimize2, AlignLeft,
   Table2, FileOutput, Blocks, Share, Wand2, Users, Eye, ListPlus, TextCursorInput, Save as SaveIcon, Rows3, Eraser, ArchiveRestore, TextSearch,
-  Bookmark, Database,
+  Bookmark, Database, Loader2, Sparkles, AlertCircle,
 } from 'lucide-vue-next'
 import { referencedTables } from '../../utils/sqlContext.js'
 import AiAssistDialog from './AiAssistDialog.vue'
 import AiButton from '../ai/AiButton.vue'
 import ToolbarMenu from './ToolbarMenu.vue'
 import { useAi, pendingAiRequest } from '../../composables/useAi.js'
+import { AI_STATUS_TEXT, AI_STATUS_TITLE, aiStatusToast } from '../../composables/aiBackground.js'
+import { showToast } from '../../composables/useToast.js'
 import SampleDialog from './SampleDialog.vue'
 import EarlierTextDialog from './EarlierTextDialog.vue'
 import { topPreviewSql, PREVIEW_ROWS } from '../../utils/previewSql.js'
@@ -219,6 +221,14 @@ function openAi(mode = 'write', request = '') {
   showAi.value = true
 }
 function closeAi() { showAi.value = false; aiRequest.value = '' }
+// Feedback #1032: a request hidden with Keep working (or by closing the dialog while the
+// model thinks) goes on; the toolbar shows it. While one is pending, Ask AI reopens it.
+const aiStatus = ref(null) // null | writing | ready | failed
+function onAiStatus(s) {
+  const msg = aiStatusToast(aiStatus.value, s, `panel #${props.panelIndex + 1}`)
+  aiStatus.value = s
+  if (msg) showToast(msg, 6000)
+}
 // Home's "Describe the query you need" opens a panel with this request.
 watch(pendingAiRequest, (p) => {
   if (!p || p.queryId !== props.queryId || !ai.shown.value) return
@@ -321,6 +331,17 @@ function openSchema() {
         <ToolbarMenu label="Tables" :icon="Table2" title="Schema search, sample rows, shared snippets" :items="tableItems" />
         <ToolbarMenu label="Open" :icon="FolderOpen" title="Open a query activity, or this query in Query Builder or Diagramforce" :items="openItems" />
         <ToolbarMenu label="Save" :icon="SaveIcon" title="Save as query activity, share" :items="saveItems" />
+        <button v-if="ai.shown.value && aiStatus" type="button" data-ai-status :data-state="aiStatus" :title="AI_STATUS_TITLE[aiStatus]"
+          class="tb-btn h-8 inline-flex items-center gap-1.5 px-3 rounded-full border text-[12px] font-medium shrink-0"
+          :class="aiStatus === 'failed' ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300'
+            : aiStatus === 'ready' ? 'border-primary/40 bg-primary/10 text-primary'
+            : 'border-border bg-muted text-muted-foreground'"
+          @click="showAi = true">
+          <Loader2 v-if="aiStatus === 'writing'" class="h-3.5 w-3.5 animate-spin" />
+          <AlertCircle v-else-if="aiStatus === 'failed'" class="h-3.5 w-3.5" />
+          <Sparkles v-else class="h-3.5 w-3.5" />
+          <span>{{ AI_STATUS_TEXT[aiStatus] }}</span>
+        </button>
         <AiButton label="Ask AI" label-class="tb-label" class="tb-btn h-8 px-2.5 rounded-full bg-card border-border text-[13px] font-medium" :disabled="activeTab !== 'editor'" title="Ask AI (experimental): write or fix this query with Gemini Nano in Chrome, on this computer" @click="openAi()" />
         <button type="button" :class="pill" :disabled="!canInteract || isRunning" title="Validate: check the query with SFMC without running it" @click="runValidation"><ShieldCheck class="h-3.5 w-3.5" /><span class="tb-label">Validate</span></button>
         <button type="button" :class="pill" :disabled="!canInteract || isRunning || !queryText.trim()" :title="`Preview: run with TOP ${PREVIEW_ROWS} (the selection, or the whole query) to see the first rows quickly`" @click="previewTop"><Eye class="h-3.5 w-3.5" /><span class="tb-label">Preview</span></button>
@@ -336,7 +357,7 @@ function openSchema() {
       </span>
     </div>
 
-    <AiAssistDialog v-if="ai.shown.value" :open="showAi" :sql="queryText" :editor="editorRef" :run-problems="runProblems" :initial-mode="aiMode" :initial-request="aiRequest" :auto-ask="!!aiRequest" @close="closeAi" @apply="applyAi" @new-panel="openInNewPanel" />
+    <AiAssistDialog v-if="ai.shown.value" :open="showAi" :sql="queryText" :editor="editorRef" :run-problems="runProblems" :initial-mode="aiMode" :initial-request="aiRequest" :auto-ask="!!aiRequest" can-background @status="onAiStatus" @close="closeAi" @apply="applyAi" @new-panel="openInNewPanel" />
     <SampleDialog :open="showSample" :stack="stack" :editor="editorRef" @close="showSample = false" @new-panel="openInNewPanel" />
     <EarlierTextDialog :open="showEarlier" :snapshots="snapshots" :current="queryText" @close="showEarlier = false" @restore="restoreEarlier" />
     <SharedSnippetsDialog :open="showSnippets" :stack="stack" :current-sql="snippetSql" @insert="insertSnippet" @close="showSnippets = false" />

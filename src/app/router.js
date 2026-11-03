@@ -14,6 +14,7 @@ const PAGES = {
   '/where-used': () => import('../views/data/WhereUsedPage.vue'),
   '/de-storage': () => import('../views/data/DEStoragePage.vue'),
   '/create-de': () => import('../views/data/CreateDEPage.vue'),
+  '/metadata': () => import('../views/data/MetadataExportPage.vue'),
   '/contacts': () => import('../views/contacts/ContactsPage.vue'),
   '/email-validation': () => import('../views/data/EmailValidationPage.vue'),
   '/contact-journeys': () => import('../views/journey/ContactJourneysPage.vue'),

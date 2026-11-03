@@ -5,6 +5,10 @@ All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are pub
 ## Unreleased (next 2.0.19)
 
 **New:**
+- Data > Download metadata: one export of the business unit setup (data extensions and fields, query and other activities, automations with steps, journeys, entry events, CloudPages, folders) as Excel, JSON or Markdown. Never reads data extension rows (feedback #1036).
+- Automation canvas laid out like Automation Studio: the start source, a lane per step with its activities; also in HTML and PDF downloads (feedback #1035).
+- AI Assist in Run Query can keep working in the background: the panel shows when the suggestion is ready (feedback #1032).
+- Create DE and Where used pages follow the new design; the sidebar shows icons only in narrow windows.
 - Home page, the new start page: connection and business unit, automations and journeys at a glance, what needs a look, watched automations, quick start links, the pages you use most and your recent saved queries (feedback #1025).
 - Report the error: error messages have a link that opens Feedback with the error, the page and the time filled in, to check and edit before sending.
 - Contact journeys: each entry into a journey (definitionInstanceId) shows as one flow, such as Entry attempted, Entry, Journey started, Email, Left the journey, with times on hover; pick an entry to see its path on the canvas (feedback #1020). Results stay while you visit other pages (#1017). Download menu (Markdown, Word, PDF, HTML, with the canvas and the path) and CSV of every step (#1019).

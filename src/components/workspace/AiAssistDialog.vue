@@ -3,9 +3,9 @@
 // panel, with Chrome's built-in model (utils/aiAssist.js). The model runs on this
 // computer. The user sees the whole prompt before it runs; query results are never in
 // it. The answer is shown as a diff against the panel's SQL, applied only on Apply.
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'radix-vue'
-import { X, Loader2, Sparkles, Download, Square, Copy, Plus, ChevronDown, ChevronRight } from 'lucide-vue-next'
+import { X, Loader2, Sparkles, Download, Square, Copy, Plus, ChevronDown, ChevronRight, EyeOff } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
 import CodeView from '@/components/results/CodeView.vue'
 import DiffView from '@/components/results/DiffView.vue'
@@ -15,6 +15,7 @@ import { useAiRun } from '@/composables/useAi.js'
 import { DATA_VIEWS } from '@/utils/dataViews.js'
 import { bareTableName } from '@/utils/schemaCatalog.js'
 import { showToast } from '@/composables/useToast.js'
+import { aiBackgroundStatus } from '@/composables/aiBackground.js'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -29,8 +30,11 @@ const props = defineProps({
   // Query Builder: the answer is drawn on the diagram.
   applyLabel: { type: String, default: 'Apply to this panel' },
   applyTitle: { type: String, default: 'Replace the panel\'s SQL (the old text is kept under Earlier text, and Ctrl+Z works in the editor)' },
+  // Feedback #1032: closing while the model thinks only hides the dialog; the request
+  // goes on and `status` tells the parent where it is. Off: closing stops the request.
+  canBackground: { type: Boolean, default: false },
 })
-const emit = defineEmits(['close', 'apply', 'new-panel'])
+const emit = defineEmits(['close', 'apply', 'new-panel', 'status'])
 
 const mode = ref('write')
 const request = ref('')
@@ -56,8 +60,20 @@ async function addFromInput() {
 }
 function removeTable(t) { tables.value = tables.value.filter((x) => x !== t) }
 
+// Hidden while the model was thinking (Keep working, X, Esc or a click outside).
+const background = ref(false)
+const status = computed(() => aiBackgroundStatus({ open: props.open, background: background.value, state: state.value }))
+watch(status, (s) => emit('status', s), { immediate: true })
+onBeforeUnmount(() => run.stop())
+
 watch(() => props.open, async (on) => {
-  if (!on) { run.stop(); return }
+  if (!on) {
+    if (props.canBackground && state.value === 'asking') background.value = true
+    else { background.value = false; run.stop() }
+    return
+  }
+  // Reopened after Keep working: show that request (still running, its answer or its error).
+  if (background.value) { background.value = false; return }
   mode.value = props.initialMode === 'write' && props.initialRequest ? 'write'
     : props.initialMode === 'fix' || (props.runProblems.length && props.sql.trim()) ? 'fix' : 'write'
   request.value = props.initialRequest || ''
@@ -69,7 +85,7 @@ watch(() => props.open, async (on) => {
   for (const name of props.editor?.tablesInQuery?.() || []) await addTable(name)
   await run.check()
   // From Home: ask straight away when the model is ready.
-  if (props.initialRequest && props.autoAsk && availability.value === 'available') ask()
+  if (props.initialRequest && props.autoAsk && props.open && availability.value === 'available') ask()
 }, { immediate: true })
 
 const prompt = computed(() => buildAiPrompt({
@@ -163,8 +179,9 @@ async function copy() {
               {{ availability === 'downloadable' ? 'Download the model and ask' : mode === 'fix' ? 'Fix it' : 'Write it' }}
             </Button>
             <Button v-if="state === 'asking'" variant="outline" size="sm" class="h-8 text-xs" @click="stop"><Square class="h-3 w-3 mr-1" /> Stop</Button>
+            <Button v-if="state === 'asking' && canBackground" variant="outline" size="sm" class="h-8 text-xs" title="Hide this and keep working: the panel shows when the answer is ready" data-ai-keep-working @click="emit('close')"><EyeOff class="h-3 w-3 mr-1" /> Keep working</Button>
             <span v-if="download != null" class="text-muted-foreground">Downloading the model: {{ Math.round(download * 100) }}%</span>
-            <span v-else-if="state === 'asking'" class="text-muted-foreground">Thinking. The first answer can take a while.</span>
+            <span v-else-if="state === 'asking'" class="text-muted-foreground">Thinking. The first answer can take a while.<template v-if="canBackground"> You can keep working: closing this does not stop it.</template></span>
           </div>
           <p v-if="error" class="text-red-600" role="alert">{{ error }}<ReportErrorButton /></p>
 

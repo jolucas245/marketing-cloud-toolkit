@@ -1,17 +1,33 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-vue-next'
 import { NAV_GROUPS } from '@/app/nav.js'
 import { policy, routeBlocked } from '@/utils/policy.js'
 import CreatorCredit from './CreatorCredit.vue'
 
 const COLLAPSED_KEY = 'toolkit_sidebar_collapsed'
-const collapsed = ref(false)
-try { collapsed.value = localStorage.getItem(COLLAPSED_KEY) === '1' } catch { /* storage blocked */ }
+const stored = ref(false)
+try { stored.value = localStorage.getItem(COLLAPSED_KEY) === '1' } catch { /* storage blocked */ }
+
+// In a narrow window (phone width) the sidebar starts as icons only and opening it is not
+// remembered, so pages keep their width. It closes again after a page is picked.
+const NARROW = '(max-width: 767px)'
+const mq = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(NARROW) : null
+const narrow = ref(!!mq?.matches)
+const narrowOpen = ref(false)
+const onMedia = (e) => { narrow.value = e.matches; narrowOpen.value = false }
+mq?.addEventListener?.('change', onMedia)
+onBeforeUnmount(() => mq?.removeEventListener?.('change', onMedia))
+const route = useRoute()
+watch(() => route?.fullPath, () => { narrowOpen.value = false })
+
+const collapsed = computed(() => (narrow.value ? !narrowOpen.value : stored.value))
 
 function toggle() {
-  collapsed.value = !collapsed.value
-  try { localStorage.setItem(COLLAPSED_KEY, collapsed.value ? '1' : '0') } catch { /* storage blocked */ }
+  if (narrow.value) { narrowOpen.value = !narrowOpen.value; return }
+  stored.value = !stored.value
+  try { localStorage.setItem(COLLAPSED_KEY, stored.value ? '1' : '0') } catch { /* storage blocked */ }
 }
 
 // Pages an admin policy turned off are left out (utils/policy.js).

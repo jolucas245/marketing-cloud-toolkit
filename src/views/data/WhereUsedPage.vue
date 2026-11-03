@@ -3,12 +3,12 @@
 // automation, entry event, email, content block, file location, profiles) and see
 // where it is used. The scan runs in the Where used panel (components/usage/).
 import { computed, ref, watch } from 'vue'
-import { Search, Loader2, Network } from 'lucide-vue-next'
-import Button from '@/components/ui/button/Button.vue'
+import { Search, Loader2, Network, Database, ChevronRight } from 'lucide-vue-next'
+import UsagePanel from '@/components/usage/UsagePanel.vue'
 import SfmcErrorNotice from '@/components/results/SfmcErrorNotice.vue'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
 import { useStack } from '@/composables/useStack.js'
-import { useUsage } from '@/composables/useUsage.js'
+import { useUsage, targetKey } from '@/composables/useUsage.js'
 import { searchLocalDEs, searchSharedSyncDEs, fetchDEFieldList, fieldTypeLabel } from '@/utils/deApi.js'
 import { ACTIVITY_SEARCH_TYPES, searchActivities, searchAutomations } from '@/utils/automationApi.js'
 import { fetchEventDefinitions } from '@/utils/journeyApi.js'
@@ -66,7 +66,7 @@ async function search() {
         const [local, shared] = await Promise.all([searchLocalDEs(s, q, 1), searchSharedSyncDEs(s, q).catch(() => [])])
         const seen = new Set()
         out = [...shared, ...local.items].filter((d) => !seen.has(d.id) && seen.add(d.id)).map((de) => ({
-          key: de.id, title: de.name, sub: [de.customerKey, de.sourceType ? (de.sourceType === 'shared' ? 'Shared' : 'Synchronized') : '', formatDateTime(de.modifiedDate)].filter(Boolean).join(' · '),
+          key: de.id, title: de.name, code: de.customerKey, badge: de.sourceType ? (de.sourceType === 'shared' ? 'Shared' : 'Synchronized') : '', sub: formatDateTime(de.modifiedDate),
           ...(kind.value === 'de' ? { target: { kind: 'de', de } } : { pick: de }),
         }))
       } else if (kind.value === 'dataview') {
@@ -84,7 +84,7 @@ async function search() {
       } else if (kind.value === 'event') {
         all = all || (await fetchEventDefinitions(s)).items
         out = all.filter((e) => contains(e.name, q) || contains(e.eventDefinitionKey, q) || contains(e.dataExtensionName, q)).slice(0, 100)
-          .map((e) => ({ key: e.id, title: e.name || e.eventDefinitionKey, sub: [e.eventDefinitionKey, e.dataExtensionName].filter(Boolean).join(' · '), target: { kind: 'event', event: e } }))
+          .map((e) => ({ key: e.id, title: e.name || e.eventDefinitionKey, code: e.eventDefinitionKey, sub: e.dataExtensionName || '', target: { kind: 'event', event: e } }))
       } else if (kind.value === 'email' || kind.value === 'block') {
         const items = await searchAssets(s, q, kind.value)
         out = items.map((a) => ({ key: a.id, title: a.name, sub: [a.assetType?.displayName || a.assetType?.name, a.category?.name, formatDateTime(a.modifiedDate)].filter(Boolean).join(' · '), target: { kind: kind.value, asset: a } }))
@@ -130,69 +130,128 @@ function open(row) {
 function showProfiles() {
   usage.start(stack.value, { kind: 'profiles', profileType: kind.value })
 }
+
+// The row whose scan is shown (or running) in the panel.
+const currentKey = computed(() => (usage.state.target ? targetKey(usage.state.target) : ''))
+const rowTarget = (r) => r.target || (kind.value === 'dataview' ? { kind: 'de', de: r.pick } : null)
+const isCurrent = (r) => (rowTarget(r) ? targetKey(rowTarget(r)) === currentKey.value : fieldDE.value?.name === r.pick?.name)
+const panelShown = computed(() => usage.state.open && !!usage.state.target)
+const countText = computed(() => {
+  const n = rows.value?.length || 0
+  const what = kind.value === 'field' ? 'data extension' : kindInfo.value.label.toLowerCase()
+  const q = query.value.trim()
+  return `${n} ${n === 1 ? what : what.replace(/y$/, 'ie') + 's'}${q ? ` match "${q}"` : ''}.`
+})
 </script>
 
 <template>
-  <div class="h-full flex flex-col">
-    <div class="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-border bg-card">
-      <label class="text-xs text-muted-foreground" for="wu-kind">Check</label>
-      <select id="wu-kind" v-model="kind" class="h-8 rounded-md border border-border bg-background px-2 text-xs">
-        <option v-for="k in KINDS" :key="k.id" :value="k.id">{{ k.label }}</option>
-      </select>
-      <select v-if="kind === 'activity'" v-model="activityType" class="h-8 rounded-md border border-border bg-background px-2 text-xs" aria-label="Activity type">
-        <option v-for="t in ACTIVITY_SEARCH_TYPES" :key="t.id" :value="t">{{ t.label }}</option>
-      </select>
-      <form v-if="!isProfile" class="flex items-center gap-2" @submit.prevent="search">
-        <div class="relative">
-          <Search class="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <input v-model="query" type="search" :placeholder="`${kind === 'field' ? 'Data extension' : kindInfo.label} name (empty lists the newest)`" :aria-label="`${kindInfo.label} name`"
-            class="h-8 w-72 rounded-md border border-border bg-background pl-7 pr-2 text-xs" />
+  <div class="h-full flex flex-col bg-background text-foreground">
+    <!-- Page header: same as the Data Extensions page, with Where used as the current view -->
+    <div class="border-b border-border bg-card px-5 pt-3.5 flex flex-col gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary" aria-hidden="true"><Database class="h-[18px] w-[18px]" /></span>
+          <h1 class="text-[22px] font-bold leading-tight">Data Extensions</h1>
         </div>
-        <Button size="sm" class="h-8 text-xs" type="submit" :disabled="loading"><Loader2 v-if="loading" class="h-3.5 w-3.5 mr-1 animate-spin" /> Search</Button>
-      </form>
-      <Button v-else size="sm" class="h-8 text-xs" @click="showProfiles"><Network class="h-3.5 w-3.5 mr-1" /> Find {{ PROFILE_LABELS[kind].toLowerCase() }}</Button>
+      </div>
+      <nav aria-label="Data extension views" class="flex gap-1 overflow-x-auto whitespace-nowrap">
+        <router-link to="/data-extensions" class="-mb-px inline-flex h-11 items-center border-b-2 border-transparent px-3 text-sm font-medium text-muted-foreground hover:text-foreground">All data extensions</router-link>
+        <router-link to="/de-storage" class="-mb-px inline-flex h-11 items-center border-b-2 border-transparent px-3 text-sm font-medium text-muted-foreground hover:text-foreground">Storage</router-link>
+        <span aria-current="page" class="-mb-px inline-flex h-11 items-center border-b-2 border-primary px-3 text-sm font-semibold">Where used</span>
+      </nav>
     </div>
 
-    <div class="flex-1 min-h-0 overflow-y-auto p-4">
-      <p class="mb-3 text-xs text-muted-foreground max-w-2xl">{{ kindInfo.hint }} Results open in the Where used panel, which shows each step of the scan with a progress bar and keeps going if you close it.</p>
-      <SfmcErrorNotice :error="error" :retrying="loading" @retry="search" />
-
-      <template v-if="fieldDE">
-        <div class="mb-2 flex items-center gap-2 text-xs">
-          <button class="text-primary hover:underline" @click="fieldDE = null">All results</button>
-          <span class="text-muted-foreground">/</span>
-          <span class="font-semibold">{{ fieldDE.name }}</span>
-        </div>
-        <div v-if="fieldsLoading" class="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 class="h-3.5 w-3.5 animate-spin" /> Loading fields…</div>
-        <ul v-else class="divide-y divide-border rounded-md border border-border bg-card max-w-2xl">
-          <li v-for="f in fieldList" :key="f.name" class="flex items-center gap-2 px-3 py-1.5 text-xs">
-            <span class="font-medium" :class="{ 'font-semibold': f.isPrimaryKey }">{{ f.name }}</span>
-            <span class="text-muted-foreground">{{ fieldTypeLabel(f) }}</span>
-            <div class="flex-1" />
-            <button class="inline-flex items-center gap-1 text-primary hover:underline" @click="usage.start(stack, { kind: 'field', de: fieldDE, field: f.name })"><Network class="h-3 w-3" /> Where used</button>
-          </li>
-          <li v-if="!fieldList.length" class="px-3 py-2 text-xs text-muted-foreground">No fields.</li>
-        </ul>
-      </template>
-
-      <template v-else-if="rows">
-        <p v-if="!rows.length" class="text-sm text-muted-foreground">Nothing found.</p>
-        <ul v-else class="divide-y divide-border rounded-md border border-border bg-card max-w-3xl">
-          <li v-for="r in rows" :key="r.key" class="flex items-center gap-2 px-3 py-1.5 text-xs">
-            <div class="min-w-0 flex-1">
-              <div class="font-medium truncate">{{ r.title }}</div>
-              <div v-if="r.sub" class="text-muted-foreground truncate">{{ r.sub }}</div>
+    <div class="flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
+      <div class="flex-1 min-w-0 lg:overflow-y-auto px-5 py-[18px] flex flex-col gap-3.5">
+        <!-- Picker -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <label class="text-[13px] text-muted-foreground" for="wu-kind">Check</label>
+          <select id="wu-kind" v-model="kind" class="h-[38px] rounded-full border border-border bg-card px-3 text-sm">
+            <option v-for="k in KINDS" :key="k.id" :value="k.id">{{ k.label }}</option>
+          </select>
+          <select v-if="kind === 'activity'" v-model="activityType" class="h-[38px] rounded-full border border-border bg-card px-3 text-sm" aria-label="Activity type">
+            <option v-for="t in ACTIVITY_SEARCH_TYPES" :key="t.id" :value="t">{{ t.label }}</option>
+          </select>
+          <form v-if="!isProfile" class="flex flex-1 basis-[260px] min-w-0 items-center gap-2.5" @submit.prevent="search">
+            <div class="flex flex-1 min-w-0 items-center gap-2.5 h-[38px] rounded-full border border-border bg-card px-4 focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10">
+              <Search class="h-4 w-4 shrink-0 text-muted-foreground" />
+              <input v-model="query" type="search" :placeholder="`${kind === 'field' ? 'Data extension' : kindInfo.label} name (empty lists the newest)`" :aria-label="`${kindInfo.label} name`"
+                class="flex-1 min-w-0 bg-transparent text-sm outline-none" />
             </div>
-            <button class="inline-flex items-center gap-1 text-primary hover:underline whitespace-nowrap" @click="open(r)">
-              <Network class="h-3 w-3" /> {{ r.target ? 'Where used' : kind === 'dataview' ? 'Where used' : 'Pick a field' }}
+            <button type="submit" class="h-[38px] inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 whitespace-nowrap" :disabled="loading">
+              <Loader2 v-if="loading" class="h-4 w-4 animate-spin" /> Search
             </button>
-            <button v-if="kind === 'dataview'" class="text-primary hover:underline whitespace-nowrap" @click="kind = 'field'; $nextTick(() => pickDE(r.pick))">Fields</button>
-          </li>
-        </ul>
-      </template>
+          </form>
+          <button v-else type="button" class="h-[38px] inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90" @click="showProfiles">
+            <Network class="h-4 w-4" /> Find {{ PROFILE_LABELS[kind].toLowerCase() }}
+          </button>
+        </div>
 
-      <div v-else-if="!isProfile && !loading" class="max-w-md mt-8 text-sm text-muted-foreground">
-        Search for a {{ kind === 'field' ? 'data extension, then pick one of its fields' : kindInfo.label.toLowerCase() }}. Search with an empty box to list the newest.
+        <p class="text-[13px] text-muted-foreground max-w-3xl">
+          <template v-if="rows && !fieldDE"><strong class="text-foreground">{{ countText }}</strong> Pick one to check: </template>{{ kindInfo.hint }}
+          <template v-if="!rows || fieldDE"> The scan shows each step with a progress bar and keeps going if you close it or open another section.</template>
+        </p>
+        <SfmcErrorNotice :error="error" :retrying="loading" @retry="search" />
+
+        <!-- Fields of the picked data extension -->
+        <template v-if="fieldDE">
+          <div class="flex items-center gap-1.5 text-[13px]">
+            <button class="text-primary hover:underline" @click="fieldDE = null">All results</button>
+            <ChevronRight class="h-3.5 w-3.5 text-muted-foreground" />
+            <span class="font-semibold">{{ fieldDE.name }}</span>
+          </div>
+          <div v-if="fieldsLoading" class="flex items-center gap-2 text-[13px] text-muted-foreground"><Loader2 class="h-4 w-4 animate-spin" /> Loading fields…</div>
+          <section v-else class="rounded-[14px] border border-border bg-card overflow-hidden">
+            <div v-for="(f, i) in fieldList" :key="f.name" class="flex items-center gap-3 px-3.5 py-2.5" :class="{ 'border-t border-border': i,
+              'bg-primary/5 shadow-[inset_3px_0_0_hsl(var(--primary))]': usage.state.target?.kind === 'field' && usage.state.target.field === f.name && usage.state.target.de?.name === fieldDE.name }">
+              <div class="flex-1 min-w-0 flex flex-col gap-0.5">
+                <span class="text-sm" :class="f.isPrimaryKey ? 'font-semibold' : 'font-medium'">{{ f.name }}</span>
+                <span class="text-xs text-muted-foreground">{{ fieldTypeLabel(f) }}<template v-if="f.isPrimaryKey"> · Primary key</template></span>
+              </div>
+              <button class="h-8 shrink-0 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[13px] font-semibold text-primary hover:bg-accent"
+                @click="usage.start(stack, { kind: 'field', de: fieldDE, field: f.name })"><Network class="h-3.5 w-3.5" /> Where used</button>
+            </div>
+            <p v-if="!fieldList.length" class="px-3.5 py-2.5 text-[13px] text-muted-foreground">No fields.</p>
+          </section>
+        </template>
+
+        <!-- Search results -->
+        <template v-else-if="rows">
+          <p v-if="!rows.length" class="text-sm text-muted-foreground">Nothing found.</p>
+          <section v-else class="rounded-[14px] border border-border bg-card overflow-hidden">
+            <div v-for="(r, i) in rows" :key="r.key" class="flex items-center gap-3 px-3.5 py-2.5"
+              :class="[i ? 'border-t border-border' : '', isCurrent(r) ? 'bg-primary/5 shadow-[inset_3px_0_0_hsl(var(--primary))]' : '']">
+              <div class="flex-1 min-w-0 flex flex-col gap-[3px]">
+                <span class="flex flex-wrap items-center gap-1.5">
+                  <span class="text-sm font-semibold break-words">{{ r.title }}</span>
+                  <span v-if="r.badge" class="rounded-md px-2 py-0.5 text-xs font-semibold whitespace-nowrap bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300">{{ r.badge }}</span>
+                </span>
+                <span v-if="r.code || r.sub" class="text-xs text-muted-foreground truncate">
+                  <code v-if="r.code" class="font-mono text-[11px]">{{ r.code }}</code><template v-if="r.code && r.sub"> · </template>{{ r.sub }}
+                </span>
+              </div>
+              <button class="h-8 shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold"
+                :class="isCurrent(r) && rowTarget(r) ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-primary hover:bg-accent'" @click="open(r)">
+                <template v-if="rowTarget(r)">
+                  <Loader2 v-if="isCurrent(r) && usage.state.running" class="h-3.5 w-3.5 animate-spin" /><Network v-else class="h-3.5 w-3.5" />
+                  {{ isCurrent(r) ? (usage.state.running ? 'Scanning' : 'Showing') : 'Check' }}
+                </template>
+                <template v-else><Network class="h-3.5 w-3.5" /> Pick a field</template>
+              </button>
+              <button v-if="kind === 'dataview'" class="h-8 shrink-0 inline-flex items-center rounded-full border border-border bg-card px-3 text-[13px] font-semibold text-primary hover:bg-accent"
+                @click="kind = 'field'; $nextTick(() => pickDE(r.pick))">Fields</button>
+            </div>
+          </section>
+        </template>
+
+        <div v-else-if="!isProfile && !loading" class="max-w-md mt-6 text-sm text-muted-foreground">
+          Search for a {{ kind === 'field' ? 'data extension, then pick one of its fields' : kindInfo.label.toLowerCase() }}. Search with an empty box to list the newest.
+        </div>
+      </div>
+
+      <!-- The scan and its results (the same panel that floats on other pages) -->
+      <div v-if="panelShown" class="flex flex-col min-h-0 h-[85vh] lg:h-auto shrink-0 lg:w-[min(520px,45%)] border-t lg:border-t-0 lg:border-l border-border">
+        <UsagePanel embedded />
       </div>
     </div>
   </div>
