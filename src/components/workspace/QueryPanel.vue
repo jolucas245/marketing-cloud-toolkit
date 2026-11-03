@@ -1,13 +1,15 @@
 <script setup>
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
-import { computed, ref, toRef } from 'vue'
+import { computed, ref, toRef, watch } from 'vue'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'radix-vue'
 import {
   Pencil, Check, X, Play, ShieldCheck, ChevronDown, LogIn, History,
   FolderOpen, RefreshCw, Search, Share2, Copy, ExternalLink, Maximize2, Minimize2, AlignLeft,
-  Table2, FileOutput, Blocks, Share, Wand2, Users, Sparkles, Eye, Rows3, Eraser, ArchiveRestore, TextSearch,
+  Table2, FileOutput, Blocks, Share, Wand2, Users, Eye, Rows3, Eraser, ArchiveRestore, TextSearch,
 } from 'lucide-vue-next'
 import AiAssistDialog from './AiAssistDialog.vue'
+import AiButton from '../ai/AiButton.vue'
+import { useAi, pendingAiRequest } from '../../composables/useAi.js'
 import SampleDialog from './SampleDialog.vue'
 import EarlierTextDialog from './EarlierTextDialog.vue'
 import { topPreviewSql, PREVIEW_ROWS } from '../../utils/previewSql.js'
@@ -186,15 +188,37 @@ async function restoreEarlier(snap) {
   await takeSnapshot('restore')
   if (!editorRef.value?.replaceAll?.(snap.text)) onEditorChange(snap.text)
 }
-// AI Assist (Chrome's built-in model). Hidden when an admin policy turns it off.
+// AI Assist (Chrome's built-in model; experimental, on by default, feedback #1029).
+// Hidden when turned off in Settings or by an admin policy, and outside Chrome.
+const ai = useAi()
 const showAi = ref(false)
+const aiMode = ref('write')
+const aiRequest = ref('')
+function openAi(mode = 'write', request = '') {
+  aiMode.value = mode
+  aiRequest.value = request
+  showAi.value = true
+}
+function closeAi() { showAi.value = false; aiRequest.value = '' }
+// Home's "Describe the query you need" opens a panel with this request.
+watch(pendingAiRequest, (p) => {
+  if (!p || p.queryId !== props.queryId || !ai.shown.value) return
+  pendingAiRequest.value = null
+  openAi('write', p.request)
+}, { immediate: true })
+// "Fix with AI" under the editor: problems from the last check or run, or the SQL checks.
+const lintCount = computed(() => {
+  if (!queryText.value.trim() || activeTab.value !== 'editor' || !ai.shown.value) return 0
+  try { return editorRef.value?.problems?.().length || 0 } catch { return 0 }
+})
+const fixCount = computed(() => runProblems.value.length || lintCount.value)
 const runProblems = computed(() => [
   ...(stepErrors.value || []).filter(Boolean).map(String),
   ...(validationResults.value?.fatalError ? [validationResults.value.fatalError] : []),
   ...((validationResults.value?.errors || []).map((e) => (typeof e === 'string' ? e : e?.message)).filter(Boolean)),
 ])
 async function applyAi(sql) {
-  showAi.value = false
+  closeAi()
   await takeSnapshot('ai')
   if (!editorRef.value?.replaceAll?.(sql)) onEditorChange(sql)
 }
@@ -246,7 +270,7 @@ function openSchema() {
       <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!queryText.trim() || activeTab !== 'editor'" title="Format SQL (Shift+Alt+F)" @click="formatQuery"><AlignLeft class="h-3 w-3" /></Button>
       <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!canInteract || activeTab !== 'editor'" title="Shared snippets: SQL your team keeps in this business unit" @click="openSnippets"><Users class="h-3 w-3" /></Button>
       <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!queryText.trim() || activeTab !== 'editor'" title="Fix all: apply every one-click fix the SQL checks offer" @click="fixAllQuery"><Wand2 class="h-3 w-3" /></Button>
-      <Button v-if="!policy.disableAiAssist" variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="activeTab !== 'editor'" title="AI Assist (beta): write or fix this query with Chrome's built-in model, on this computer" @click="showAi = true"><Sparkles class="h-3 w-3" /></Button>
+      <AiButton size="sm" label="Ask AI" :disabled="activeTab !== 'editor'" title="Ask AI (experimental): write or fix this query with Gemini Nano in Chrome, on this computer" @click="openAi()" />
       <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="activeTab !== 'editor'" :title="`Find and replace (${isMac ? 'Cmd' : 'Ctrl'}+F in the editor)`" @click="editorRef?.openFind?.()"><TextSearch class="h-3 w-3" /></Button>
       <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!queryText.trim() || activeTab !== 'editor'" title="Clear the SQL (Undo brings it back; it is also kept under Earlier text)" @click="clearQuery"><Eraser class="h-3 w-3" /></Button>
       <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="activeTab !== 'editor'" title="Earlier text: this panel's SQL from the last 24 hours" @click="openEarlier"><ArchiveRestore class="h-3 w-3" /></Button>
@@ -267,7 +291,7 @@ function openSchema() {
       <Button v-if="showClose" variant="ghost" size="icon" class="h-6 w-6" title="Close panel" @click="$emit('close')"><X class="h-3 w-3" /></Button>
     </div>
 
-    <AiAssistDialog v-if="!policy.disableAiAssist" :open="showAi" :sql="queryText" :editor="editorRef" :run-problems="runProblems" @close="showAi = false" @apply="applyAi" @new-panel="openInNewPanel" />
+    <AiAssistDialog v-if="ai.shown.value" :open="showAi" :sql="queryText" :editor="editorRef" :run-problems="runProblems" :initial-mode="aiMode" :initial-request="aiRequest" :auto-ask="!!aiRequest" @close="closeAi" @apply="applyAi" @new-panel="openInNewPanel" />
     <SampleDialog :open="showSample" :stack="stack" :editor="editorRef" @close="showSample = false" @new-panel="openInNewPanel" />
     <EarlierTextDialog :open="showEarlier" :snapshots="snapshots" :current="queryText" @close="showEarlier = false" @restore="restoreEarlier" />
     <SharedSnippetsDialog :open="showSnippets" :stack="stack" :current-sql="snippetSql" @insert="insertSnippet" @close="showSnippets = false" />
@@ -390,6 +414,10 @@ function openSchema() {
       </div>
       <div class="h-1 bg-border cursor-ns-resize shrink-0" @mousedown="onResizeStart($event)" />
       <div class="flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div v-if="ai.shown.value && fixCount && activeTab === 'editor'" class="flex items-center gap-2 px-2 py-1 border-b border-border text-[11px] bg-muted/30 shrink-0">
+          <span class="text-muted-foreground flex-1">{{ fixCount === 1 ? '1 problem' : `${fixCount} problems` }} found by {{ runProblems.length ? 'the last check or run' : 'the SQL checks' }}.</span>
+          <AiButton size="sm" label="Fix with AI" title="Fix with AI (experimental): Gemini Nano in Chrome suggests a fixed query; you see the changes before applying them" @click="openAi('fix')" />
+        </div>
         <ValidationPanel v-if="resultsMode === 'validating' || resultsMode === 'validation'" :results="validationResults" :isRunning="resultsMode === 'validating'" />
         <RunStepper v-else-if="showRunStepper" :stepStatuses="stepStatuses" :stepErrors="stepErrors" :stepDetails="stepDetails" :elapsedSeconds="elapsedSeconds" :completedSummary="null" :sql="queryText" @retry="runQuery" @login="openSfmcLogin" @prompt="answerPrompt" />
         <template v-else-if="resultsMode === 'results'">

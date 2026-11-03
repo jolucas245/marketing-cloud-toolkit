@@ -6,7 +6,7 @@
 // quiet preload (utils/preloadOverviews.js), so Home adds no SFMC calls when that is fresh.
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2, RefreshCw, Workflow, Route, AlertTriangle, Eye, Bell, Play, Blocks, Footprints, MailCheck, Search, ExternalLink, Bookmark, Clock } from 'lucide-vue-next'
+import { Loader2, RefreshCw, Workflow, Route, AlertTriangle, Eye, Bell, Play, Blocks, Footprints, MailCheck, Search, ExternalLink, Bookmark, Clock, Sparkles } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
 import StatusBadge from '@/components/results/StatusBadge.vue'
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
@@ -19,6 +19,7 @@ import { WATCHES_KEY, NOTICES_KEY, watchHere, watchType, unreadCount, automation
 import { readVisits, mostUsed, recentQueries, sqlLine } from '@/utils/home.js'
 import { formatDateTime } from '@/utils/format.js'
 import { openInSfmc } from '@/utils/sfmcLinks.js'
+import { useAi } from '@/composables/useAi.js'
 
 const router = useRouter()
 const { stack, state } = useStack()
@@ -95,6 +96,15 @@ const QUICK = [
   { to: '/contact-journeys', label: 'Find a contact in journeys', icon: Footprints },
   { to: '/email-validation', label: 'Validate email addresses', icon: MailCheck },
 ]
+// Describe the query you need (feedback #1029): opens Run Query with AI Assist asking.
+const ai = useAi()
+const aiAsk = ref('')
+function askAi() {
+  const text = aiAsk.value.trim()
+  if (!text) return
+  router.push({ path: '/queries/workspace', query: { ai: text } })
+  aiAsk.value = ''
+}
 function openQuery(q) { router.push({ path: q.source === 'builder' ? '/queries/builder' : '/queries/workspace', query: { id: q.id } }) }
 </script>
 
@@ -123,6 +133,19 @@ function openQuery(q) { router.push({ path: q.source === 'builder' ? '/queries/b
     </section>
 
     <p v-if="error" class="text-red-600 text-xs" role="alert">{{ error }}<ReportErrorButton /></p>
+
+    <!-- Describe the query you need (AI, experimental) -->
+    <form v-if="ai.shown.value" class="rounded-lg border border-border bg-card p-3 space-y-2" @submit.prevent="askAi">
+      <label for="home-ai" class="flex items-center gap-1.5 font-medium">
+        <Sparkles class="h-4 w-4 text-primary" /> Describe the query you need
+        <span class="rounded bg-amber-200 text-amber-900 px-1.5 py-0.5 text-[10px] font-medium">Experimental</span>
+      </label>
+      <div class="flex flex-wrap gap-2">
+        <input id="home-ai" v-model="aiAsk" class="flex-1 min-w-60 h-8 rounded-md border border-border bg-background px-2 text-xs" placeholder="For example: subscribers who opened an email in the last 30 days but never clicked" />
+        <Button type="submit" size="sm" class="h-8 text-xs" :disabled="!aiAsk.trim()"><Sparkles class="h-3.5 w-3.5 mr-1" /> Ask AI</Button>
+      </div>
+      <p class="text-xs text-muted-foreground">Opens Run Query and asks Gemini Nano in Chrome to write it. The model runs on this computer; nothing is sent over the network. You see the SQL before anything runs.</p>
+    </form>
 
     <!-- At a glance -->
     <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

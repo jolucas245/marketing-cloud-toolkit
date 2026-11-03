@@ -21,6 +21,10 @@ import {
   FIELD_TYPES, RETENTION_MODES, RETENTION_UNITS, blankField, blankSettings, cellProblem, checkCreateForm, isFormValid,
   createDE, readLastFolder, saveLastFolder, rowsToLoad, lengthErrorField,
 } from '@/utils/createDE/createDE.js'
+import AiButton from '@/components/ai/AiButton.vue'
+import AskAiDialog from '@/components/ai/AskAiDialog.vue'
+import { useAi } from '@/composables/useAi.js'
+import { AI_FIELDS_SYSTEM, buildFieldsPrompt, readFieldSuggestions } from '@/utils/aiAssist.js'
 
 const { stack } = useStack()
 
@@ -45,6 +49,30 @@ const DELIMS = [
   { id: '', label: 'Detect' }, { id: ',', label: 'Comma' }, { id: '\t', label: 'Tab' }, { id: ';', label: 'Semicolon' }, { id: '|', label: 'Pipe' },
 ]
 const typeInfo = Object.fromEntries(FIELD_TYPES.map((t) => [t.id, t]))
+
+// Suggest field types with AI (feedback #1029, experimental): field names and the
+// guessed types only, never the sample's values.
+const ai = useAi()
+const aiFieldsOpen = ref(false)
+const fieldsPrompt = (purpose) => buildFieldsPrompt(fields.value.map((f) => ({ name: f.name, type: f.type, length: f.length })), purpose)
+function suggestionsFor(text) {
+  const byName = new Map(readFieldSuggestions(text).map((x) => [x.name.toLowerCase(), x]))
+  return fields.value.map((f) => ({ field: f, s: byName.get(String(f.name).trim().toLowerCase()) || null })).filter((x) => x.s)
+}
+function applySuggestions(text, keys = false) {
+  let n = 0
+  for (const { field: f, s } of suggestionsFor(text)) {
+    f.type = s.type
+    if (typeInfo[s.type]?.fixedLength) f.length = typeInfo[s.type].fixedLength
+    else if (typeInfo[s.type]?.length && s.length) f.length = s.length
+    if (s.type === 'Decimal' && s.scale != null) f.scale = s.scale
+    if (keys) { f.isPrimaryKey = s.isPrimaryKey; if (s.isPrimaryKey) f.isNullable = false }
+    n++
+  }
+  aiFieldsOpen.value = false
+  error.value = ''
+  return n
+}
 
 function useSample(table, name = '') {
   sample.value = table
@@ -263,6 +291,7 @@ const maxMB = Math.round(MAX_SAMPLE_BYTES / 1048576)
       <section v-if="fields.length" class="rounded-lg border border-border bg-card p-3 space-y-2">
         <div class="flex items-center gap-2">
           <h2 class="text-xs font-semibold flex-1">2. Fields ({{ fields.length }})</h2>
+          <AiButton label="Suggest types" title="Suggest field types from the field names (experimental, Gemini Nano in Chrome; sample values are not used)" @click="aiFieldsOpen = true" />
           <Button variant="outline" size="sm" class="h-7 text-xs" @click="addField"><Plus class="h-3.5 w-3.5 mr-1" /> Add field</Button>
         </div>
         <div class="overflow-x-auto">
@@ -406,5 +435,26 @@ const maxMB = Math.round(MAX_SAMPLE_BYTES / 1048576)
         <router-link :to="toolkitLink" class="inline-flex items-center gap-1 text-primary hover:underline">Find it in Data Extensions</router-link>
       </div>
     </section>
+    <AskAiDialog v-if="ai.shown.value" :open="aiFieldsOpen" title="Suggest field types" :system="AI_FIELDS_SYSTEM" :prompt="fieldsPrompt"
+      :auto-ask="false" extra-label="What is the data extension for?" extra-placeholder="For example: newsletter sign-ups from the website" @close="aiFieldsOpen = false">
+      <template #answer="{ text }">
+        <div class="basis-full overflow-x-auto">
+          <p v-if="!suggestionsFor(text).length" class="text-amber-700 dark:text-amber-300">The answer has no suggestions for these field names. Try asking again.</p>
+          <table v-else class="text-xs mb-1">
+            <thead><tr class="text-left text-muted-foreground"><th class="pr-3">Field</th><th class="pr-3">Now</th><th class="pr-3">Suggested</th><th>Primary key</th></tr></thead>
+            <tbody>
+              <tr v-for="x in suggestionsFor(text)" :key="x.field.name">
+                <td class="pr-3">{{ x.field.name }}</td>
+                <td class="pr-3 text-muted-foreground">{{ x.field.type }}{{ typeInfo[x.field.type]?.length ? ` (${x.field.length})` : '' }}</td>
+                <td class="pr-3" :class="x.s.type !== x.field.type ? 'font-semibold' : ''">{{ x.s.type }}{{ x.s.length ? ` (${x.s.length}${x.s.scale != null && x.s.type === 'Decimal' ? `, ${x.s.scale}` : ''})` : '' }}</td>
+                <td>{{ x.s.isPrimaryKey ? 'yes' : '' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <Button v-if="suggestionsFor(text).length" size="sm" class="h-8 text-xs" @click="applySuggestions(text)">Apply types</Button>
+        <Button v-if="suggestionsFor(text).some((x) => x.s.isPrimaryKey)" variant="outline" size="sm" class="h-8 text-xs" @click="applySuggestions(text, true)">Apply types and primary keys</Button>
+      </template>
+    </AskAiDialog>
   </div>
 </template>

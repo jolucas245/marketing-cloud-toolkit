@@ -14,6 +14,8 @@ import { buildBackup, backupFileName, parseBackup, planImport, describeImport } 
 import { saveTextFile, readFileText } from '@/utils/download.js'
 import { showToast } from '@/composables/useToast.js'
 import { useApiConsole } from '@/composables/useApiConsole.js'
+import { useAi } from '@/composables/useAi.js'
+import { AVAILABILITY_TEXT, isChromeBrowser } from '@/utils/aiAssist.js'
 import { DEFAULT_RETENTION_DAYS, SUGGESTED_RETENTION_DAYS, parseRetentionDays } from '@/utils/sfmcApi.js'
 import { policy, POLICY_NOTE } from '@/utils/policy.js'
 import { HISTORY_SETTING } from '@/utils/history.js'
@@ -60,6 +62,9 @@ function setDesktopNotify(on) {
 }
 
 const { value: keepHistory } = useStoredSetting(HISTORY_SETTING, true, (v) => v !== false)
+// AI (feedback #1028, #1029): experimental, on by default (composables/useAi.js).
+const { enabled: aiEnabled, availability: aiAvailabilityState } = useAi()
+const aiStatus = computed(() => (!isChromeBrowser() ? 'AI works only in Google Chrome; this browser does not show it.' : AVAILABILITY_TEXT[aiAvailabilityState.value] || 'Checking Chrome\'s built-in model...'))
 const { value: shareSetting } = useStoredSetting(SHARE_SETTING, true, (v) => v !== false)
 
 // Saving Query Studio runs: on by default (feedback #1021), but it needs the optional
@@ -310,6 +315,19 @@ function setDebounce(e) {
         <Switch v-model="dashboardPanel" aria-label="Marketing Cloud Toolkit on the Marketing Cloud Dashboard" />
       </div>
 </section>
+
+    <section class="rounded-lg border border-border bg-card p-4">
+      <h2 class="text-sm font-semibold mb-3">Experimental</h2>
+      <div class="flex items-start gap-3">
+        <div class="flex-1">
+          <div class="text-sm font-medium">AI (Gemini Nano in Chrome)</div>
+          <p class="text-xs text-muted-foreground">On by default. Ask AI, Fix with AI, Explain, Summarize and Suggest types in Run Query, Home, Query Builder, Saved queries, query activities, automations, journeys, Where used and Create DE. The model is built into Chrome and runs on this computer: nothing is sent over the network. Prompts hold names, settings and SQL, never data rows; email addresses, phone numbers and record IDs are replaced first. Answers can be wrong.</p>
+          <p class="text-xs text-muted-foreground mt-1">{{ aiStatus }}</p>
+          <p v-if="policy.disableAiAssist" class="text-xs text-muted-foreground mt-1">{{ POLICY_NOTE }}</p>
+        </div>
+        <Switch :model-value="aiEnabled && !policy.disableAiAssist" :disabled="policy.disableAiAssist" aria-label="AI (Gemini Nano in Chrome)" @update:model-value="aiEnabled = $event" />
+      </div>
+    </section>
 
     <section class="rounded-lg border border-border bg-card p-4">
       <h2 class="text-sm font-semibold mb-3">Troubleshooting</h2>

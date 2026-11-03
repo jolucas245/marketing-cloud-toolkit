@@ -14,6 +14,10 @@ import { useStack } from '@/composables/useStack.js'
 import { showToast } from '@/composables/useToast.js'
 import { contactBuilderDEUrl } from '@/utils/activityTypes.js'
 import { startQueryActivity, getQueryActivityStatus, startActivity } from '@/utils/sfmcApi.js'
+import AiButton from '@/components/ai/AiButton.vue'
+import AskAiDialog from '@/components/ai/AskAiDialog.vue'
+import { useAi } from '@/composables/useAi.js'
+import { AI_TEXT_SYSTEM, buildAiTaskPrompt } from '@/utils/aiAssist.js'
 
 const props = defineProps({
   description: { type: Object, required: true },
@@ -44,6 +48,10 @@ watch(() => d.value.versionsKey, (key) => {
     globalThis.chrome?.storage?.local?.get(key, (data) => { versionCount.value = data?.[key]?.versions?.length || 0 })
   } catch { /* extension context gone */ }
 }, { immediate: true })
+
+// Explain this query (SQL Query activities; feedback #1029, experimental).
+const ai = useAi()
+const explainOpen = ref(false)
 
 // ── Run this query (SQL Query activities) ─────────────────
 const runMenu = ref(false)
@@ -132,6 +140,7 @@ async function runOnce() {
         class="inline-flex items-center gap-1 text-xs text-primary hover:underline shrink-0" title="Versions saved by Marketing Cloud Toolkit">
         <History class="h-3 w-3" /> Versions ({{ versionCount }})
       </RouterLink>
+      <AiButton v-if="d.run?.sql" size="link" label="Explain" title="Explain this query in plain words (experimental, Gemini Nano in Chrome)" @click="explainOpen = true" />
       <div v-if="d.run" class="relative shrink-0">
         <button class="inline-flex items-center gap-1 text-xs text-primary hover:underline disabled:opacity-60" :disabled="running"
           :aria-expanded="runMenu" aria-haspopup="menu" @click="runMenu = !runMenu">
@@ -197,5 +206,8 @@ async function runOnce() {
         {{ showExtra ? 'Hide additional details' : 'Show additional details' }}
       </button>
     </div>
+    <AskAiDialog v-if="ai.shown.value && d.run?.sql" :open="explainOpen" title="Explain this query" :system="AI_TEXT_SYSTEM"
+      :prompt="(extra) => buildAiTaskPrompt('explainQuery', { sql: d.run.sql, name: d.title }) + (extra.trim() ? `\n\nAlso answer: ${extra.trim()}` : '')"
+      extra-label="Anything else to ask about it?" @close="explainOpen = false" />
   </article>
 </template>

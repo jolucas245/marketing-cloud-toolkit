@@ -21,6 +21,10 @@ import { describeActivity, activityTypeLabel, automationUrl } from '@/utils/acti
 import { openInSfmc } from '@/utils/sfmcLinks.js'
 import { automationOverviewRows, scheduleRows, automationDoc } from '@/utils/automationDoc.js'
 import { runInBatches } from '@/utils/batchRunner.js'
+import AiButton from '@/components/ai/AiButton.vue'
+import AskAiDialog from '@/components/ai/AskAiDialog.vue'
+import { useAi } from '@/composables/useAi.js'
+import { AI_TEXT_SYSTEM, buildAiTaskPrompt, docText } from '@/utils/aiAssist.js'
 
 const route = useRoute()
 const { stack } = useStack()
@@ -105,6 +109,11 @@ const pending = computed(() => Object.values(acts).filter((x) => x.status === 'l
 function getDoc() {
   return automationDoc(details.value, notifications.value, (si, ai) => acts[key(si, ai)]?.desc || null)
 }
+
+// Summarize with AI (feedback #1029, experimental): the same text as the download.
+const ai = useAi()
+const summaryOpen = ref(false)
+const summaryPrompt = (extra) => buildAiTaskPrompt('automation', { text: docText(getDoc()) + (extra.trim() ? `\n\nAlso answer: ${extra.trim()}` : '') })
 </script>
 
 <template>
@@ -124,6 +133,7 @@ function getDoc() {
         <button class="inline-flex items-center gap-1 h-8 px-2.5 rounded-md border border-border text-xs hover:bg-accent" title="Data extensions, files and emails this automation touches" @click="usage.start(stack, { kind: 'automation', id: details.id || id, name: details.name })"><Network class="h-3.5 w-3.5" /> What it touches</button>
         <WatchButton :stack="stack" :items="[{ ...(details || {}), id }]" />
         <a :href="automationUrl(stack, details.id)" @click="openInSfmc($event, automationUrl(stack, details.id))" title="Open this automation in Automation Studio" target="_blank" rel="noopener" class="inline-flex items-center gap-1 h-8 px-2.5 rounded-md border border-border text-xs hover:bg-accent">Automation Studio <ExternalLink class="h-3 w-3" /></a>
+        <AiButton label="Summarize" :disabled="pending > 0" title="Summarize what this automation does (experimental, Gemini Nano in Chrome)" @click="summaryOpen = true" />
         <DownloadMenu :get-doc="getDoc" :file-name="details.name || 'automation'" :disabled="pending > 0" />
       </template>
     </div>
@@ -227,5 +237,7 @@ function getDoc() {
         <ActivityCard v-else :description="acts[modal].desc" :heading="stepLabel(modal)" />
       </div>
     </div>
+    <AskAiDialog v-if="ai.shown.value && details" :open="summaryOpen" title="Summarize this automation" :system="AI_TEXT_SYSTEM"
+      :prompt="summaryPrompt" extra-label="Anything else to ask about it?" @close="summaryOpen = false" />
   </div>
 </template>

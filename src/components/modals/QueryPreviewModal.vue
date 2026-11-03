@@ -3,6 +3,10 @@ import { ref, computed } from 'vue'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'radix-vue'
 import { Copy, Check, ExternalLink, X, Share2, Blocks } from 'lucide-vue-next'
 import ShareQueryDialog from '@/components/workspace/ShareQueryDialog.vue'
+import AiButton from '@/components/ai/AiButton.vue'
+import AskAiDialog from '@/components/ai/AskAiDialog.vue'
+import { useAi } from '@/composables/useAi.js'
+import { AI_TEXT_SYSTEM, buildAiTaskPrompt } from '@/utils/aiAssist.js'
 import { SHARE_SETTING, shareAllowed } from '@/utils/share.js'
 import { useStoredSetting } from '@/composables/useStoredSetting.js'
 
@@ -19,6 +23,9 @@ const humanReadableDate = computed(() =>
 )
 const displayName = computed(() => props.card.name ?? humanReadableDate.value)
 const sql = computed(() => props.card.queryText || '')
+// Explain this query (feedback #1029, experimental).
+const ai = useAi()
+const explainOpen = ref(false)
 
 async function copySql() {
   try {
@@ -96,6 +103,7 @@ const canShare = computed(() => shareAllowed(shareSetting.value) && !!sql.value.
               <component :is="copied ? Check : Copy" class="h-3.5 w-3.5" />
               {{ copied ? 'Copied' : 'Copy SQL' }}
             </button>
+            <AiButton label="Explain" :disabled="!sql.trim()" title="Explain this query in plain words (experimental, Gemini Nano in Chrome)" @click="explainOpen = true" />
             <button
               v-if="card.source !== 'builder' && (card.queryText || '').trim()"
               class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-semibold border border-border text-foreground hover:bg-muted transition-colors"
@@ -123,5 +131,8 @@ const canShare = computed(() => shareAllowed(shareSetting.value) && !!sql.value.
       </DialogContent>
     </DialogPortal>
     <ShareQueryDialog :open="shareOpen" :name="displayName" :sql="sql" @close="shareOpen = false" />
+    <AskAiDialog v-if="ai.shown.value" :open="explainOpen" title="Explain this query" :system="AI_TEXT_SYSTEM"
+      :prompt="(extra) => buildAiTaskPrompt('explainQuery', { sql, name: displayName }) + (extra.trim() ? `\n\nAlso answer: ${extra.trim()}` : '')"
+      extra-label="Anything else to ask about it?" @close="explainOpen = false" />
   </DialogRoot>
 </template>

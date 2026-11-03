@@ -16,6 +16,10 @@ import LineageNode from './LineageNode.vue'
 import { useUsage, targetTitle, targetKindLabel } from '@/composables/useUsage.js'
 import { formatDateTime } from '@/utils/format.js'
 import DERowCount from '@/components/results/DERowCount.vue'
+import AiButton from '@/components/ai/AiButton.vue'
+import AskAiDialog from '@/components/ai/AskAiDialog.vue'
+import { useAi } from '@/composables/useAi.js'
+import { AI_TEXT_SYSTEM, buildAiTaskPrompt, docText } from '@/utils/aiAssist.js'
 
 const router = useRouter()
 const { state, start, stop, follow, back, progress, toggleSkip, canSkip, again } = useUsage()
@@ -72,6 +76,10 @@ function lineageRows(node, direction, depth = 0, rows = []) {
   return rows
 }
 
+// Summarize with AI (feedback #1029, experimental): the download's text.
+const ai = useAi()
+const summaryOpen = ref(false)
+const summaryPrompt = (extra) => buildAiTaskPrompt('whereUsed', { text: docText(buildDoc()) + (extra.trim() ? `\n\nAlso answer: ${extra.trim()}` : '') })
 function buildDoc() {
   const blocks = [{ type: 'p', text: `${targetKindLabel(state.target)}: ${title.value}. ${total.value} found. Current business unit only.` }]
   for (const s of sections.value) {
@@ -155,6 +163,7 @@ function buildDoc() {
       <section v-if="state.result" class="px-4 py-3" aria-label="Results">
         <div class="flex items-center gap-2 mb-3">
           <p class="text-xs flex-1"><strong>{{ total }}</strong> found. <span class="text-muted-foreground">Current business unit only.</span></p>
+          <AiButton label="Summarize" :disabled="!total" title="Summarize what depends on it (experimental, Gemini Nano in Chrome)" @click="summaryOpen = true" />
           <DownloadMenu :get-doc="buildDoc" :file-name="`where-used-${title}`" label="Download" />
         </div>
         <p v-if="state.result.note" class="mb-3 text-xs text-muted-foreground">{{ state.result.note }}</p>
@@ -225,6 +234,8 @@ function buildDoc() {
           matches in AMPscript, SSJS and journey criteria are by name or key and can miss names built in code. Items with the same name in other business units can't be told apart.
         </p>
       </section>
-    </div>
+      <AskAiDialog v-if="ai.shown.value && state.result" :open="summaryOpen" title="Summarize where it is used" :system="AI_TEXT_SYSTEM"
+      :prompt="summaryPrompt" extra-label="Anything else to ask about it?" @close="summaryOpen = false" />
+  </div>
   </aside>
 </template>

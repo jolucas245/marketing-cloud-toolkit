@@ -10,7 +10,8 @@ import Button from '@/components/ui/button/Button.vue'
 import CodeView from '@/components/results/CodeView.vue'
 import DiffView from '@/components/results/DiffView.vue'
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
-import { aiAvailability, createAiSession, buildAiPrompt, readAiAnswer, AI_SYSTEM, AVAILABILITY_TEXT, MAX_TABLES } from '@/utils/aiAssist.js'
+import { buildAiPrompt, readAiAnswer, AI_SYSTEM, AVAILABILITY_TEXT, MAX_TABLES } from '@/utils/aiAssist.js'
+import { useAiRun } from '@/composables/useAi.js'
 import { DATA_VIEWS } from '@/utils/dataViews.js'
 import { bareTableName } from '@/utils/schemaCatalog.js'
 import { showToast } from '@/composables/useToast.js'
@@ -22,6 +23,12 @@ const props = defineProps({
   // Problems from the last validation or run, as text.
   runProblems: { type: Array, default: () => [] },
   initialMode: { type: String, default: 'write' },
+  // Home's "Describe the query you need" (feedback #1029).
+  initialRequest: { type: String, default: '' },
+  autoAsk: { type: Boolean, default: false },
+  // Query Builder: the answer is drawn on the diagram.
+  applyLabel: { type: String, default: 'Apply to this panel' },
+  applyTitle: { type: String, default: 'Replace the panel\'s SQL (the old text is kept under Earlier text, and Ctrl+Z works in the editor)' },
 })
 const emit = defineEmits(['close', 'apply', 'new-panel'])
 
@@ -31,13 +38,10 @@ const problems = ref('')
 const tables = ref([]) // [{ name, kind, fields }]
 const addName = ref('')
 const addBusy = ref(false)
-const availability = ref('')
-const download = ref(null) // 0..1 while downloading
-const state = ref('idle') // idle | asking | done | error
-const error = ref('')
 const answer = ref(null) // { sql, note, raw }
 const showPrompt = ref(false)
-let controller = null
+const run = useAiRun()
+const { availability, download, state, error } = run
 
 const isDataView = (name) => DATA_VIEWS.has(bareTableName(name)) || /^_/.test(bareTableName(name))
 async function addTable(name) {
@@ -53,54 +57,33 @@ async function addFromInput() {
 function removeTable(t) { tables.value = tables.value.filter((x) => x !== t) }
 
 watch(() => props.open, async (on) => {
-  if (!on) { controller?.abort(); return }
-  mode.value = props.initialMode === 'fix' || (props.runProblems.length && props.sql.trim()) ? 'fix' : 'write'
-  request.value = ''
+  if (!on) { run.stop(); return }
+  mode.value = props.initialMode === 'write' && props.initialRequest ? 'write'
+    : props.initialMode === 'fix' || (props.runProblems.length && props.sql.trim()) ? 'fix' : 'write'
+  request.value = props.initialRequest || ''
   answer.value = null
-  error.value = ''
-  state.value = 'idle'
+  run.reset()
   showPrompt.value = false
   problems.value = [...props.runProblems, ...(props.editor?.problems?.() || [])].filter(Boolean).join('\n')
   tables.value = []
   for (const name of props.editor?.tablesInQuery?.() || []) await addTable(name)
-  availability.value = await aiAvailability()
-})
+  await run.check()
+  // From Home: ask straight away when the model is ready.
+  if (props.initialRequest && props.autoAsk && availability.value === 'available') ask()
+}, { immediate: true })
 
 const prompt = computed(() => buildAiPrompt({
   mode: mode.value, request: request.value, sql: props.sql, tables: tables.value,
   problems: problems.value.split('\n'),
 }))
-const canAsk = computed(() => state.value !== 'asking' && ['available', 'downloadable', 'downloading'].includes(availability.value)
-  && (mode.value === 'fix' ? !!props.sql.trim() : !!request.value.trim()))
+const canAsk = computed(() => run.canAsk.value && (mode.value === 'fix' ? !!props.sql.trim() : !!request.value.trim()))
 
 async function ask() {
-  error.value = ''
   answer.value = null
-  state.value = 'asking'
-  controller = new AbortController()
-  let session = null
-  try {
-    session = await createAiSession(AI_SYSTEM, {
-      signal: controller.signal,
-      onProgress: (p) => { download.value = p },
-    })
-    download.value = null
-    availability.value = 'available'
-    const raw = await session.prompt(prompt.value, { signal: controller.signal })
-    answer.value = { ...readAiAnswer(raw), raw }
-    state.value = 'done'
-  } catch (e) {
-    if (controller?.signal.aborted) { state.value = 'idle'; return }
-    error.value = /quota|too large|exceed/i.test(e?.message || '')
-      ? 'The prompt is too long for the built-in model. Remove a table or shorten the request, then try again.'
-      : `The built-in model did not answer: ${e?.message || e}`
-    state.value = 'error'
-  } finally {
-    download.value = null
-    try { session?.destroy?.() } catch { /* ignore */ }
-  }
+  const raw = await run.ask(AI_SYSTEM, prompt.value)
+  if (raw != null) answer.value = { ...readAiAnswer(raw), raw }
 }
-function stop() { controller?.abort() }
+function stop() { run.stop() }
 async function copy() {
   try { await navigator.clipboard.writeText(answer.value.sql); showToast('SQL copied.') } catch { showToast('Could not copy.') }
 }
@@ -115,13 +98,13 @@ async function copy() {
           <Sparkles class="h-4 w-4 text-primary" />
           <DialogTitle class="text-sm font-bold">AI Assist</DialogTitle>
           <span class="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">Beta</span>
-          <span class="text-muted-foreground">Chrome's built-in model, on this computer</span>
+          <span class="text-muted-foreground">Gemini Nano in Chrome, on this computer</span>
           <Button variant="ghost" size="icon" class="h-6 w-6 ml-auto" title="Close" @click="emit('close')"><X class="h-3.5 w-3.5" /></Button>
         </div>
 
         <div class="flex-1 overflow-y-auto p-4 space-y-3">
           <p class="rounded-md border border-sky-200 bg-sky-50 dark:border-sky-900 dark:bg-sky-950/40 p-2">
-            The model runs in Chrome on this computer: nothing is sent over the network, and query results are never part of the prompt. It sees only what is shown under "What the model gets". Check its SQL before you run it.
+            The model runs in Chrome on this computer: nothing is sent over the network, and query results are never part of the prompt. It sees only what is shown under "What the model gets": email addresses, phone numbers and record IDs in the SQL are replaced first. Check its SQL before you run it. Experimental: turn it off in Settings.
           </p>
           <p v-if="availability && availability !== 'available'" class="text-muted-foreground">{{ AVAILABILITY_TEXT[availability] || availability }}</p>
 
@@ -189,10 +172,10 @@ async function copy() {
             <p v-if="answer.note" class="whitespace-pre-line">{{ answer.note }}</p>
             <p v-if="!answer.sql" class="text-amber-700 dark:text-amber-300">The answer has no SQL. Try rewording the request.</p>
             <template v-else>
-              <div class="text-muted-foreground">Left: the panel's SQL. Right: the suggestion.</div>
+              <div class="text-muted-foreground">Left: the current SQL. Right: the suggestion.</div>
               <DiffView :left="sql" :right="answer.sql" />
               <div class="flex flex-wrap gap-2">
-                <Button size="sm" class="h-8 text-xs" title="Replace the panel's SQL (the old text is kept under Earlier text, and Ctrl+Z works in the editor)" @click="emit('apply', answer.sql)">Apply to this panel</Button>
+                <Button size="sm" class="h-8 text-xs" :title="applyTitle" @click="emit('apply', answer.sql)">{{ applyLabel }}</Button>
                 <Button variant="outline" size="sm" class="h-8 text-xs" @click="emit('new-panel', answer.sql)">Open in a new panel</Button>
                 <Button variant="outline" size="sm" class="h-8 text-xs" @click="copy"><Copy class="h-3.5 w-3.5 mr-1" /> Copy</Button>
               </div>

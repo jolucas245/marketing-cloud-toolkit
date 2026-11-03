@@ -21,6 +21,13 @@ import { parseSqlForBuilder } from '@/utils/sqlToBuilder.js'
 import { policy } from '@/utils/policy.js'
 import { builderToDiagramforce, openInDiagramforce } from '@/utils/diagramforce.js'
 import { showToast } from '@/composables/useToast.js'
+import { useRouter } from 'vue-router'
+import AiButton from '@/components/ai/AiButton.vue'
+import AskAiDialog from '@/components/ai/AskAiDialog.vue'
+import AiAssistDialog from '@/components/workspace/AiAssistDialog.vue'
+import { useAi } from '@/composables/useAi.js'
+import { createSchemaCatalog } from '@/utils/schemaCatalog.js'
+import { AI_TEXT_SYSTEM, buildAiTaskPrompt } from '@/utils/aiAssist.js'
 
 const props = defineProps({
   // A saved Query Builder record to open, or null for a new query.
@@ -31,6 +38,28 @@ const props = defineProps({
 const emit = defineEmits(['saved'])
 
 const { stack, state: stackState } = useStack()
+
+// AI (feedback #1029, experimental): write a query from a description and draw it here
+// (through From SQL), or explain the query in plain words.
+const router = useRouter()
+const ai = useAi()
+const aiWrite = ref(false)
+const aiExplain = ref(false)
+const aiCatalog = createSchemaCatalog(() => stack.value)
+const aiEditor = {
+  tablesInQuery: () => selectedDEs.value.filter((d) => d.sourceType !== 'subquery').map((d) => d.name).filter(Boolean),
+  fieldsOf: (name) => aiCatalog.fieldsFor(name),
+  problems: () => [],
+}
+// Drawn as a new Query Builder query (Open in Query Builder), so the one open here stays saved.
+function applyAiSql(sql) {
+  aiWrite.value = false
+  router.push({ path: '/queries/builder', query: { sql } })
+}
+function aiToNewPanel(sql) {
+  aiWrite.value = false
+  router.push({ path: '/queries/workspace', query: { sql } })
+}
 // Visual is the default view; the last one used is remembered (feedback #150).
 const VIEW_KEY = 'qb_view'
 const visualMode = ref((() => { try { return localStorage.getItem(VIEW_KEY) !== 'list' } catch { return true } })())
@@ -448,6 +477,8 @@ function onCanvasFilter({ alias, field }) {
         {{ saveStatusLabel }}
       </span>
       <div class="flex-1" />
+      <AiButton label="Ask AI" title="Ask AI (experimental): describe the query and Gemini Nano in Chrome writes it; it is drawn here" @click="aiWrite = true" />
+      <AiButton label="Explain" :disabled="!generatedSql.trim()" title="Explain this query in plain words (experimental, Gemini Nano in Chrome)" @click="aiExplain = true" />
       <slot name="actions" />
       <div v-if="!policy.disableDiagramforce" class="relative">
         <button class="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-xs font-medium border border-border hover:bg-accent disabled:opacity-50"
@@ -710,5 +741,11 @@ function onCanvasFilter({ alias, field }) {
         <button class="text-xs text-primary hover:underline" @click="showTips = true; helpOpen = false">Show the first-visit tips again</button>
       </aside>
     </div>
+  <AiAssistDialog v-if="ai.shown.value" :open="aiWrite" :sql="generatedSql" :editor="aiEditor" initial-mode="write"
+    apply-label="Draw it in Query Builder" apply-title="Draw this query as a new Query Builder query (the one open now stays saved)"
+    @close="aiWrite = false" @apply="applyAiSql" @new-panel="aiToNewPanel" />
+  <AskAiDialog v-if="ai.shown.value" :open="aiExplain" title="Explain this query" :system="AI_TEXT_SYSTEM"
+    :prompt="(extra) => buildAiTaskPrompt('explainQuery', { sql: generatedSql }) + (extra.trim() ? `\n\nAlso answer: ${extra.trim()}` : '')"
+    extra-label="Anything else to ask about it?" @close="aiExplain = false" />
   </div>
 </template>

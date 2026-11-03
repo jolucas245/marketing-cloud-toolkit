@@ -1,7 +1,8 @@
 <script setup>
 // Query Workspace: up to 6 SQL panels, each with its own editor, validate and run
 // (from SFMC Query Saver). The page is kept alive while you visit other sections, so
-// a running query keeps going. `?id=` (a saved query) or `?sql=` adds a panel.
+// a running query keeps going. `?id=` (a saved query) or `?sql=` adds a panel; `?ai=`
+// (Home's "Describe the query you need", feedback #1029) opens a panel with AI Assist.
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Plus, FilePlus2, LogIn } from 'lucide-vue-next'
@@ -11,6 +12,7 @@ import { useWorkspace, LAYOUT_PRESETS } from '@/composables/useWorkspace.js'
 import { useStack } from '@/composables/useStack.js'
 import { showToast } from '@/composables/useToast.js'
 import { openTab } from '@/utils/openTab.js'
+import { pendingAiRequest } from '@/composables/useAi.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -26,7 +28,7 @@ const canInteract = computed(() => state.value === 'connected' && !!stack.value)
 // Handles ?ws=, ?id= and ?sql=, then clears them so a reload or a later visit
 // doesn't open the same query again.
 async function applyRoute() {
-  const { ws, id, sql } = route.query
+  const { ws, id, sql, ai } = route.query
   if (!ready.value) {
     await restore(typeof ws === 'string' ? ws : null)
     ready.value = true
@@ -35,12 +37,17 @@ async function applyRoute() {
     const r = await openInPanel({ id: typeof id === 'string' ? id : null, sql: typeof sql === 'string' ? sql : null })
     if (r.full) showToast('All 6 panels are in use. Close one, then open the query again.')
   }
-  if (ws || id || sql) router.replace({ path: route.path })
+  if (typeof ai === 'string' && ai.trim()) {
+    const r = await openInPanel({ sql: '' })
+    if (r.full) showToast('All 6 panels are in use. Close one, then ask again.')
+    else pendingAiRequest.value = { queryId: r.queryId, request: ai.trim() }
+  }
+  if (ws || id || sql || ai) router.replace({ path: route.path })
 }
 
 applyRoute()
 // Fires for later visits too: a kept-alive page still sees route changes.
-watch(() => route.query, (q) => { if (ready.value && route.path === '/queries/workspace' && (q.id || q.sql || q.ws)) applyRoute() })
+watch(() => route.query, (q) => { if (ready.value && route.path === '/queries/workspace' && (q.id || q.sql || q.ws || q.ai)) applyRoute() })
 
 function openLogin() {
   openTab({ url: stack.value ? `https://mc.${stack.value}.exacttarget.com/cloud/` : 'https://mc.exacttarget.com' })

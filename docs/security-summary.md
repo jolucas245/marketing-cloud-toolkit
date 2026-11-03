@@ -88,7 +88,7 @@ The service worker accepts from content scripts only the messages those scripts 
 | `query-saver-feedback.mathes-btech.workers.dev` | Only when the user sends feedback, after a payload preview | Message, details, kind, page (no IDs), version, optional name and email; opt-in technical details; opt-in screenshot |
 | `diagramforce.com` | Only when the user clicks Open in Diagramforce (new tab, `postMessage`) | Table, column and join names of the query |
 
-AI Assist (Run Query) makes no network call of its own: it uses Chrome's Prompt API (`LanguageModel`), whose model runs on the device; Chrome downloads that model from Google once, outside the extension. The prompt holds the request, the SQL, problems found and table/field names, never results; the user sees it before it runs (`src/utils/aiAssist.js`, `components/workspace/AiAssistDialog.vue`). No permission is needed.
+The AI features (experimental, on by default, Settings > Experimental turns them off; Google Chrome only) make no network call of their own: they use Chrome's Prompt API (`LanguageModel`), whose model runs on the device; Chrome downloads that model from Google once, outside the extension. Prompts hold the request, SQL, problems found, table/field names and the names and settings shown on the page (automation steps, journey activities, Where used results, Create DE field names), never query results, rows or sample values; email addresses, phone numbers and record IDs are masked (`maskPersonal`) and prompts are capped at 12,000 characters. The user sees the prompt before it runs (`src/utils/aiAssist.js`, `src/composables/useAi.js`, `components/ai/`, `components/workspace/AiAssistDialog.vue`). No permission is needed.
 
 There is no analytics or telemetry (Google Analytics was removed in 2.0.18).
 
@@ -120,7 +120,7 @@ Set through Chrome policy for the extension (schema `public/managed_schema.json`
 | `disableScreenshots` | Feedback never offers a screenshot. |
 | `disableContacts` | No Contacts page; Contact Builder's headers are not read. |
 | `disableDiagramforce` | No Open in Diagramforce. |
-| `disableAiAssist` | No AI Assist (Chrome's on-device model). |
+| `disableAiAssist` | No AI features anywhere (Chrome's on-device model). |
 
 ## Supply chain
 

@@ -16,6 +16,10 @@ import { useStack } from '@/composables/useStack.js'
 import { fetchJourney, journeyGraph, layoutJourney, describeJourneyNode, journeyOverviewRows, journeyBuilderUrl, journeyDoc, nodeEmailId, fetchJourneyEmailAsset } from '@/utils/journeys.js'
 import { compile } from '@/utils/emailCompiler.js'
 import { journeySvg } from '@/utils/journeySvg.js'
+import AiButton from '@/components/ai/AiButton.vue'
+import AskAiDialog from '@/components/ai/AskAiDialog.vue'
+import { useAi } from '@/composables/useAi.js'
+import { AI_TEXT_SYSTEM, buildAiTaskPrompt, docText } from '@/utils/aiAssist.js'
 
 const ORIENTATION_KEY = 'toolkit_journey_orientation'
 const route = useRoute()
@@ -102,6 +106,10 @@ watch(selectedNode, async (n) => {
 })
 
 const getDoc = () => journeyDoc(journey.value, graph.value, layout.value, journeySvg(graph.value, layout.value, orientation.value))
+// Summarize with AI (feedback #1029, experimental): the download's text, without the picture.
+const ai = useAi()
+const summaryOpen = ref(false)
+const summaryPrompt = (extra) => buildAiTaskPrompt('journey', { text: docText(journeyDoc(journey.value, graph.value, layout.value, '')) + (extra.trim() ? `\n\nAlso answer: ${extra.trim()}` : '') })
 </script>
 
 <template>
@@ -121,6 +129,7 @@ const getDoc = () => journeyDoc(journey.value, graph.value, layout.value, journe
         </div>
         <a :href="journeyBuilderUrl(stack, journey)" @click="openInSfmc($event, journeyBuilderUrl(stack, journey))" target="_blank" rel="noopener" class="inline-flex items-center gap-1 h-8 px-2.5 rounded-md border border-border text-xs hover:bg-accent">Journey Builder <ExternalLink class="h-3 w-3" /></a>
         <WatchButton type="journey" :stack="stack" :items="[journey]" />
+        <AiButton label="Summarize" title="Summarize this journey (experimental, Gemini Nano in Chrome)" @click="summaryOpen = true" />
         <DownloadMenu :get-doc="getDoc" :file-name="journey.name || 'journey'" />
       </template>
     </div>
@@ -163,6 +172,8 @@ const getDoc = () => journeyDoc(journey.value, graph.value, layout.value, journe
         </div>
       </aside>
     </div>
+    <AskAiDialog v-if="ai.shown.value && journey" :open="summaryOpen" title="Summarize this journey" :system="AI_TEXT_SYSTEM"
+      :prompt="summaryPrompt" extra-label="Anything else to ask about it?" @close="summaryOpen = false" />
   </div>
 </template>
 
