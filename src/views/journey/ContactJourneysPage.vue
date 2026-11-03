@@ -193,7 +193,7 @@ const statusClass = (s) => (/fail|error/i.test(s) ? 'text-red-600' : /complete|s
                 <RouterLink :to="{ path: `/journeys/${paths[g.id].journeyId}`, query: paths[g.id].version ? { version: paths[g.id].version } : {} }" class="ml-auto inline-flex items-center gap-1 text-primary hover:underline">Open the journey <ExternalLink class="h-3 w-3" /></RouterLink>
               </div>
               <p v-if="paths[g.id].unmatched.length" class="text-amber-700 dark:text-amber-300">{{ paths[g.id].unmatched.length }} step(s) could not be placed on the canvas (not in this version of the journey).</p>
-              <div class="overflow-auto max-h-[60vh] rounded-lg border border-border bg-[radial-gradient(circle,hsl(var(--border))_1px,transparent_1px)] bg-size-[16px_16px]">
+              <div class="min-w-0">
                 <JourneyCanvas :graph="paths[g.id].graph" :layout="paths[g.id].layout" :visited="paths[g.id].visited" :visited-edges="paths[g.id].visitedEdges" :steps="paths[g.id].steps" />
               </div>
             </template>

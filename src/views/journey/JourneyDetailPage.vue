@@ -2,7 +2,7 @@
 // One journey on a canvas (horizontal or vertical), with each node's content in a
 // side panel: email subject, preheader and a preview, waits, split paths and their
 // criteria, and every setting. Read-only.
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ArrowLeft, Loader2, ExternalLink, X, Columns3, Rows3 } from 'lucide-vue-next'
 import JourneyCanvas from '@/components/journey/JourneyCanvas.vue'
@@ -24,6 +24,7 @@ const journey = ref(null)
 const loading = ref(true)
 const error = ref('')
 const selected = ref(null)
+let loadGeneration = 0
 
 // Step details panel: drag its left edge to resize (feedback #42); width remembered.
 const PANEL_KEY = 'toolkit_journey_panel_w'
@@ -43,23 +44,35 @@ function startResize(e) {
 }
 const orientation = ref('horizontal')
 try { if (localStorage.getItem(ORIENTATION_KEY) === 'vertical') orientation.value = 'vertical' } catch { /* storage blocked */ }
-const canvasBox = ref(null)
+const canvas = ref(null)
 watch(orientation, (v) => {
   try { localStorage.setItem(ORIENTATION_KEY, v) } catch { /* storage blocked */ }
-  canvasBox.value?.scrollTo({ left: 0, top: 0 })
 })
+
+function selectActivity(key) {
+  selected.value = selected.value === key ? null : key
+}
+
+async function closeDetails() {
+  const key = selected.value
+  selected.value = null
+  await nextTick()
+  canvas.value?.focusActivity(key)
+}
 
 async function load() {
   if (!stack.value || !route.params.id) return
+  const generation = ++loadGeneration
   loading.value = true
   error.value = ''
   selected.value = null
   try {
-    journey.value = await fetchJourney(stack.value, String(route.params.id), route.query.version)
+    const result = await fetchJourney(stack.value, String(route.params.id), route.query.version)
+    if (generation === loadGeneration) journey.value = result
   } catch (e) {
-    error.value = `Could not load this journey: ${e.message}`
+    if (generation === loadGeneration) error.value = `Could not load this journey: ${e.message}`
   } finally {
-    loading.value = false
+    if (generation === loadGeneration) loading.value = false
   }
 }
 watch([() => route.params.id, () => route.query.version, stack], () => { if (route.path.startsWith('/journeys/')) load() }, { immediate: true })
@@ -112,17 +125,20 @@ const getDoc = () => journeyDoc(journey.value, graph.value, layout.value, journe
     </div>
 
     <div v-if="loading" class="p-4 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 class="h-4 w-4 animate-spin" /> Loading the journey…</div>
-    <p v-else-if="error" class="p-4 text-sm text-red-600" role="alert">{{ error }}</p>
-    <div v-else-if="journey" class="flex-1 min-h-0 flex">
+    <div v-else-if="error" class="p-4 text-sm text-red-600" role="alert">
+      <p>{{ error }}</p>
+      <button type="button" class="mt-2 rounded-md border border-border px-3 py-1 text-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring" @click="load">Retry</button>
+    </div>
+    <div v-else-if="journey" class="relative flex-1 min-h-0 flex">
       <div class="flex-1 min-w-0 overflow-auto">
         <section class="m-4 rounded-lg border border-border bg-card p-3">
-          <dl class="grid grid-cols-[minmax(7rem,9rem)_1fr_minmax(7rem,9rem)_1fr] gap-x-4 gap-y-1 text-xs">
+          <dl class="grid grid-cols-[minmax(6rem,8rem)_minmax(0,1fr)] gap-x-4 gap-y-1 text-xs md:grid-cols-[minmax(7rem,9rem)_minmax(0,1fr)_minmax(7rem,9rem)_minmax(0,1fr)]">
             <template v-for="[k, v] in journeyOverviewRows(journey)" :key="k"><dt class="text-muted-foreground">{{ k }}</dt><dd class="wrap-break-word">{{ v }}</dd></template>
           </dl>
         </section>
-        <p class="mx-4 mb-2 text-xs text-muted-foreground">Click a step to see what it does.</p>
-        <div ref="canvasBox" class="mx-4 mb-4 overflow-auto max-h-[70vh] rounded-lg border border-border bg-[radial-gradient(circle,hsl(var(--border))_1px,transparent_1px)] bg-size-[16px_16px]">
-          <JourneyCanvas :graph="graph" :layout="layout" :orientation="orientation" :selected="selected" @select="selected = selected === $event ? null : $event" />
+        <p class="mx-4 mb-2 text-xs text-muted-foreground">Click an activity to see its configuration and email preview. Drag to pan; scroll to zoom.</p>
+        <div class="mx-4 mb-4">
+          <JourneyCanvas :key="`${journey.id}:${journey.version}`" ref="canvas" :graph="graph" :layout="layout" :orientation="orientation" :selected="selected" @select="selectActivity" />
         </div>
         <section v-if="journey.goals?.length || journey.exits?.length" class="mx-4 mb-4 text-xs text-muted-foreground">
           <span v-if="journey.goals?.length">Goals: {{ journey.goals.map((g) => g.name || g.key).join(', ') }}. </span>
@@ -131,9 +147,9 @@ const getDoc = () => journeyDoc(journey.value, graph.value, layout.value, journe
         </section>
       </div>
 
-      <aside v-if="selectedDesc" class="relative shrink-0 border-l border-border bg-background overflow-y-auto" :style="{ width: `${panelWidth}px`, maxWidth: '70%' }" aria-label="Step details">
+      <aside v-if="selectedDesc" class="journey-details relative shrink-0 border-l border-border bg-background overflow-y-auto" :style="{ width: `${panelWidth}px`, maxWidth: '70%' }" aria-label="Step details" @keydown.esc.stop="closeDetails">
         <div class="absolute inset-y-0 left-0 w-1.5 cursor-col-resize hover:bg-primary/30 z-20" role="separator" aria-orientation="vertical" aria-label="Resize step details" title="Drag to resize" @pointerdown="startResize" />
-        <div class="sticky top-0 z-10 flex justify-end bg-background p-1"><button class="p-1 rounded hover:bg-accent" title="Close" @click="selected = null"><X class="h-4 w-4" /></button></div>
+        <div class="sticky top-0 z-10 flex justify-end bg-background p-1"><button type="button" class="p-1 rounded hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring" title="Close" aria-label="Close activity details" @click="closeDetails"><X class="h-4 w-4" /></button></div>
         <div class="px-3 pb-4 space-y-3">
           <ActivityCard :description="selectedDesc" />
           <div v-if="preview.status !== 'idle'" class="rounded-lg border border-border bg-card">
@@ -148,3 +164,9 @@ const getDoc = () => journeyDoc(journey.value, graph.value, layout.value, journe
     </div>
   </div>
 </template>
+
+<style scoped>
+@media (max-width: 800px) {
+  .journey-details { position: absolute; inset: 0 0 0 auto; z-index: 10; width: min(416px, 100%) !important; max-width: 100% !important; box-shadow: -4px 0 12px rgb(0 0 0 / .1); }
+}
+</style>

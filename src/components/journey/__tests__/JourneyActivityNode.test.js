@@ -1,0 +1,201 @@
+import { describe, expect, it, vi } from 'vitest'
+import { mount } from '@vue/test-utils'
+import JourneyActivityNode from '../JourneyActivityNode.vue'
+import { journeyActivityVisual } from '@/utils/journeyCanvas.js'
+
+vi.mock('@vue-flow/core', () => ({
+  Handle: { template: '<span />' },
+  Position: { Left: 'left', Right: 'right', Top: 'top', Bottom: 'bottom' },
+}))
+
+const first = 'https://eef.us.sfmc-einstein.com/activity/static/media/EEF-Split.png'
+const second = 'https://eef.us.sfmc-einstein.com/activity/static/media/other.png'
+const data = (overrides = {}) => ({
+  key: 'einstein-original-key', name: 'Einstein', typeLabel: 'Einstein split', summary: '', active: false,
+  orientation: 'horizontal', visual: journeyActivityVisual('EINSTEINSPLIT'), iconUrl: first, ...overrides,
+})
+
+describe('Journey activity remote image', () => {
+  it('keeps the local icon available until the remote image loads', async () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data() } })
+    const image = wrapper.get('img')
+    expect(image.attributes()).toMatchObject({ src: first, alt: '', draggable: 'false', referrerpolicy: 'no-referrer' })
+    expect(image.classes()).not.toContain('is-loaded')
+    expect(wrapper.get('svg').classes()).not.toContain('is-image-fallback')
+    await image.trigger('load')
+    expect(wrapper.get('img').classes()).toContain('is-loaded')
+    expect(wrapper.get('svg').classes()).toContain('is-image-fallback')
+    wrapper.unmount()
+  })
+
+  it('falls back after a loading error and preserves button selection', async () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data() } })
+    await wrapper.get('img').trigger('error')
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.get('svg').classes()).not.toContain('is-image-fallback')
+    expect(wrapper.get('button').attributes('data-activity-key')).toBe('einstein-original-key')
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.emitted('select')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('tries a new URL after a previous failure', async () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data() } })
+    await wrapper.get('img').trigger('error')
+    await wrapper.setProps({ data: data({ iconUrl: second }) })
+    expect(wrapper.get('img').attributes('src')).toBe(second)
+    expect(wrapper.get('svg').classes()).not.toContain('is-image-fallback')
+    await wrapper.get('img').trigger('load')
+    expect(wrapper.get('img').classes()).toContain('is-loaded')
+    wrapper.unmount()
+  })
+
+  it('ignores late events from a replaced image', async () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data() } })
+    const previous = wrapper.get('img')
+    await wrapper.setProps({ data: data({ iconUrl: second }) })
+    await previous.trigger('load')
+    expect(wrapper.get('img').classes()).not.toContain('is-loaded')
+    await wrapper.get('img').trigger('load')
+    await previous.trigger('error')
+    expect(wrapper.get('img').attributes('src')).toBe(second)
+    expect(wrapper.get('img').classes()).toContain('is-loaded')
+    wrapper.unmount()
+  })
+
+  it('keeps the loaded image when selection changes', async () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data() } })
+    const image = wrapper.get('img')
+    await image.trigger('load')
+    await wrapper.setProps({ data: data({ active: true }) })
+    expect(wrapper.get('img').element).toBe(image.element)
+    expect(wrapper.get('img').classes()).toContain('is-loaded')
+    expect(wrapper.get('button').attributes('aria-pressed')).toBe('true')
+    wrapper.unmount()
+  })
+
+  it('uses only the local icon when no URL is available', () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data({ iconUrl: null }) } })
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.get('svg').classes()).not.toContain('is-image-fallback')
+    wrapper.unmount()
+  })
+
+  it('preserves the gray configuration state with a remote icon', async () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data({ visual: journeyActivityVisual('EINSTEINSPLIT', false) }) } })
+    await wrapper.get('img').trigger('load')
+    expect(wrapper.get('.journey-activity').attributes('style')).toContain('--activity-color: #a8b7c7')
+    expect(wrapper.get('img').classes()).toContain('is-loaded')
+    wrapper.unmount()
+  })
+})
+
+describe('Journey activity branch exit', () => {
+  it('exposes the lower handle without changing activity selection', async () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data({ branchExit: true, iconUrl: null }) } })
+    expect(wrapper.get('.journey-activity').classes()).toContain('has-branch-exit')
+    expect(wrapper.get('#branch').attributes('style')).toContain('left: 78px')
+    expect(wrapper.get('#branch').attributes('style')).toContain('top: 48px')
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.emitted('select')).toHaveLength(1)
+    expect(wrapper.get('button').attributes('data-activity-key')).toBe('einstein-original-key')
+    wrapper.unmount()
+  })
+
+  it('omits the lower handle when there is no descending branch', () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data({ branchExit: false, iconUrl: null }) } })
+    expect(wrapper.find('#branch').exists()).toBe(false)
+    expect(wrapper.get('.journey-activity').classes()).not.toContain('has-branch-exit')
+    wrapper.unmount()
+  })
+
+  it('does not add the horizontal branch handle in vertical orientation', () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data({ branchExit: true, orientation: 'vertical', iconUrl: null }) } })
+    expect(wrapper.find('#branch').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})
+
+describe('Salesforce activity icons', () => {
+  it.each([
+    'SALESFORCEACCOUNTACTIVITY', 'SALESFORCECAMPAIGNMEMBERACTIVITY', 'SALESFORCECASEANDCONTACTACTIVITY',
+    'SALESFORCECONTACTACTIVITY', 'SALESFORCELEADCONVERSIONACTIVITY', 'SALESFORCELEADACTIVITY',
+    'SALESFORCEGENERICOBJECTACTIVITY', 'SALESFORCEOPPORTUNITY', 'SALESFORCETASKACTIVITY',
+  ])('renders %s as a filled local icon and keeps unconfigured activities selectable', async (type) => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data({
+      iconUrl: null, visual: journeyActivityVisual(type, false), name: 'Synthetic Salesforce activity', typeLabel: 'Salesforce activity',
+    }) } })
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.get('.journey-activity-symbol').classes()).toContain('is-square')
+    expect(wrapper.get('.journey-activity').attributes('style')).toContain('--activity-color: #a8b7c7')
+    for (const path of wrapper.findAll('svg path')) {
+      expect(path.attributes()).toMatchObject({ fill: 'currentColor', stroke: 'none', 'fill-rule': 'evenodd' })
+    }
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.emitted('select')).toHaveLength(1)
+    await wrapper.setProps({ data: data({ iconUrl: null, visual: journeyActivityVisual(type, true), active: true }) })
+    expect(wrapper.get('.journey-activity').attributes('style')).toContain('--activity-color: #00a1e0')
+    expect(wrapper.get('button').attributes('aria-pressed')).toBe('true')
+    wrapper.unmount()
+  })
+})
+
+describe('Wait Until Chat Response icon', () => {
+  it('uses a filled local clock and chat icon while keeping gray activities selectable', async () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data({
+      key: 'chat-response-synthetic', name: 'Wait Until Chat Response', typeLabel: 'Wait Until Chat Response',
+      iconUrl: null, visual: journeyActivityVisual('WAITUNTILCHATRESPONSE', false),
+    }) } })
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.get('.journey-activity-symbol').classes()).toContain('is-diamond')
+    expect(wrapper.get('.journey-activity').attributes('style')).toContain('--activity-color: #a8b7c7')
+    for (const path of wrapper.findAll('svg path')) {
+      expect(path.attributes()).toMatchObject({ fill: 'currentColor', stroke: 'none' })
+    }
+    expect(wrapper.get('button').attributes('aria-label')).toBe('Wait Until Chat Response: Wait Until Chat Response')
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.emitted('select')).toHaveLength(1)
+    wrapper.unmount()
+  })
+})
+
+describe('Event wait icons', () => {
+  it.each([
+    ['WAITUNTILAPI', 'Wait Until Event'],
+    ['WAITUNTILPUSHENGAGEMENT', 'Wait Until Push Event'],
+  ])('uses a filled local clock and lightning icon for %s while keeping gray activities selectable', async (type, label) => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data({
+      key: 'event-wait-synthetic', name: label, typeLabel: label,
+      iconUrl: null, visual: journeyActivityVisual(type, false),
+    }) } })
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.get('.journey-activity-symbol').classes()).toContain('is-diamond')
+    expect(wrapper.get('.journey-activity').attributes('style')).toContain('--activity-color: #a8b7c7')
+    for (const path of wrapper.findAll('svg path')) {
+      expect(path.attributes()).toMatchObject({ fill: 'currentColor', stroke: 'none' })
+    }
+    expect(wrapper.get('button').attributes('aria-label')).toBe(`${label}: ${label}`)
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.emitted('select')).toHaveLength(1)
+    wrapper.unmount()
+  })
+})
+
+describe('Wait Until In-App Event icon', () => {
+  it('uses a filled local clock and phone icon while keeping gray activities selectable', async () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data({
+      key: 'in-app-wait-synthetic', name: 'Wait Until In-App Event', typeLabel: 'Wait Until In-App Event',
+      iconUrl: null, visual: journeyActivityVisual('WAITUNTILPUSHINAPPENGAGEMENT', false),
+    }) } })
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.get('.journey-activity-symbol').classes()).toContain('is-diamond')
+    expect(wrapper.get('.journey-activity').attributes('style')).toContain('--activity-color: #a8b7c7')
+    for (const path of wrapper.findAll('svg path')) {
+      expect(path.attributes()).toMatchObject({ fill: 'currentColor', stroke: 'none' })
+    }
+    expect(wrapper.get('button').attributes('aria-label')).toBe('Wait Until In-App Event: Wait Until In-App Event')
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.emitted('select')).toHaveLength(1)
+    wrapper.unmount()
+  })
+})

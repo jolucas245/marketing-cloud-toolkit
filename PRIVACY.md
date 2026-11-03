@@ -1,6 +1,6 @@
 # Marketing Cloud Toolkit privacy policy
 
-Last updated: 2026-10-28. This policy covers Marketing Cloud Toolkit version 2.0.18 and later, the Chrome extension that was published as SFMC Query Saver until version 1.4.0.
+Last updated: 2026-10-30. This policy covers Marketing Cloud Toolkit version 2.0.18 and later, the Chrome extension that was published as SFMC Query Saver until version 1.4.0.
 
 Publisher: Matheswaran Kanagarajan, an individual developer. Contact: mathes.btech@gmail.com.
 
@@ -8,7 +8,7 @@ Publisher: Matheswaran Kanagarajan, an individual developer. Contact: mathes.bte
 
 - The extension works with your own Salesforce Marketing Cloud (SFMC) account, in your browser, with the login you already have. It never asks for or stores a password.
 - There is no analytics, no advertising and no tracking. Nothing is sold.
-- Data leaves your browser only in these cases: calls to Salesforce Marketing Cloud on your behalf; a query you choose to share; feedback you choose to send; and a diagram you choose to open on diagramforce.com. Each is described below.
+- Data leaves your browser only in these cases: calls to Salesforce Marketing Cloud on your behalf; loading Einstein activity icons; a query you choose to share; feedback you choose to send; and a diagram you choose to open on diagramforce.com. Each is described below.
 
 ## What the extension reads in your browser
 
@@ -27,7 +27,8 @@ Publisher: Matheswaran Kanagarajan, an individual developer. Contact: mathes.bte
 
 ## What is sent, and where
 
-- **Salesforce Marketing Cloud.** Every call to Marketing Cloud goes to Salesforce's own domains (`exacttarget.com`, `marketingcloudapps.com`, `marketingcloud.com`, `salesforce-marketingcloud.com`), with your session, to do what you asked. Salesforce's own privacy terms apply to your Marketing Cloud data.
+- **Salesforce Marketing Cloud.** Marketing Cloud API calls go to Salesforce's own domains (`exacttarget.com`, `marketingcloudapps.com`, `marketingcloud.com`, `salesforce-marketingcloud.com`), with your session, to do what you asked. Salesforce's own privacy terms apply to your Marketing Cloud data.
+- **Einstein activity icons.** Journey previews can load icon images from HTTPS URLs under `sfmc-einstein.com` supplied in the activity definition. These image requests send no referrer. The built-in icon remains available while the image loads or if it fails to load.
 - **Share (off by default).** When you share a query, its name and SQL are sent to the Toolkit's share service (`sfmc-share-worker.mathes-btech.workers.dev`, run on Cloudflare Workers). Anyone with the link can read it for 24 hours, after which it is deleted. Before anything is sent, the extension shows exactly what will be sent and asks you to confirm. No results, data extension rows or account details are sent. The share service does not store who sent it.
 - **Feedback (only when you send it).** The feedback form sends your message, the kind of feedback, the page you were on (without record IDs), the extension version and, only if you fill them in, your name and email. Technical details (browser, language, window size, Marketing Cloud stack and the status codes of recent failed calls) and a screenshot are added only if you choose them; before sending, the form shows exactly what will be sent. Technical details never include business unit names or IDs, SQL, results, record names or Marketing Cloud addresses. Feedback is stored in a Cloudflare D1 database (`query-saver-feedback.mathes-btech.workers.dev`), read only by the developer, and deleted after 180 days. IP addresses are not stored.
 - **Diagramforce (only when you click Open in Diagramforce).** The query's table, column and join names are passed to diagramforce.com, a free diagram editor by Mateusz Dabrowski, in a new tab. That site's own privacy policy applies.

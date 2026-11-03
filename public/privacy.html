@@ -19,13 +19,13 @@
 <body>
 <main>
   <h1>Marketing Cloud Toolkit privacy policy</h1>
-  <p>Last updated: 2026-10-28. This policy covers Marketing Cloud Toolkit version 2.0.18 and later, the Chrome extension that was published as SFMC Query Saver until version 1.4.0.</p>
+  <p>Last updated: 2026-10-30. This policy covers Marketing Cloud Toolkit version 2.0.18 and later, the Chrome extension that was published as SFMC Query Saver until version 1.4.0.</p>
   <p>Publisher: Matheswaran Kanagarajan, an individual developer. Contact: mathes.btech@gmail.com.</p>
   <h2>Summary</h2>
   <ul>
     <li>The extension works with your own Salesforce Marketing Cloud (SFMC) account, in your browser, with the login you already have. It never asks for or stores a password.</li>
     <li>There is no analytics, no advertising and no tracking. Nothing is sold.</li>
-    <li>Data leaves your browser only in these cases: calls to Salesforce Marketing Cloud on your behalf; a query you choose to share; feedback you choose to send; and a diagram you choose to open on diagramforce.com. Each is described below.</li>
+    <li>Data leaves your browser only in these cases: calls to Salesforce Marketing Cloud on your behalf; loading Einstein activity icons; a query you choose to share; feedback you choose to send; and a diagram you choose to open on diagramforce.com. Each is described below.</li>
   </ul>
   <h2>What the extension reads in your browser</h2>
   <ul>
@@ -44,7 +44,8 @@
   </ul>
   <h2>What is sent, and where</h2>
   <ul>
-    <li><strong>Salesforce Marketing Cloud.</strong> Every call to Marketing Cloud goes to Salesforce's own domains (<code>exacttarget.com</code>, <code>marketingcloudapps.com</code>, <code>marketingcloud.com</code>, <code>salesforce-marketingcloud.com</code>), with your session, to do what you asked. Salesforce's own privacy terms apply to your Marketing Cloud data.</li>
+    <li><strong>Salesforce Marketing Cloud.</strong> Marketing Cloud API calls go to Salesforce's own domains (<code>exacttarget.com</code>, <code>marketingcloudapps.com</code>, <code>marketingcloud.com</code>, <code>salesforce-marketingcloud.com</code>), with your session, to do what you asked. Salesforce's own privacy terms apply to your Marketing Cloud data.</li>
+    <li><strong>Einstein activity icons.</strong> Journey previews can load icon images from HTTPS URLs under <code>sfmc-einstein.com</code> supplied in the activity definition. These image requests send no referrer. The built-in icon remains available while the image loads or if it fails to load.</li>
     <li><strong>Share (off by default).</strong> When you share a query, its name and SQL are sent to the Toolkit's share service (<code>sfmc-share-worker.mathes-btech.workers.dev</code>, run on Cloudflare Workers). Anyone with the link can read it for 24 hours, after which it is deleted. Before anything is sent, the extension shows exactly what will be sent and asks you to confirm. No results, data extension rows or account details are sent. The share service does not store who sent it.</li>
     <li><strong>Feedback (only when you send it).</strong> The feedback form sends your message, the kind of feedback, the page you were on (without record IDs), the extension version and, only if you fill them in, your name and email. Technical details (browser, language, window size, Marketing Cloud stack and the status codes of recent failed calls) and a screenshot are added only if you choose them; before sending, the form shows exactly what will be sent. Technical details never include business unit names or IDs, SQL, results, record names or Marketing Cloud addresses. Feedback is stored in a Cloudflare D1 database (<code>query-saver-feedback.mathes-btech.workers.dev</code>), read only by the developer, and deleted after 180 days. IP addresses are not stored.</li>
     <li><strong>Diagramforce (only when you click Open in Diagramforce).</strong> The query's table, column and join names are passed to diagramforce.com, a free diagram editor by Mateusz Dabrowski, in a new tab. That site's own privacy policy applies.</li>

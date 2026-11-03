@@ -46,48 +46,116 @@ export function journeyBuilderUrl(stack, journey) {
 
 // ── Node types ─────────────────────────────────────────────
 const TYPE_LABELS = {
+  PUSHINBOXACTIVITY: 'Inbox',
+  SENDTOLINESYNC: 'LINE Message',
+  WHATSAPPSESSIONTRANSFERACTIVITY: 'WhatsApp Session Transfer',
   EMAILV2: 'Email', EMAIL: 'Email', SMSSYNC: 'SMS', SMS: 'SMS', PUSHNOTIFICATIONACTIVITY: 'Push notification',
-  INAPPSYNCACTIVITY: 'In-app message', INBOXACTIVITY: 'Inbox message', WHATSAPPACTIVITY: 'WhatsApp',
-  WAIT: 'Wait', WAITBYDURATION: 'Wait by duration', WAITBYATTRIBUTE: 'Wait by attribute', WAITUNTILDATE: 'Wait until date',
-  WAITUNTILEVENT: 'Wait until event', STOWAIT: 'Einstein STO', MULTICRITERIADECISION: 'Decision split',
+  INAPPSYNCACTIVITY: 'In-App Message', INBOXACTIVITY: 'Inbox message', WHATSAPPACTIVITY: 'WhatsApp',
+  WAIT: 'Wait', WAITBYDURATION: 'Wait by duration', WAITBYATTRIBUTE: 'Wait By Attribute', WAITUNTILDATE: 'Wait Until Date',
+  WAITUNTILSPECIFICDATE: 'Wait Until Date',
+  WAITUNTILCHATRESPONSE: 'Wait Until Chat Response',
+  WAITUNTILPUSHINAPPENGAGEMENT: 'Wait Until In-App Event',
+  WAITUNTILPUSHENGAGEMENT: 'Wait Until Push Event',
+  WAITUNTILAPI: 'Wait Until Event', WAITUNTILEVENT: 'Wait Until Event', STOWAIT: 'Einstein STO', MULTICRITERIADECISION: 'Decision split',
   RANDOMSPLIT: 'Random split', ENGAGEMENTSPLIT: 'Engagement split', ENGAGEMENTDECISION: 'Engagement split',
-  ABNTEST: 'Path optimizer', EINSTEINSPLIT: 'Einstein split', UPDATECONTACTDATA: 'Update contact',
+  ABNTEST: 'Path optimizer', ABNTESTSTOP: 'Winner', EINSTEINSPLIT: 'Einstein split', UPDATECONTACTDATA: 'Update contact',
   CONTACTDECISION: 'Decision split', SALESCLOUDACTIVITY: 'Salesforce activity', SALESFORCESALESCLOUDACTIVITY: 'Salesforce activity',
   OBJECTACTIVITY: 'Salesforce activity', REST: 'Custom activity', EVENT: 'Event', JOIN: 'Join',
+  SALESFORCEACCOUNTACTIVITY: 'Account', SALESFORCECAMPAIGNMEMBERACTIVITY: 'Campaign Member',
+  SALESFORCECASEANDCONTACTACTIVITY: 'Case', SALESFORCECONTACTACTIVITY: 'Contact',
+  SALESFORCELEADCONVERSIONACTIVITY: 'Convert Lead', SALESFORCELEADACTIVITY: 'Lead',
+  SALESFORCEGENERICOBJECTACTIVITY: 'Object Activity', SALESFORCEOPPORTUNITY: 'Opportunity', SALESFORCETASKACTIVITY: 'Task',
 }
 export const nodeTypeLabel = (type) => TYPE_LABELS[String(type || '').toUpperCase()] || (type ? String(type) : 'Activity')
+
+const WAIT_DURATION_TYPES = new Set(['WAIT', 'WAITBYDURATION'])
+const WAIT_DURATION_UNITS = new Set(['SECOND', 'MINUTE', 'HOUR', 'DAY', 'WEEK', 'MONTH', 'YEAR'])
+const WAIT_DATE_TYPES = new Set(['WAITUNTILSPECIFICDATE', 'WAITUNTILDATE'])
+const WAIT_EVENT_TYPES = new Set(['WAITUNTILAPI', 'WAITUNTILEVENT'])
+const WAIT_UI_TYPES = new Set([...WAIT_DATE_TYPES, ...WAIT_EVENT_TYPES, 'WAITBYATTRIBUTE', 'WAITUNTILCHATRESPONSE', 'WAITUNTILPUSHINAPPENGAGEMENT', 'WAITUNTILPUSHENGAGEMENT'])
+const SALESFORCE_EXTENSION_TYPES = new Map([
+  ['Salesforce_Activity_Account', 'SALESFORCEACCOUNTACTIVITY'],
+  ['Salesforce_Activity_CampaignMember', 'SALESFORCECAMPAIGNMEMBERACTIVITY'],
+  ['Salesforce_Activity_Case', 'SALESFORCECASEANDCONTACTACTIVITY'],
+  ['Salesforce_Activity_Contact', 'SALESFORCECONTACTACTIVITY'],
+  ['Salesforce_Activity_Lead', 'SALESFORCELEADACTIVITY'],
+  ['Salesforce_Activity', 'SALESFORCEGENERICOBJECTACTIVITY'],
+  ['Salesforce_Activity_Opportunity', 'SALESFORCEOPPORTUNITY'],
+  ['Salesforce_Activity_Task', 'SALESFORCETASKACTIVITY'],
+])
+const SALESFORCE_DISPLAY_TYPES = new Set([...SALESFORCE_EXTENSION_TYPES.values(), 'SALESFORCELEADCONVERSIONACTIVITY'])
+
+export function nodeDisplayType(node) {
+  const type = node?.type || ''
+  const activity = node?.raw || node
+  if (String(type).toUpperCase() === 'SALESCLOUDACTIVITY') {
+    return SALESFORCE_EXTENSION_TYPES.get(activity?.configurationArguments?.applicationExtensionKey) || type
+  }
+  const uiType = String(activity?.metaData?.uiType || '').toUpperCase()
+  return String(type).toUpperCase() === 'WAIT' && WAIT_UI_TYPES.has(uiType) ? uiType : type
+}
 
 export function nodeKind(type) {
   const t = String(type || '').toUpperCase()
   if (t === 'ENTRY') return 'entry'
   if (t === 'EXIT') return 'exit'
+  if (t === 'ABNTESTSTOP') return 'action'
   if (/WAIT/.test(t)) return 'wait'
   if (/SPLIT|DECISION|ABNTEST/.test(t)) return 'split'
-  if (/EMAIL|SMS|PUSH|INAPP|INBOX|WHATSAPP/.test(t)) return 'message'
+  if (/EMAIL|SMS|PUSH|INAPP|INBOX|WHATSAPP|SENDTOLINESYNC/.test(t)) return 'message'
   return 'action'
 }
 
 const ca = (a) => a?.configurationArguments || {}
 
+function waitDurationLabel(configuration) {
+  const value = configuration?.waitDuration
+  if (!['number', 'string'].includes(typeof value) || String(value).trim() === '') return ''
+  const duration = Number(value)
+  const unit = String(configuration?.waitUnit || '').trim().toUpperCase().replace(/S$/, '')
+  if (!Number.isFinite(duration) || duration < 0 || !WAIT_DURATION_UNITS.has(unit)) return ''
+  return `${duration} ${unit.toLowerCase()}${duration === 1 ? '' : 's'}`
+}
+
 /** One line about what a node does, for the canvas. */
 export function nodeSummary(n) {
   // A canvas node (with `raw`) or the activity itself.
   const a = n.raw && n.type !== 'ENTRY' ? n.raw : n
-  const t = String(a.type || '').toUpperCase()
+  const t = String(nodeDisplayType(a)).toUpperCase()
   const c = ca(a)
   if (t === 'ENTRY') return a.eventDefinitionKey ? `Event ${a.eventDefinitionKey}` : nodeTypeLabel(a.triggerType)
   if (t === 'EMAILV2' || t === 'EMAIL') return c.triggeredSend?.emailSubject ? `Subject: ${c.triggeredSend.emailSubject}` : ''
-  if (t === 'WAIT' || t === 'WAITBYDURATION') return c.waitDuration != null ? `${c.waitDuration} ${String(c.waitUnit || '').toLowerCase()}` : ''
-  if (t === 'WAITUNTILDATE') return c.specifiedDateTime ? `Until ${formatDateTime(c.specifiedDateTime)}` : ''
+  if (WAIT_DURATION_TYPES.has(t)) return waitDurationLabel(c)
+  if (WAIT_DATE_TYPES.has(t)) return c.specifiedDateTime ? `Until ${formatDateTime(c.specifiedDateTime)}` : ''
   if (t === 'WAITBYATTRIBUTE') return c.attributeName || c.waitForAttribute || ''
   if (a.outcomes?.length > 1) return `${a.outcomes.length} paths`
   return ''
 }
 
+const OUTCOME_LABELS = new Map([
+  ['undersaturatedLabel', 'Undersaturated'],
+  ['winbackLabel', 'Winback'],
+  ['selectiveLabel', 'Selective Subscriber'],
+  ['windowShopperLabel', 'Window Shopper'],
+  ['loyalistLabel', 'Loyalist'],
+  ['mostLikelyLabel', 'Most Likely'],
+  ['moreLikelyLabel', 'More Likely'],
+  ['lessLikelyLabel', 'Less Likely'],
+  ['leastLikelyLabel', 'Least Likely'],
+  ['mostEngagedLabel', 'Most Engaged'],
+  ['moreEngagedLabel', 'More Engaged'],
+  ['lessEngagedLabel', 'Less Engaged'],
+  ['leastEngagedLabel', 'Least Engaged'],
+  ['remainderLabel', 'Remainder'],
+  ['almostSaturatedLabel', 'Almost Saturated'],
+  ['onTargetLabel', 'On Target'],
+  ['saturatedLabel', 'Saturated'],
+])
+
 export function outcomeLabel(o, i) {
   const m = o?.metaData || {}
   const pct = o?.arguments?.percentage
-  return m.label || m.pathName || o?.arguments?.branchResult || (pct != null ? `${pct}%` : '') || (i != null ? `Path ${i + 1}` : '')
+  return OUTCOME_LABELS.get(m.label) || m.label || m.pathName || OUTCOME_LABELS.get(m.i18nLabel) || o?.arguments?.branchResult || (pct != null ? `${pct}%` : '') || (i != null ? `Path ${i + 1}` : '')
 }
 
 // ── Graph ──────────────────────────────────────────────────
@@ -115,7 +183,20 @@ export function journeyGraph(journey) {
 
   let exitCount = 0
   for (const a of activities) {
-    nodes.push({ key: a.key, type: a.type, name: a.name || nodeTypeLabel(a.type), raw: a })
+    const type = String(a.type || '').toUpperCase()
+    const displayType = nodeDisplayType(a)
+    const nameKey = String(a.name || '').toUpperCase()
+    const durationName = WAIT_DURATION_TYPES.has(String(displayType).toUpperCase()) && ['', 'WAIT', 'WAITBYDURATION', 'WAIT BY DURATION'].includes(nameKey.trim()) ? waitDurationLabel(ca(a)) : ''
+    const automaticName = ['ABNTESTSTOP', 'SENDTOLINESYNC', 'WHATSAPPSESSIONTRANSFERACTIVITY', 'INAPPSYNCACTIVITY', 'PUSHINBOXACTIVITY'].includes(type) && nameKey === type
+    const dateName = WAIT_DATE_TYPES.has(String(displayType).toUpperCase()) && (nameKey === 'WAIT' || nameKey === 'WAIT UNTIL DATE' || WAIT_DATE_TYPES.has(nameKey))
+    const attributeName = String(displayType).toUpperCase() === 'WAITBYATTRIBUTE' && ['WAIT', 'WAITBYATTRIBUTE', 'WAIT BY ATTRIBUTE'].includes(nameKey)
+    const chatName = String(displayType).toUpperCase() === 'WAITUNTILCHATRESPONSE' && ['WAIT', 'WAITUNTILCHATRESPONSE', 'WAIT UNTIL CHAT RESPONSE'].includes(nameKey)
+    const eventName = WAIT_EVENT_TYPES.has(String(displayType).toUpperCase()) && (nameKey === 'WAIT' || nameKey === 'WAIT UNTIL EVENT' || WAIT_EVENT_TYPES.has(nameKey))
+    const inAppName = String(displayType).toUpperCase() === 'WAITUNTILPUSHINAPPENGAGEMENT' && ['WAIT', 'WAITUNTILPUSHINAPPENGAGEMENT', 'WAIT UNTIL IN-APP EVENT'].includes(nameKey)
+    const pushName = String(displayType).toUpperCase() === 'WAITUNTILPUSHENGAGEMENT' && ['WAIT', 'WAITUNTILPUSHENGAGEMENT', 'WAIT UNTIL PUSH EVENT'].includes(nameKey)
+    const salesforceName = SALESFORCE_DISPLAY_TYPES.has(String(displayType).toUpperCase()) && (nameKey === type || nameKey === String(displayType).toUpperCase())
+    const name = durationName || (automaticName || dateName || attributeName || chatName || eventName || inAppName || pushName || salesforceName ? nodeTypeLabel(displayType) : a.name || nodeTypeLabel(displayType))
+    nodes.push({ key: a.key, type: a.type, name, raw: a })
     const outs = a.outcomes || []
     const multi = outs.length > 1
     outs.forEach((o, i) => {
@@ -264,7 +345,8 @@ export function describeJourneyNode(node, nameOf = (k) => k) {
       ['Sender profile', formatValue(ts.senderProfileId)], ['Delivery profile', formatValue(ts.deliveryProfileId)])
     tables.push(kvTable('Send settings', ts, true))
   } else if (/WAIT/.test(t)) {
-    if (c.waitDuration != null) main.push(['Wait', `${c.waitDuration} ${String(c.waitUnit || '').toLowerCase()}`])
+    const duration = waitDurationLabel(c)
+    if (duration) main.push(['Wait', duration])
     if (c.specifiedDateTime) main.push(['Until', formatDateTime(c.specifiedDateTime)])
     if (c.timeZone || c.timezone) main.push(['Time zone', formatValue(c.timeZone || c.timezone)])
     if (c.waitEndDateAttributeExpression || c.attributeName) main.push(['Attribute', formatValue(c.waitEndDateAttributeExpression || c.attributeName)])
@@ -280,22 +362,23 @@ export function describeJourneyNode(node, nameOf = (k) => k) {
   // Paths of a split or decision, with their criteria.
   const outs = a.outcomes || []
   if (outs.length > 1) {
+    const criteriaFor = (o) => o.arguments?.criteria || c.criteria?.[o.key]
     tables.push({
       title: 'Paths', columns: ['Path', 'Criteria or share', 'Leads to'],
       rows: outs.map((o, i) => [
         outcomeLabel(o, i),
-        o.arguments?.criteria ? describeCriteria(o.arguments.criteria) : o.arguments?.percentage != null ? `${o.arguments.percentage}%` : formatValue(o.arguments?.branchResult ?? ''),
+        criteriaFor(o) ? describeCriteria(criteriaFor(o)) : o.arguments?.percentage != null ? `${o.arguments.percentage}%` : formatValue(OUTCOME_LABELS.get(o.metaData?.i18nLabel) || OUTCOME_LABELS.get(o.metaData?.label) || (o.arguments?.branchResult ?? '')),
         o.next ? nameOf(o.next) : 'Exit',
       ]),
     })
-    const criteria = outs.map((o, i) => (o.arguments?.criteria ? `-- ${outcomeLabel(o, i)}\n${o.arguments.criteria}` : null)).filter(Boolean)
+    const criteria = outs.map((o, i) => (criteriaFor(o) ? `-- ${outcomeLabel(o, i)}\n${criteriaFor(o)}` : null)).filter(Boolean)
     if (criteria.length) tables.push({ title: 'Criteria as defined (XML)', columns: ['Value'], rows: [[criteria.join('\n\n')]], extra: true })
   }
   if (a.arguments && t !== 'ENTRY') tables.push(kvTable('Arguments', a.arguments, true))
   if (a.metaData && t !== 'ENTRY') tables.push(kvTable('Details', a.metaData, true))
 
   return {
-    typeLabel: t === 'ENTRY' ? 'Entry' : t === 'EXIT' ? 'Exit' : nodeTypeLabel(a.type),
+    typeLabel: t === 'ENTRY' ? 'Entry' : t === 'EXIT' ? 'Exit' : nodeTypeLabel(nodeDisplayType(node) || a.type),
     title: node.name,
     link: null,
     main: main.filter(([, v]) => v !== '—'),
