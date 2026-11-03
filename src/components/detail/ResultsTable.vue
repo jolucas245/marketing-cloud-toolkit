@@ -163,8 +163,8 @@ function downloadCSV() {
 <template>
   <div class="flex flex-col flex-1 overflow-hidden min-h-0">
     <!-- Toolbar -->
-    <div class="flex items-center justify-between px-4 py-2 bg-card border-b border-border shrink-0">
-      <span class="text-xs font-bold text-foreground">
+    <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-3 py-2 bg-card border-b border-border shrink-0">
+      <span class="text-xs font-semibold text-foreground">
         <template v-if="filtering">{{ viewRows.length.toLocaleString() }} of {{ rows.length.toLocaleString() }} loaded rows (filtered)<button v-if="valuesFiltering" class="ml-1 font-normal text-primary hover:underline" @click="clearValueFilters">Clear value filters</button></template>
         <template v-else-if="total > rows.length">Showing {{ rows.length.toLocaleString() }} of {{ total.toLocaleString() }} rows</template>
         <template v-else>{{ rows.length.toLocaleString() }} rows</template>
@@ -174,49 +174,49 @@ function downloadCSV() {
         </template>
       </span>
       <div v-if="moreToLoad" class="flex items-center gap-1.5 ml-3 mr-auto">
-        <Button variant="outline" size="sm" class="h-7 text-[11px]" :disabled="loadingMore" @click="emit('load-more')">
+        <Button variant="outline" size="sm" class="h-7 rounded-full text-[11px]" :disabled="loadingMore" @click="emit('load-more')">
           <Loader2 v-if="loadingMore" class="h-3 w-3 mr-1 animate-spin" /> Load next {{ Math.min(2500, total - rows.length).toLocaleString() }}
         </Button>
-        <Button variant="outline" size="sm" class="h-7 text-[11px]" :disabled="loadingMore" @click="emit('load-all')"
+        <Button variant="outline" size="sm" class="h-7 rounded-full text-[11px]" :disabled="loadingMore" @click="emit('load-all')"
           :title="total > loadAllLimit ? `Loads up to ${loadAllLimit.toLocaleString()} rows; export the target data extension in SFMC for all of them` : 'Loads every row'">
           Load all{{ total > loadAllLimit ? ` (up to ${loadAllLimit.toLocaleString()})` : '' }}
         </Button>
         <ProgressBar v-if="loadingMore" :value="rows.length" :max="Math.min(total, loadAllLimit)" aria-label="Loading rows" class="w-32" />
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-1.5">
         <!-- Pagination -->
         <div v-if="totalPages > 1" class="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Button variant="ghost" size="icon" class="h-7 w-7" title="Previous page" @click="page--" :disabled="page === 0">
+          <Button variant="ghost" size="icon" class="h-7 w-7 rounded-full" title="Previous page" @click="page--" :disabled="page === 0">
             <ChevronLeft class="h-3.5 w-3.5" />
           </Button>
           <span class="tabular-nums">{{ page + 1 }} / {{ totalPages }}</span>
-          <Button variant="ghost" size="icon" class="h-7 w-7" title="Next page" @click="page++" :disabled="page >= totalPages - 1">
+          <Button variant="ghost" size="icon" class="h-7 w-7 rounded-full" title="Next page" @click="page++" :disabled="page >= totalPages - 1">
             <ChevronRight class="h-3.5 w-3.5" />
           </Button>
         </div>
 
-        <Button variant="outline" size="sm" class="h-7 text-xs gap-1.5" :class="filtersOpen || filtering ? 'bg-accent' : ''" :aria-pressed="filtersOpen"
+        <Button variant="outline" size="sm" class="h-7 rounded-full px-2.5 text-xs gap-1.5" :class="filtersOpen || filtering ? 'bg-accent' : ''" :aria-pressed="filtersOpen"
           :disabled="columns.length === 0" title="A filter box for each column" @click="filtersOpen = !filtersOpen">
           <ListFilter class="h-3 w-3" /> Filters
         </Button>
         <!-- CSV download -->
         <Button variant="outline" size="sm" :disabled="columns.length === 0" @click="downloadCSV"
-          class="h-7 text-xs gap-1.5">
+          class="h-7 rounded-full px-2.5 text-xs gap-1.5">
           <Download class="h-3 w-3" />
           CSV{{ selectable && pickedRows.length ? ` (${pickedRows.length})` : '' }}
         </Button>
-        <Button v-if="selectable" variant="outline" size="sm" :disabled="columns.length === 0" @click="downloadExcel" class="h-7 text-xs gap-1.5">
+        <Button v-if="selectable" variant="outline" size="sm" :disabled="columns.length === 0" @click="downloadExcel" class="h-7 rounded-full px-2.5 text-xs gap-1.5">
           <FileSpreadsheet class="h-3 w-3" />
           Excel{{ pickedRows.length ? ` (${pickedRows.length})` : '' }}
         </Button>
         <Button variant="outline" size="sm" :disabled="!canExport" @click="downloadMarkdown"
-          class="h-7 text-xs gap-1.5" :title="`Download the SQL and up to ${MARKDOWN_ROW_LIMIT} rows as Markdown`">
+          class="h-7 rounded-full px-2.5 text-xs gap-1.5" :title="`Download the SQL and up to ${MARKDOWN_ROW_LIMIT} rows as Markdown`">
           <FileText class="h-3 w-3" />
           MD
         </Button>
         <Button variant="outline" size="sm" :disabled="!canExport" @click="copyMarkdown"
-          class="h-7 text-xs gap-1.5" title="Copy the SQL and results as Markdown, to paste into Claude or ChatGPT">
+          class="h-7 rounded-full px-2.5 text-xs gap-1.5" title="Copy the SQL and results as Markdown, to paste into Claude or ChatGPT">
           <Check v-if="copied" class="h-3 w-3" />
           <Copy v-else class="h-3 w-3" />
           {{ copied ? 'Copied' : 'Copy for AI' }}
@@ -257,7 +257,7 @@ function downloadCSV() {
             <th v-if="selectable" class="bg-muted border-b border-border sticky top-8 z-10" />
             <th v-for="col in columns" :key="col" class="px-1 py-1 bg-muted border-b border-border sticky top-8 z-10">
               <input v-model="filters[col]" type="search" :aria-label="`Filter ${col}`" placeholder="Filter"
-                class="h-6 w-full min-w-16 rounded border border-border bg-background px-1.5 text-[11px] font-normal" />
+                class="h-6 w-full min-w-16 rounded-md border border-border bg-background text-foreground px-1.5 text-[11px] font-normal" />
             </th>
           </tr>
         </thead>

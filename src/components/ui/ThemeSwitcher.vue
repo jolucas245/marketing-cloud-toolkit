@@ -29,12 +29,12 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick))
     <Button
       variant="ghost"
       size="icon"
-      class="h-8 w-8 text-muted-foreground"
+      class="h-9 w-9 rounded-lg text-foreground/80"
       :class="open ? 'bg-accent text-accent-foreground' : ''"
       title="Switch theme"
       @click="toggle"
     >
-      <Moon class="h-4 w-4" />
+      <Moon class="h-[18px] w-[18px]" />
     </Button>
 
     <div

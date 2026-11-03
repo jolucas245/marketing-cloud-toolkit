@@ -129,7 +129,7 @@ const pickerOptions = computed(() => {
 <template>
   <div class="relative">
     <button
-      class="flex items-center gap-2 h-8 px-2.5 rounded-md border border-border text-xs hover:bg-accent"
+      class="flex items-center gap-2 h-9 px-3 rounded-full border border-border bg-card text-sm hover:bg-accent"
       :aria-expanded="open"
       @click="toggleOpen"
     >

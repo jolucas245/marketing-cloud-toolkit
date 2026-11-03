@@ -43,7 +43,7 @@ export const routes = [
   {
     path: '/journeys/:id',
     component: () => import('../views/journey/JourneyDetailPage.vue'),
-    meta: { title: 'Journeys', group: 'Journey' },
+    meta: { title: 'Journeys', group: 'Journeys' },
   },
   {
     path: '/saved-activities/:id',

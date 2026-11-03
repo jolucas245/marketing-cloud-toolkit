@@ -6,20 +6,20 @@
 // quiet preload (utils/preloadOverviews.js), so Home adds no SFMC calls when that is fresh.
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2, RefreshCw, Workflow, Route, AlertTriangle, Eye, Bell, Play, Blocks, Footprints, MailCheck, Search, ExternalLink, Bookmark, Clock, Sparkles } from 'lucide-vue-next'
+import { Loader2, RefreshCw, Workflow, Route, AlertTriangle, Eye, Bell, Play, Blocks, Footprints, MailCheck, Search, ExternalLink, Bookmark, Clock, Sparkles, CheckCircle2, Network } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
-import StatusBadge from '@/components/results/StatusBadge.vue'
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { useStack, whenStack } from '@/composables/useStack.js'
 import { fetchCurrentBU } from '@/utils/sfmcApi.js'
 import { summarizeAutomations, summarizeJourneys } from '@/utils/overview.js'
 import { pageCacheKey, readPageCache } from '@/utils/pageCache.js'
 import { preloadOverviews } from '@/utils/preloadOverviews.js'
-import { WATCHES_KEY, NOTICES_KEY, watchHere, watchType, unreadCount, automationStatusName } from '@/utils/watches.js'
+import { WATCHES_KEY, NOTICES_KEY, watchHere, unreadCount } from '@/utils/watches.js'
 import { readVisits, mostUsed, recentQueries, sqlLine } from '@/utils/home.js'
 import { formatDateTime } from '@/utils/format.js'
 import { openInSfmc } from '@/utils/sfmcLinks.js'
 import { useAi } from '@/composables/useAi.js'
+import { openPalette } from '@/composables/usePalette.js'
 
 const router = useRouter()
 const { stack, state } = useStack()
@@ -90,12 +90,43 @@ const sfmcUrl = computed(() => (stack.value ? `https://mc.${stack.value}.exactta
 // countBy (utils/summaries.js) gives [{ label, count }], most first.
 const byStatus = (list) => (Array.isArray(list) ? list.map((x) => [x.label, x.count]) : Object.entries(list || {})).sort((a, b) => b[1] - a[1])
 const runningCount = computed(() => byStatus(autos.value?.byStatus).filter(([s]) => /^running$/i.test(s)).reduce((t, [, n]) => t + n, 0))
-const QUICK = [
-  { to: '/queries/workspace', label: 'Run a query', icon: Play },
-  { to: '/queries/builder', label: 'Build a query', icon: Blocks },
-  { to: '/contact-journeys', label: 'Find a contact in journeys', icon: Footprints },
-  { to: '/email-validation', label: 'Validate email addresses', icon: MailCheck },
+// Good places to start (redesign, feedback #1031).
+const STARTS = computed(() => [
+  { to: '/queries/workspace', label: 'Run a query', desc: 'Write SQL against your data extensions and see the rows straight away.', icon: Play, tone: 'blue' },
+  { to: '/queries/builder', label: 'Build a query', desc: 'Pick data extensions and fields, and let the builder write the SQL.', icon: Blocks, tone: 'blue' },
+  { to: '/contact-journeys', label: 'Find a contact in journeys', desc: 'See every journey a contact is in, and where they are now.', icon: Footprints, tone: 'orange' },
+  { to: '/email-validation', label: 'Validate email addresses', desc: 'Check a list of addresses for syntax, domain and mailbox problems.', icon: MailCheck, tone: 'teal' },
+  { to: '/where-used', label: 'Where used', desc: 'Find every query, automation and journey that touches a data extension.', icon: Network, tone: 'teal' },
+  { to: '/automations', label: 'Automations', desc: autos.value ? `Status, schedules and last runs for all ${autos.value.total.toLocaleString()} automations.` : 'Status, schedules and last runs of your automations.', icon: Workflow, tone: 'purple' },
+])
+const TONES = {
+  blue: 'bg-[#EAF1FE] text-[#1D4ED8] dark:bg-blue-950/50 dark:text-blue-300',
+  orange: 'bg-[#FFF1E7] text-[#C2410C] dark:bg-orange-950/50 dark:text-orange-300',
+  teal: 'bg-[#E6F6F4] text-[#0F766E] dark:bg-teal-950/50 dark:text-teal-300',
+  purple: 'bg-[#F3EEFF] text-[#6D28D9] dark:bg-violet-950/50 dark:text-violet-300',
+  green: 'bg-[#E8F7EE] text-[#15803D] dark:bg-green-950/50 dark:text-green-300',
+  red: 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300',
+  sky: 'bg-[#E0F2FE] text-[#0369A1] dark:bg-sky-950/50 dark:text-sky-300',
+}
+// Status bar colours (the overview pages' statuses).
+const STATUS_COLORS = [
+  [/^running|building/i, '#0EA5E9'], [/^scheduled|^ready|^active/i, '#7C3AED'], [/^published|^live|^running/i, '#16A34A'],
+  [/^paused|^inactive|^awaiting/i, '#F59E0B'], [/^error|^stopped|^failed/i, '#DC2626'], [/^draft|^new/i, '#9CA3AF'],
 ]
+const statusColor = (label, journey = false) => {
+  if (journey && /^published/i.test(label)) return '#16A34A'
+  if (journey && /^stopped/i.test(label)) return '#DC2626'
+  return (STATUS_COLORS.find(([re]) => re.test(String(label || ''))) || [null, '#64748B'])[1]
+}
+const bars = (list, journey) => {
+  const rows = byStatus(list)
+  const total = rows.reduce((t, [, n]) => t + n, 0) || 1
+  return rows.map(([label, n]) => ({ label, n, pct: (n / total) * 100, color: statusColor(label, journey) }))
+}
+// Home search: the Ctrl+K palette with the text typed here. "Try" offers recent saved queries.
+const homeSearch = ref('')
+function searchAll(text = homeSearch.value) { openPalette(text) }
+const tryChips = computed(() => queries.value.filter((q) => q.name).slice(0, 3).map((q) => q.name))
 // Describe the query you need (feedback #1029): opens Run Query with AI Assist asking.
 const ai = useAi()
 const aiAsk = ref('')
@@ -109,138 +140,144 @@ function openQuery(q) { router.push({ path: q.source === 'builder' ? '/queries/b
 </script>
 
 <template>
-  <div class="h-full overflow-y-auto p-4 space-y-4 text-sm">
-    <div class="flex flex-wrap items-center gap-2">
-      <h1 class="text-base font-semibold flex-1">Home</h1>
-      <span v-if="savedAt" class="text-xs text-muted-foreground">Read {{ formatDateTime(new Date(savedAt).toISOString()) }}</span>
-      <Button variant="outline" size="sm" class="h-8 text-xs" :disabled="loading || !stack" @click="load({ fresh: true })">
-        <Loader2 v-if="loading" class="h-3.5 w-3.5 mr-1 animate-spin" /><RefreshCw v-else class="h-3.5 w-3.5 mr-1" /> Refresh
-      </Button>
-    </div>
-
-    <!-- Connection -->
-    <section class="rounded-lg border border-border bg-card p-3 flex flex-wrap items-center gap-x-6 gap-y-2">
-      <div class="flex items-center gap-2">
-        <span class="h-2.5 w-2.5 rounded-full" :class="state === 'connected' ? 'bg-emerald-500' : state === 'detecting' ? 'bg-amber-400' : 'bg-red-500'" />
-        <span class="font-medium">{{ state === 'connected' ? 'Connected' : state === 'detecting' ? 'Looking for an SFMC session…' : 'Not connected' }}</span>
-      </div>
-      <div v-if="stack"><span class="text-muted-foreground">Stack</span> {{ stack }}</div>
-      <div v-if="bu"><span class="text-muted-foreground">Business unit</span> {{ bu.name }} <span class="text-muted-foreground">({{ bu.accountId }})</span></div>
-      <a :href="sfmcUrl" target="_blank" rel="noopener" class="ml-auto inline-flex items-center gap-1 text-xs text-primary hover:underline" @click="openInSfmc($event, sfmcUrl)">
-        <ExternalLink class="h-3 w-3" /> {{ state === 'connected' ? 'Open Marketing Cloud' : 'Log in to Marketing Cloud' }}
-      </a>
-      <p v-if="state === 'disconnected'" class="basis-full text-xs text-muted-foreground">Log in to Marketing Cloud in a tab of this browser, then come back: the Toolkit uses that session. Everything here is read-only.</p>
-    </section>
-
-    <p v-if="error" class="text-red-600 text-xs" role="alert">{{ error }}<ReportErrorButton /></p>
-
-    <!-- Describe the query you need (AI, experimental) -->
-    <form v-if="ai.shown.value" class="rounded-lg border border-border bg-card p-3 space-y-2" @submit.prevent="askAi">
-      <label for="home-ai" class="flex items-center gap-1.5 font-medium">
-        <Sparkles class="h-4 w-4 text-primary" /> Describe the query you need
-        <span class="rounded bg-amber-200 text-amber-900 px-1.5 py-0.5 text-[10px] font-medium">Experimental</span>
-      </label>
-      <div class="flex flex-wrap gap-2">
-        <input id="home-ai" v-model="aiAsk" class="flex-1 min-w-60 h-8 rounded-md border border-border bg-background px-2 text-xs" placeholder="For example: subscribers who opened an email in the last 30 days but never clicked" />
-        <Button type="submit" size="sm" class="h-8 text-xs" :disabled="!aiAsk.trim()"><Sparkles class="h-3.5 w-3.5 mr-1" /> Ask AI</Button>
-      </div>
-      <p class="text-xs text-muted-foreground">Opens Run Query and asks Gemini Nano in Chrome to write it. The model runs on this computer; nothing is sent over the network. You see the SQL before anything runs.</p>
-    </form>
-
-    <!-- At a glance -->
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <RouterLink to="/automation-overview" class="rounded-lg border border-border bg-card p-3 hover:border-primary/50">
-        <div class="flex items-center gap-1.5 text-xs text-muted-foreground"><Workflow class="h-3.5 w-3.5" /> Automations</div>
-        <div class="text-2xl font-semibold tabular-nums">{{ autos ? autos.total.toLocaleString() : loading ? '…' : '—' }}</div>
-        <div v-if="autos" class="text-xs text-muted-foreground">{{ runningCount }} running now</div>
-      </RouterLink>
-      <RouterLink to="/automation-overview" class="rounded-lg border border-border bg-card p-3 hover:border-primary/50">
-        <div class="flex items-center gap-1.5 text-xs text-muted-foreground"><AlertTriangle class="h-3.5 w-3.5" /> Needs a look</div>
-        <div class="text-2xl font-semibold tabular-nums" :class="autos?.attention.length ? 'text-red-600' : ''">{{ autos ? autos.attention.length : loading ? '…' : '—' }}</div>
-        <div v-if="autos" class="text-xs text-muted-foreground">{{ autos.failedLastRun }} with a failed last run</div>
-      </RouterLink>
-      <RouterLink to="/journey-overview" class="rounded-lg border border-border bg-card p-3 hover:border-primary/50">
-        <div class="flex items-center gap-1.5 text-xs text-muted-foreground"><Route class="h-3.5 w-3.5" /> Journeys</div>
-        <div class="text-2xl font-semibold tabular-nums">{{ journeys ? journeys.total.toLocaleString() : loading ? '…' : '—' }}</div>
-        <div v-if="journeys" class="text-xs text-muted-foreground">{{ journeys.live }} live</div>
-      </RouterLink>
-      <RouterLink to="/automation-overview" class="rounded-lg border border-border bg-card p-3 hover:border-primary/50">
-        <div class="flex items-center gap-1.5 text-xs text-muted-foreground"><Eye class="h-3.5 w-3.5" /> Watched here</div>
-        <div class="text-2xl font-semibold tabular-nums">{{ watched.length }}</div>
-        <div class="text-xs text-muted-foreground flex items-center gap-1"><Bell class="h-3 w-3" /> {{ unreadCount(notices) }} unread notice{{ unreadCount(notices) === 1 ? '' : 's' }}<template v-if="watchedNeedsLook.length">, {{ watchedNeedsLook.length }} to check</template></div>
-      </RouterLink>
-    </div>
-
-    <div class="grid gap-3 lg:grid-cols-2">
-      <!-- Status breakdowns and what needs a look -->
-      <section class="rounded-lg border border-border bg-card p-3 space-y-3 text-xs">
-        <h2 class="font-semibold text-sm">This business unit</h2>
-        <div v-if="loading && !autos && !journeys" class="flex items-center gap-2 text-muted-foreground"><Loader2 class="h-3.5 w-3.5 animate-spin" /> Reading automations and journeys…</div>
-        <div v-if="autos">
-          <div class="text-muted-foreground mb-1">Automations by status</div>
-          <div class="flex flex-wrap gap-2"><span v-for="[s, n] in byStatus(autos.byStatus)" :key="s" class="inline-flex items-center gap-1"><StatusBadge :status="s" /> {{ n }}</span></div>
-        </div>
-        <div v-if="journeys">
-          <div class="text-muted-foreground mb-1">Journeys by status</div>
-          <div class="flex flex-wrap gap-2"><span v-for="[s, n] in byStatus(journeys.byStatus)" :key="s" class="inline-flex items-center gap-1"><StatusBadge :status="s" /> {{ n }}</span></div>
-        </div>
-        <div v-if="autos">
-          <div class="text-muted-foreground mb-1">Needs a look</div>
-          <p v-if="!autos.attention.length">Nothing: no failed last runs, no automations in error, none running for more than 6 hours.</p>
-          <ul v-else class="space-y-0.5">
-            <li v-for="x in autos.attention.slice(0, 6)" :key="x.automation.id" class="flex gap-2">
-              <RouterLink :to="`/automations/${encodeURIComponent(x.automation.id)}`" class="font-medium hover:underline truncate">{{ x.automation.name }}</RouterLink>
-              <span class="text-red-600 shrink-0">{{ x.reason }}</span>
-            </li>
-            <li v-if="autos.attention.length > 6"><RouterLink to="/automation-overview" class="text-primary hover:underline">All {{ autos.attention.length }} in Automation overview</RouterLink></li>
-          </ul>
-        </div>
-        <div v-if="watchedNeedsLook.length">
-          <div class="text-muted-foreground mb-1">Watched automations to check</div>
-          <ul class="space-y-0.5">
-            <li v-for="w in watchedNeedsLook.slice(0, 5)" :key="w.id" class="flex gap-2">
-              <span class="font-medium truncate">{{ w.name }}</span>
-              <span class="text-muted-foreground shrink-0">{{ w.notFound ? 'not found in this business unit' : w.error ? 'check failed' : `${automationStatusName(w.last?.status)}, last run ${w.last?.lastRunStatus}` }}</span>
-            </li>
-          </ul>
+  <div class="h-full overflow-y-auto">
+    <div class="max-w-[1180px] mx-auto px-4 sm:px-8 pt-6 pb-16 flex flex-col gap-5 text-sm">
+      <!-- Search (redesign, feedback #1031) -->
+      <section class="relative flex flex-col items-center gap-3.5 pt-6 pb-2 text-center">
+        <div aria-hidden="true" class="absolute top-10 left-1/2 -translate-x-1/2 w-[640px] max-w-full h-44 rounded-full bg-primary/10 blur-[56px]" />
+        <h1 class="relative m-0 text-[30px] leading-9 font-bold tracking-tight">Marketing Cloud Toolkit</h1>
+        <p class="relative m-0 text-[15px] text-muted-foreground">
+          Find anything<template v-if="bu"> in <span class="font-semibold text-foreground">{{ bu.name }}</span></template>: saved queries, emails, data extensions, automations and journeys.
+        </p>
+        <form class="relative w-full max-w-[720px] flex items-center gap-3 h-14 pl-5 pr-2.5 rounded-full border border-primary/25 bg-card shadow-[0_0_0_6px_hsl(var(--primary)/0.08),0_18px_40px_-24px_hsl(var(--primary)/0.6)]" role="search" @submit.prevent="searchAll()">
+          <label for="home-search" class="sr-only">Search Marketing Cloud</label>
+          <Search class="h-5 w-5 text-primary shrink-0" />
+          <input id="home-search" v-model="homeSearch" type="text" placeholder="Search by name, key or SQL text" class="flex-1 min-w-0 border-0 outline-none bg-transparent text-base" />
+          <kbd class="hidden sm:inline text-xs px-2 py-0.5 border border-border rounded-md text-muted-foreground font-sans">{{ isMac ? '⌘' : 'Ctrl' }} K</kbd>
+          <button type="submit" class="h-10 px-4 rounded-full bg-primary text-primary-foreground font-semibold text-sm whitespace-nowrap hover:bg-primary/90">Search</button>
+        </form>
+        <div v-if="tryChips.length" class="relative flex flex-wrap items-center justify-center gap-2 text-[13px] text-muted-foreground">
+          Try:
+          <button v-for="c in tryChips" :key="c" type="button" class="h-[30px] px-3 rounded-full border border-border bg-card text-[13px] text-foreground/80 inline-flex items-center gap-1.5 hover:bg-accent" @click="searchAll(c)">
+            <Bookmark class="h-3.5 w-3.5" /> {{ c }}
+          </button>
         </div>
       </section>
 
-      <div class="space-y-3">
-        <!-- Quick start -->
-        <section class="rounded-lg border border-border bg-card p-3 text-xs space-y-2">
-          <h2 class="font-semibold text-sm">Start</h2>
-          <div class="grid grid-cols-2 gap-2">
-            <RouterLink v-for="q in QUICK" :key="q.to" :to="q.to" class="flex items-center gap-2 rounded-md border border-border px-2 py-1.5 hover:bg-accent"><component :is="q.icon" class="h-3.5 w-3.5 text-primary" /> {{ q.label }}</RouterLink>
-          </div>
-          <p class="text-muted-foreground flex items-center gap-1"><Search class="h-3 w-3" /> Press <kbd class="px-1 rounded border border-border">{{ isMac ? '⌘' : 'Ctrl' }}+K</kbd> to search saved queries, emails, data extensions, automations and journeys.</p>
-        </section>
+      <!-- Describe the query you need (AI, experimental) -->
+      <form v-if="ai.shown.value" class="flex flex-wrap items-center gap-2 rounded-[14px] border border-border bg-card px-4 py-3" @submit.prevent="askAi">
+        <label for="home-ai" class="flex flex-wrap items-center gap-1.5 font-medium">
+          <Sparkles class="h-4 w-4 text-primary" /> Describe the query you need
+          <span class="rounded bg-amber-200 text-amber-900 px-1.5 py-0.5 text-[10px] font-medium">Experimental</span>
+        </label>
+        <input id="home-ai" v-model="aiAsk" class="w-full sm:w-auto sm:flex-1 min-w-0 sm:min-w-60 h-9 rounded-lg border border-border bg-background px-3 text-sm" placeholder="For example: subscribers who opened an email in the last 30 days but never clicked" />
+        <button type="submit" class="h-9 px-4 rounded-full border border-border bg-card font-medium inline-flex items-center gap-1.5 hover:bg-accent disabled:opacity-50" :disabled="!aiAsk.trim()"><Sparkles class="h-4 w-4 text-primary" /> Ask AI</button>
+        <p class="basis-full m-0 text-xs text-muted-foreground">Opens Run Query and asks Gemini Nano in Chrome to write it. The model runs on this computer; nothing is sent over the network. You see the SQL before anything runs.</p>
+      </form>
 
-        <!-- Most used -->
-        <section class="rounded-lg border border-border bg-card p-3 text-xs space-y-2">
-          <h2 class="font-semibold text-sm">Most used</h2>
-          <p v-if="!used.length" class="text-muted-foreground">The pages you open most will show here.</p>
-          <div v-else class="flex flex-wrap gap-2">
-            <RouterLink v-for="p in used" :key="p.path" :to="p.path" class="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 hover:bg-accent"><component :is="p.icon" class="h-3.5 w-3.5" /> {{ p.name }}</RouterLink>
-          </div>
-        </section>
+      <!-- Connection -->
+      <section class="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-[14px] border border-border bg-card px-4 py-3">
+        <span class="inline-flex items-center gap-1.5 whitespace-nowrap">
+          <span class="h-2 w-2 rounded-full" :class="state === 'connected' ? 'bg-green-600' : state === 'detecting' ? 'bg-amber-400' : 'bg-red-500'" />
+          <span class="font-semibold">{{ state === 'connected' ? 'Connected' : state === 'detecting' ? 'Looking for an SFMC session…' : 'Not connected' }}</span>
+        </span>
+        <span v-if="stack" class="text-muted-foreground">Stack <span class="font-semibold text-foreground">{{ stack }}</span></span>
+        <span v-if="bu" class="text-muted-foreground">Business unit <span class="font-semibold text-foreground">{{ bu.name }}</span> <code class="font-mono text-xs text-muted-foreground">{{ bu.accountId }}</code></span>
+        <span class="ml-auto flex flex-wrap items-center gap-3">
+          <span v-if="savedAt" class="text-xs text-muted-foreground">Read {{ formatDateTime(new Date(savedAt).toISOString()) }}</span>
+          <button class="h-[34px] px-3.5 rounded-full border border-border bg-card font-medium inline-flex items-center gap-1.5 hover:bg-accent disabled:opacity-50" :disabled="loading || !stack" @click="load({ fresh: true })">
+            <Loader2 v-if="loading" class="h-4 w-4 animate-spin" /><RefreshCw v-else class="h-4 w-4" /> Refresh
+          </button>
+          <a :href="sfmcUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-medium text-primary hover:underline" @click="openInSfmc($event, sfmcUrl)">
+            {{ state === 'connected' ? 'Open Marketing Cloud' : 'Log in to Marketing Cloud' }} <ExternalLink class="h-3.5 w-3.5" />
+          </a>
+        </span>
+        <p v-if="state === 'disconnected'" class="basis-full m-0 text-xs text-muted-foreground">Log in to Marketing Cloud in a tab of this browser, then come back: the Toolkit uses that session. Everything here is read-only.</p>
+      </section>
 
-        <!-- Recent saved queries -->
-        <section class="rounded-lg border border-border bg-card p-3 text-xs space-y-2">
-          <div class="flex items-center gap-2">
-            <h2 class="font-semibold text-sm flex-1">Recent queries</h2>
-            <RouterLink to="/queries/saved" class="text-primary hover:underline inline-flex items-center gap-1"><Bookmark class="h-3 w-3" /> All saved queries</RouterLink>
-          </div>
-          <p v-if="!queries.length" class="text-muted-foreground">No saved queries yet. Queries you run or save show here.</p>
-          <ul v-else class="space-y-1">
-            <li v-for="q in queries" :key="q.id">
-              <button class="w-full text-left rounded px-1 py-0.5 hover:bg-accent" :title="q.sql" @click="openQuery(q)">
-                <span class="font-medium">{{ q.name || sqlLine(q.sql, 50) }}</span>
-                <span class="ml-2 text-muted-foreground inline-flex items-center gap-0.5"><Clock class="h-3 w-3" /> {{ q.at ? formatDateTime(new Date(q.at).toISOString()) : '' }}</span>
-                <span v-if="q.name" class="block font-mono text-[11px] text-muted-foreground truncate">{{ sqlLine(q.sql) }}</span>
-              </button>
-            </li>
+      <p v-if="error" class="text-red-600 text-xs" role="alert">{{ error }}<ReportErrorButton /></p>
+
+      <!-- At a glance -->
+      <div class="grid gap-3.5 grid-cols-[repeat(auto-fit,minmax(240px,1fr))]">
+        <RouterLink to="/automation-overview" class="rounded-[14px] border border-border bg-card p-4 flex flex-col gap-2.5 min-w-0 hover:border-primary/40">
+          <span class="flex items-center justify-between gap-2"><span class="text-[13px] text-muted-foreground">Automations</span><span class="h-[30px] w-[30px] rounded-xl flex items-center justify-center" :class="TONES.purple"><Workflow class="h-4 w-4" /></span></span>
+          <span class="flex items-baseline gap-2"><span class="text-[30px] leading-[34px] font-bold tracking-tight tabular-nums">{{ autos ? autos.total.toLocaleString() : loading ? '…' : '—' }}</span><span v-if="autos" class="text-[13px] text-muted-foreground">{{ runningCount }} running now</span></span>
+          <template v-if="autos">
+            <div class="flex h-2 rounded overflow-hidden gap-0.5" role="img" :aria-label="bars(autos.byStatus).map((b) => `${b.label} ${b.n}`).join(', ')">
+              <span v-for="b in bars(autos.byStatus)" :key="b.label" class="min-w-1" :style="{ width: `${b.pct}%`, background: b.color }" />
+            </div>
+            <div class="flex flex-wrap gap-x-2.5 gap-y-1"><span v-for="b in bars(autos.byStatus)" :key="b.label" class="inline-flex items-center gap-1 text-xs text-foreground/80"><span class="h-[7px] w-[7px] rounded-full" :style="{ background: b.color }" />{{ b.label }} <b class="text-foreground">{{ b.n }}</b></span></div>
+          </template>
+        </RouterLink>
+        <RouterLink to="/journey-overview" class="rounded-[14px] border border-border bg-card p-4 flex flex-col gap-2.5 min-w-0 hover:border-primary/40">
+          <span class="flex items-center justify-between gap-2"><span class="text-[13px] text-muted-foreground">Journeys</span><span class="h-[30px] w-[30px] rounded-xl flex items-center justify-center" :class="TONES.orange"><Route class="h-4 w-4" /></span></span>
+          <span class="flex items-baseline gap-2"><span class="text-[30px] leading-[34px] font-bold tracking-tight tabular-nums">{{ journeys ? journeys.total.toLocaleString() : loading ? '…' : '—' }}</span><span v-if="journeys" class="text-[13px] text-muted-foreground">{{ journeys.live }} live</span></span>
+          <template v-if="journeys">
+            <div class="flex h-2 rounded overflow-hidden gap-0.5" role="img" :aria-label="bars(journeys.byStatus, true).map((b) => `${b.label} ${b.n}`).join(', ')">
+              <span v-for="b in bars(journeys.byStatus, true)" :key="b.label" class="min-w-1" :style="{ width: `${b.pct}%`, background: b.color }" />
+            </div>
+            <div class="flex flex-wrap gap-x-2.5 gap-y-1"><span v-for="b in bars(journeys.byStatus, true)" :key="b.label" class="inline-flex items-center gap-1 text-xs text-foreground/80"><span class="h-[7px] w-[7px] rounded-full" :style="{ background: b.color }" />{{ b.label }} <b class="text-foreground">{{ b.n }}</b></span></div>
+          </template>
+        </RouterLink>
+        <RouterLink to="/automation-overview" class="rounded-[14px] border border-border bg-card p-4 flex flex-col gap-2.5 min-w-0 hover:border-primary/40">
+          <span class="flex items-center justify-between gap-2"><span class="text-[13px] text-muted-foreground">Needs a look</span><span class="h-[30px] w-[30px] rounded-xl flex items-center justify-center" :class="autos?.attention.length ? TONES.red : TONES.green"><AlertTriangle v-if="autos?.attention.length" class="h-4 w-4" /><CheckCircle2 v-else class="h-4 w-4" /></span></span>
+          <span class="flex items-baseline gap-2"><span class="text-[30px] leading-[34px] font-bold tracking-tight tabular-nums" :class="autos?.attention.length ? 'text-red-600' : ''">{{ autos ? autos.attention.length : loading ? '…' : '—' }}</span><span v-if="autos" class="text-[13px] text-muted-foreground">{{ autos.attention.length ? `${autos.failedLastRun} with a failed last run` : 'all clear' }}</span></span>
+          <span v-if="autos && !autos.attention.length" class="text-xs text-foreground/80 leading-[18px]">No failed last runs, no automations in error, none running for more than 6 hours.</span>
+          <ul v-else-if="autos" class="space-y-0.5 text-xs">
+            <li v-for="x in autos.attention.slice(0, 3)" :key="x.automation.id" class="flex gap-2 min-w-0"><span class="font-medium truncate">{{ x.automation.name }}</span><span class="text-red-600 shrink-0">{{ x.reason }}</span></li>
+            <li v-if="autos.attention.length > 3" class="text-primary">and {{ autos.attention.length - 3 }} more</li>
           </ul>
+        </RouterLink>
+        <RouterLink to="/automation-overview" class="rounded-[14px] border border-border bg-card p-4 flex flex-col gap-2.5 min-w-0 hover:border-primary/40">
+          <span class="flex items-center justify-between gap-2"><span class="text-[13px] text-muted-foreground">Watched here</span><span class="h-[30px] w-[30px] rounded-xl flex items-center justify-center" :class="TONES.sky"><Eye class="h-4 w-4" /></span></span>
+          <span class="flex items-baseline gap-2"><span class="text-[30px] leading-[34px] font-bold tracking-tight tabular-nums">{{ watched.length }}</span><span v-if="watchedNeedsLook.length" class="text-[13px] text-red-600">{{ watchedNeedsLook.length }} to check</span></span>
+          <span class="flex items-start gap-1.5 text-xs text-foreground/80 leading-[18px]"><Bell class="h-3.5 w-3.5 mt-0.5 shrink-0" /> {{ unreadCount(notices) }} unread notice{{ unreadCount(notices) === 1 ? '' : 's' }}<template v-if="!watched.length"> · watch an automation or journey to get notified here</template></span>
+          <ul v-if="watchedNeedsLook.length" class="space-y-0.5 text-xs">
+            <li v-for="w in watchedNeedsLook.slice(0, 3)" :key="w.id" class="flex gap-2 min-w-0"><span class="font-medium truncate">{{ w.name }}</span><span class="text-muted-foreground shrink-0">{{ w.notFound ? 'not found here' : w.error ? 'check failed' : `last run ${w.last?.lastRunStatus}` }}</span></li>
+          </ul>
+        </RouterLink>
+      </div>
+      <p v-if="loading && !autos && !journeys" class="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 class="h-3.5 w-3.5 animate-spin" /> Reading automations and journeys…</p>
+
+      <!-- Good places to start -->
+      <section class="flex flex-col gap-3">
+        <h2 class="m-0 text-base font-semibold">Good places to start</h2>
+        <div class="grid gap-3.5 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
+          <RouterLink v-for="q in STARTS" :key="q.to" :to="q.to" class="rounded-[14px] border border-border bg-card p-4 flex gap-3.5 items-start hover:border-primary/40">
+            <span class="h-10 w-10 shrink-0 rounded-xl flex items-center justify-center" :class="TONES[q.tone]"><component :is="q.icon" class="h-5 w-5" /></span>
+            <span class="flex flex-col gap-1 min-w-0"><span class="text-[15px] font-semibold">{{ q.label }}</span><span class="text-[13px] text-muted-foreground leading-[19px]">{{ q.desc }}</span></span>
+          </RouterLink>
+        </div>
+      </section>
+
+      <div class="grid gap-5 items-start grid-cols-[repeat(auto-fit,minmax(min(400px,100%),1fr))]">
+        <!-- Recent queries -->
+        <section class="rounded-[14px] border border-border bg-card overflow-hidden">
+          <div class="flex items-center justify-between gap-2 px-4 py-3.5 border-b border-border/60">
+            <h2 class="m-0 text-base font-semibold">Recent queries</h2>
+            <RouterLink to="/queries/saved" class="text-[13px] font-semibold text-primary inline-flex items-center gap-1 hover:underline"><Bookmark class="h-3.5 w-3.5" /> All saved queries</RouterLink>
+          </div>
+          <p v-if="!queries.length" class="px-4 py-3.5 text-muted-foreground">No saved queries yet. Queries you run or save show here.</p>
+          <div v-for="(q, i) in queries" :key="q.id" class="px-4 py-3.5 flex gap-3.5 items-start" :class="i ? 'border-t border-border/60' : ''">
+            <span class="h-9 w-9 shrink-0 rounded-xl flex items-center justify-center" :class="TONES.blue"><component :is="q.source === 'builder' ? Blocks : Bookmark" class="h-[18px] w-[18px]" /></span>
+            <div class="flex-1 min-w-0 flex flex-col gap-1.5">
+              <span class="flex flex-wrap items-center gap-2.5"><span class="text-[15px] font-semibold truncate">{{ q.name || sqlLine(q.sql, 50) }}</span><span class="inline-flex items-center gap-1 text-xs text-muted-foreground"><Clock class="h-3 w-3" /> {{ q.at ? formatDateTime(new Date(q.at).toISOString()) : '' }}</span></span>
+              <code class="block font-mono text-xs text-foreground/80 bg-background border border-border/60 rounded-lg px-2.5 py-2 truncate" :title="q.sql">{{ sqlLine(q.sql, 90) }}</code>
+            </div>
+            <div class="flex gap-1.5 shrink-0">
+              <button class="h-[34px] px-3.5 rounded-full border border-border bg-card font-medium inline-flex items-center gap-1.5 hover:bg-accent" :title="q.source === 'builder' ? 'Open in Query Builder' : 'Open in Run Query'" @click="openQuery(q)"><ExternalLink class="h-4 w-4" /> Open</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Jump back in -->
+        <section class="rounded-[14px] border border-border bg-card px-4 py-3.5 flex flex-col gap-3">
+          <h2 class="m-0 text-base font-semibold">Jump back in</h2>
+          <p v-if="!used.length" class="m-0 text-muted-foreground">The pages you open most will show here.</p>
+          <div v-else class="flex flex-wrap gap-2">
+            <RouterLink v-for="p in used" :key="p.path" :to="p.path" class="h-9 px-3.5 rounded-full border border-border bg-card inline-flex items-center gap-2 hover:bg-accent"><component :is="p.icon" class="h-4 w-4" /> {{ p.name }}</RouterLink>
+          </div>
+          <span v-if="used.length" class="text-xs text-muted-foreground">Your most-used pages.</span>
         </section>
       </div>
     </div>

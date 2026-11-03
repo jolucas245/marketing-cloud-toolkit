@@ -13,7 +13,7 @@ const props = defineProps({
   deleteMode:   { type: Boolean, default: false },
   isSelected:   { type: Boolean, default: false },
   size:         { type: String, default: 'compact' },  // 'compact' | 'large'
-  search:       { type: String, default: '' },
+  active:       { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['toggle-select', 'toggle-favourite', 'open-preview'])
@@ -23,31 +23,6 @@ const humanReadableDate = computed(() =>
 )
 const displayName = computed(() => props.name ?? humanReadableDate.value)
 
-const containsSearchText = computed(() => {
-  const raw = props.search.toLowerCase().trim()
-  if (!raw) return true
-
-  const buTerms = [...raw.matchAll(/bu:(\S+)/g)].map(m => m[1])
-  const remaining = raw.replace(/bu:\S+/g, '').trim()
-
-  if (buTerms.length > 0) {
-    const buName = (props.businessUnit?.name || '').toLowerCase()
-    const buId   = String(props.businessUnit?.accountId || '').toLowerCase()
-    const matchesBU = buTerms.every(term => buName.includes(term) || buId.includes(term))
-    if (!matchesBU) return false
-  }
-
-  if (remaining) {
-    return (
-      props.queryText?.toLowerCase().includes(remaining) ||
-      displayName.value?.toLowerCase().includes(remaining) ||
-      (props.businessUnit?.name || '').toLowerCase().includes(remaining)
-    )
-  }
-
-  return true
-})
-
 const previewSql = computed(() => {
   if (!props.queryText) return ''
   return props.queryText.split('\n').slice(0, props.size === 'large' ? 40 : 18).join('\n')
@@ -55,21 +30,21 @@ const previewSql = computed(() => {
 </script>
 
 <template>
-  <div v-if="containsSearchText">
+  <div>
     <div
-      class="relative rounded-xl border bg-card shadow-sm overflow-hidden cursor-pointer outline-none transition-all duration-150"
+      class="relative rounded-[14px] border bg-card overflow-hidden cursor-pointer outline-none transition-all duration-150"
       :style="{ width: size === 'large' ? '460px' : '300px' }"
       :class="{
-        'border-primary ring-2 ring-primary/30': deleteMode && isSelected,
-        'border-border': !(deleteMode && isSelected),
-        'hover:-translate-y-0.5 hover:shadow-lg focus:-translate-y-0.5 focus:shadow-lg': !deleteMode,
+        'border-primary ring-2 ring-primary/30': (deleteMode && isSelected) || (!deleteMode && active),
+        'border-border': !(deleteMode && isSelected) && !(!deleteMode && active),
+        'hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-primary/40': !deleteMode,
       }"
       @click="deleteMode ? emit('toggle-select', props.id) : emit('open-preview', props.id)"
       role="button"
       tabindex="0"
       @keyup.enter="deleteMode ? emit('toggle-select', props.id) : emit('open-preview', props.id)"
       @keyup.space.prevent="deleteMode ? emit('toggle-select', props.id) : emit('open-preview', props.id)"
-      :title="deleteMode ? (isSelected ? 'Deselect' : 'Select') : `${displayName} — click to preview`"
+      :title="deleteMode ? (isSelected ? 'Deselect' : 'Select') : `${displayName}: click to open`"
     >
       <!-- Selection checkbox overlay (delete mode only) -->
       <div v-if="deleteMode" class="absolute top-2 right-2 z-10">
@@ -83,22 +58,22 @@ const previewSql = computed(() => {
       </div>
 
       <!-- Card header -->
-      <div class="px-2.5 py-1.5 border-b border-border bg-muted/40 flex flex-col gap-0.5">
+      <div class="px-3 py-2 border-b border-border flex flex-col gap-1">
         <div class="flex items-center gap-1 min-w-0">
-          <span class="text-[11px] font-semibold text-foreground truncate flex-1 min-w-0">
+          <span class="text-[13px] font-semibold text-foreground truncate flex-1 min-w-0">
             {{ displayName }}
           </span>
           <button v-if="!deleteMode"
             class="shrink-0 transition-colors p-0.5 rounded"
-            :class="isFavourite ? 'text-amber-400' : 'text-muted-foreground/30 hover:text-amber-400'"
+            :class="isFavourite ? 'text-amber-500 dark:text-amber-400' : 'text-muted-foreground/50 hover:text-amber-500'"
             title="Toggle favourite"
             @click.stop="emit('toggle-favourite', props.id)"
           >
-            <Star class="h-3 w-3" :fill="isFavourite ? 'currentColor' : 'none'" />
+            <Star class="h-3.5 w-3.5" :fill="isFavourite ? 'currentColor' : 'none'" />
           </button>
         </div>
         <span v-if="businessUnit?.name"
-          class="inline-block self-start text-[9px] font-semibold text-primary bg-primary/10 border border-primary/30 rounded-full px-1.5 py-px truncate max-w-full"
+          class="inline-block self-start text-[11px] font-semibold text-primary bg-primary/10 rounded-md px-1.5 py-px truncate max-w-full"
           :title="`BU: ${businessUnit.name} (${businessUnit.accountId})`">
           {{ businessUnit.name }}
         </span>

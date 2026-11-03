@@ -4,6 +4,7 @@
 // it to edit the join.
 import { computed, inject } from 'vue'
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath } from '@vue-flow/core'
+import { ChevronDown } from 'lucide-vue-next'
 import { joinLabel } from '@/utils/builderCanvas.js'
 
 const props = defineProps({
@@ -33,9 +34,10 @@ const style = computed(() => ({
   strokeDasharray: props.data.missing ? '6 4' : undefined,
 }))
 const text = computed(() => {
-  if (props.data.missing) return `${joinLabel(props.data.joinType)} · set fields`
-  if (props.data.raw) return `${joinLabel(props.data.joinType)} · custom ON`
-  return joinLabel(props.data.joinType)
+  const t = `${joinLabel(props.data.joinType)} join`
+  if (props.data.missing) return `${t} · set fields`
+  if (props.data.raw) return `${t} · custom ON`
+  return t
 })
 // Where the outer side of the join is kept: Left keeps the earlier table, Right the joined one.
 const keeps = computed(() => ({ 'LEFT JOIN': 'left', 'RIGHT JOIN': 'right', 'FULL OUTER JOIN': 'both' }[props.data.joinType] || ''))
@@ -46,13 +48,15 @@ const keeps = computed(() => ({ 'LEFT JOIN': 'left', 'RIGHT JOIN': 'right', 'FUL
   <EdgeLabelRenderer>
     <div
       v-if="data.operator && data.operator !== '='"
-      class="join-op absolute text-[9px] font-mono px-1 rounded bg-card border border-border pointer-events-none"
+      class="join-op absolute text-[10px] font-mono px-1.5 rounded-md bg-card border border-border pointer-events-none"
       :style="{ transform: `translate(-50%, -50%) translate(${(sourceX + targetX) / 2}px, ${(sourceY + targetY) / 2 + 14}px)` }"
     >{{ data.operator }}</div>
     <button
       v-if="data.label"
-      class="nodrag nopan absolute pointer-events-auto flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold shadow-sm"
-      :class="data.missing ? 'bg-amber-50 text-amber-800 border-amber-400 dark:bg-amber-950 dark:text-amber-200' : 'bg-card text-primary border-primary/60 hover:bg-primary/10'"
+      class="nodrag nopan absolute pointer-events-auto flex items-center gap-1.5 h-7 rounded-full border-2 px-3 text-xs font-bold shadow-sm whitespace-nowrap"
+      :class="data.missing ? 'bg-amber-50 text-amber-800 border-amber-400 dark:bg-amber-950 dark:text-amber-200' : 'bg-card text-primary border-primary hover:bg-primary/10'"
+      aria-haspopup="dialog"
+      :aria-expanded="canvas.openJoinId.value === data.rightDeId"
       :style="{ transform: `translate(-50%, -50%) translate(${path[1]}px, ${path[2]}px)` }"
       :title="'Edit this join' + (keeps ? ` (keeps every row of the ${keeps === 'both' ? 'two tables' : keeps + ' table'})` : '')"
       @click.stop="canvas.openJoin(data.rightDeId, $event)"
@@ -60,6 +64,7 @@ const keeps = computed(() => ({ 'LEFT JOIN': 'left', 'RIGHT JOIN': 'right', 'FUL
       <span v-if="keeps === 'left' || keeps === 'both'" class="inline-block h-1.5 w-1.5 rounded-full bg-current" />
       {{ text }}
       <span v-if="keeps === 'right' || keeps === 'both'" class="inline-block h-1.5 w-1.5 rounded-full bg-current" />
+      <ChevronDown class="h-3.5 w-3.5" />
     </button>
   </EdgeLabelRenderer>
 </template>

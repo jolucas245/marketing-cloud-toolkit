@@ -15,10 +15,11 @@ import { Network, Maximize2, Map as MapIcon, X, Plus, Code2, Wand2, Braces } fro
 import DENode from './DENode.vue'
 import JoinEdge from './JoinEdge.vue'
 import {
-  canvasEdges, autoLayout, nextPosition, joinedFields, parseHandle, cardHeight, visibleRows, JOIN_TYPES,
+  canvasEdges, autoLayout, nextPosition, joinedFields, parseHandle, cardHeight, visibleRows,
 } from '@/utils/builderCanvas.js'
 import { addJoinCondition, orderFromRoot, joinsForOrder } from '@/utils/builderOrder.js'
 import { aliasOf, suggestJoinConditions } from '@/utils/sqlBuilder.js'
+import { joinChoices } from '../joinTypes.js'
 
 const props = defineProps({
   selectedDEs: { type: Array, default: () => [] },
@@ -170,6 +171,10 @@ const earlierTables = computed(() => {
   return i <= 0 ? [] : props.selectedDEs.slice(0, i)
 })
 const fieldsOf = (id) => (deById(id)?.fields || []).map((f) => f.name)
+// Join type picker: each type with what it keeps, in the two tables' names.
+const editChoices = computed(() => editJoin.value
+  ? joinChoices(deById(editJoin.value.leftDeId)?.name, deById(editJoin.value.rightDeId)?.name)
+  : [])
 
 function patchJoin(patch) {
   const next = props.joins.map((j, i) => (i === editIdx.value ? { ...j, ...patch } : j))
@@ -249,7 +254,7 @@ function onDrop(e) {
       <Background pattern-color="hsl(var(--muted-foreground) / 0.35)" :gap="18" />
       <Controls :show-interactive="false" position="bottom-left" />
       <MiniMap v-if="showMap" pannable zoomable position="bottom-right" :node-color="() => 'hsl(var(--primary) / 0.35)'" />
-      <Panel position="top-left" class="flex items-center gap-1">
+      <Panel position="top-left" class="flex flex-wrap items-center gap-1.5">
         <button class="qb-tool" title="Arrange the cards along the joins" :disabled="!selectedDEs.length" @click="runAutoLayout"><Network class="h-3.5 w-3.5" /> Auto layout</button>
         <button class="qb-tool" title="Fit every card in view" @click="fit"><Maximize2 class="h-3.5 w-3.5" /> Fit</button>
         <button class="qb-tool" :class="showMap ? 'qb-tool-on' : ''" title="Show or hide the minimap" @click="showMap = !showMap"><MapIcon class="h-3.5 w-3.5" /> Map</button>
@@ -259,7 +264,7 @@ function onDrop(e) {
     </VueFlow>
 
     <div v-if="!selectedDEs.length" class="absolute inset-0 flex items-center justify-center pointer-events-none">
-      <div class="max-w-sm text-center text-xs text-muted-foreground px-6">
+      <div class="max-w-sm text-center text-sm text-muted-foreground px-6 py-5 rounded-xl border border-dashed border-border bg-card/80">
         Drag data extensions or data views here (or click them on the left). Then drag from a field on one card to a field on another to join them, and tick the fields you want in the output.
       </div>
     </div>
@@ -267,20 +272,35 @@ function onDrop(e) {
     <!-- Join editor -->
     <div
       v-if="editJoin"
-      class="absolute z-20 w-[340px] rounded-lg border border-border bg-card text-card-foreground shadow-xl p-2.5 text-[11px]"
+      class="absolute z-20 w-[340px] rounded-xl border border-border bg-card text-card-foreground shadow-xl p-2 text-[11px]"
       :style="{ left: editorPos.x + 'px', top: editorPos.y + 'px' }"
+      role="dialog"
+      aria-label="Edit join"
       @click.stop
     >
-      <div class="flex items-center gap-2 mb-2">
-        <select class="border border-border rounded px-1 py-0.5 bg-background font-semibold" :value="editJoin.joinType || 'INNER JOIN'" @change="patchJoin({ joinType: $event.target.value })">
-          <option v-for="jt in JOIN_TYPES" :key="jt.value" :value="jt.value">{{ jt.value }}</option>
-        </select>
-        <span class="truncate font-bold" :title="label(editJoin.rightDeId)">{{ label(editJoin.rightDeId) }}</span>
-        <button class="ml-auto text-muted-foreground hover:text-foreground" title="Close" @click="openJoinId = null"><X class="h-3.5 w-3.5" /></button>
+      <div class="flex items-center gap-2 px-1 mb-1.5">
+        <span class="truncate text-xs font-semibold" :title="label(editJoin.rightDeId)">{{ label(editJoin.rightDeId) }}</span>
+        <button class="ml-auto h-6 w-6 inline-flex items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground" title="Close" aria-label="Close" @click="openJoinId = null"><X class="h-3.5 w-3.5" /></button>
       </div>
+      <div role="radiogroup" aria-label="Join type" class="grid grid-cols-2 gap-1 mb-2">
+        <button
+          v-for="jt in editChoices"
+          :key="jt.value"
+          role="radio"
+          :aria-checked="(editJoin.joinType || 'INNER JOIN') === jt.value"
+          class="flex flex-col items-start gap-0.5 rounded-lg px-2.5 py-2 text-left border"
+          :class="(editJoin.joinType || 'INNER JOIN') === jt.value ? 'border-primary bg-primary/10 text-primary' : 'border-transparent hover:bg-accent'"
+          :title="jt.value"
+          @click="patchJoin({ joinType: jt.value })"
+        >
+          <span class="text-xs font-semibold">{{ jt.label }} join</span>
+          <span class="text-[11px] leading-snug text-muted-foreground break-words">{{ jt.desc }}</span>
+        </button>
+      </div>
+      <div class="px-1 pt-2 border-t border-border">
       <div class="flex items-center gap-1 mb-2">
         <span class="text-muted-foreground shrink-0">joins to</span>
-        <select v-if="earlierTables.length > 1" class="flex-1 min-w-0 border border-border rounded px-1 py-0.5 bg-background" :value="editJoin.leftDeId" @change="setLeft($event.target.value)">
+        <select v-if="earlierTables.length > 1" class="flex-1 min-w-0 h-7 border border-border rounded-lg px-1.5 bg-background" :value="editJoin.leftDeId" @change="setLeft($event.target.value)">
           <option v-for="t in earlierTables" :key="t.id" :value="t.id">{{ label(t.id) }}</option>
         </select>
         <span v-else class="truncate">{{ label(editJoin.leftDeId) }}</span>
@@ -288,18 +308,18 @@ function onDrop(e) {
 
       <template v-if="!editJoin.rawOn">
         <div v-for="(c, ci) in editJoin.conditions" :key="ci" class="flex items-center gap-1 mb-1">
-          <select v-if="ci > 0" class="w-12 border border-border rounded px-0.5 py-0.5 bg-background text-muted-foreground" :value="c.conn || editJoin.combinator || 'AND'" @change="patchCond(ci, 'conn', $event.target.value)">
+          <select v-if="ci > 0" class="w-12 h-7 border border-border rounded-lg px-0.5 bg-background text-muted-foreground" :value="c.conn || editJoin.combinator || 'AND'" @change="patchCond(ci, 'conn', $event.target.value)">
             <option>AND</option><option>OR</option>
           </select>
           <span v-else class="w-12 text-center text-[9px] text-muted-foreground">ON</span>
-          <select class="flex-1 min-w-0 border border-border rounded px-1 py-0.5 bg-background" :value="c.leftField" :title="c.leftDeId ? label(c.leftDeId) : ''" @change="patchCond(ci, 'leftField', $event.target.value)">
+          <select class="flex-1 min-w-0 h-7 border border-border rounded-lg px-1.5 bg-background" :value="c.leftField" :title="c.leftDeId ? label(c.leftDeId) : ''" @change="patchCond(ci, 'leftField', $event.target.value)">
             <option value="" disabled>left field…</option>
             <option v-for="f in fieldsOf(c.leftDeId || editJoin.leftDeId)" :key="f" :value="f">{{ f }}</option>
           </select>
-          <select class="w-11 border border-border rounded px-0.5 py-0.5 bg-background" :value="c.operator || '='" @change="patchCond(ci, 'operator', $event.target.value)">
+          <select class="w-11 h-7 border border-border rounded-lg px-0.5 bg-background" :value="c.operator || '='" @change="patchCond(ci, 'operator', $event.target.value)">
             <option v-for="op in OPERATORS" :key="op">{{ op }}</option>
           </select>
-          <select class="flex-1 min-w-0 border border-border rounded px-1 py-0.5 bg-background" :value="c.rightField" @change="patchCond(ci, 'rightField', $event.target.value)">
+          <select class="flex-1 min-w-0 h-7 border border-border rounded-lg px-1.5 bg-background" :value="c.rightField" @change="patchCond(ci, 'rightField', $event.target.value)">
             <option value="" disabled>right field…</option>
             <option v-for="f in fieldsOf(editJoin.rightDeId)" :key="f" :value="f">{{ f }}</option>
           </select>
@@ -316,13 +336,14 @@ function onDrop(e) {
         </p>
       </template>
       <div v-else>
-        <textarea class="w-full h-20 border border-border rounded p-1 bg-background font-mono text-[10px]" placeholder="t1.[A] = t2.[A] AND t1.[B] = t2.[B]" :value="editJoin.onClause" @input="patchJoin({ onClause: $event.target.value })" />
+        <textarea class="w-full h-20 border border-border rounded-lg p-1.5 bg-background font-mono text-[10px]" placeholder="t1.[A] = t2.[A] AND t1.[B] = t2.[B]" :value="editJoin.onClause" @input="patchJoin({ onClause: $event.target.value })" />
         <p class="text-[9px] text-muted-foreground">Use the table aliases and brackets. This replaces the conditions above.</p>
       </div>
       <label class="flex items-center gap-1 mt-2 pt-2 border-t border-border text-[10px] text-muted-foreground cursor-pointer">
         <input type="checkbox" :checked="!!editJoin.rawOn" @change="patchJoin({ rawOn: $event.target.checked })" />
         <Code2 class="h-3 w-3" /> Write the ON expression by hand
       </label>
+      </div>
     </div>
   </div>
 </template>
@@ -344,20 +365,21 @@ function onDrop(e) {
 .qb-canvas .vue-flow__handle.de-handle.valid { opacity: 1; }
 .qb-canvas .vue-flow__handle.de-handle-hdr { opacity: 0 !important; pointer-events: none; }
 .qb-canvas .vue-flow__handle.de-handle.valid { background: hsl(var(--primary)); }
-.qb-canvas .vue-flow__node-de { padding: 0; border: 0; background: transparent; border-radius: 0.5rem; }
-.qb-canvas .vue-flow__node-de.selected .de-node { box-shadow: 0 0 0 2px hsl(var(--primary) / 0.5); }
-.qb-canvas .vue-flow__controls { box-shadow: none; border: 1px solid hsl(var(--border)); border-radius: 6px; overflow: hidden; }
+.qb-canvas .vue-flow__node-de { padding: 0; border: 0; background: transparent; border-radius: 14px; }
+.qb-canvas .vue-flow__node-de.selected .de-node { box-shadow: 0 0 0 3px hsl(var(--primary) / 0.25); }
+.qb-canvas .vue-flow__controls { box-shadow: none; border: 1px solid hsl(var(--border)); border-radius: 10px; overflow: hidden; }
+.qb-canvas .vue-flow__controls-button { width: 32px; height: 32px; }
 .qb-canvas .vue-flow__controls-button { background: hsl(var(--card)); border-bottom: 1px solid hsl(var(--border)); fill: hsl(var(--foreground)); }
 .qb-canvas .vue-flow__controls-button:hover { background: hsl(var(--muted)); }
 .qb-canvas .vue-flow__controls-button svg { fill: currentColor; color: hsl(var(--foreground)); }
-.qb-canvas .vue-flow__minimap { background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 6px; }
+.qb-canvas .vue-flow__minimap { background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 10px; overflow: hidden; }
 .qb-canvas .vue-flow__minimap-mask { fill: hsl(var(--muted) / 0.6); }
 .qb-canvas .qb-tool {
-  display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 8px;
-  border: 1px solid hsl(var(--border)); border-radius: 6px; background: hsl(var(--card));
-  color: hsl(var(--foreground)); font-size: 11px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px;
+  border: 1px solid hsl(var(--border)); border-radius: 9999px; background: hsl(var(--card));
+  color: hsl(var(--foreground)); font-size: 13px; font-weight: 500; white-space: nowrap;
 }
 .qb-canvas .qb-tool:hover:not(:disabled) { background: hsl(var(--muted)); }
 .qb-canvas .qb-tool:disabled { opacity: 0.5; }
-.qb-canvas .qb-tool-on { border-color: hsl(var(--primary) / 0.6); color: hsl(var(--primary)); }
+.qb-canvas .qb-tool-on { border-color: hsl(var(--primary)); background: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); }
 </style>

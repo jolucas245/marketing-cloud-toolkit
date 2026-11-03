@@ -5,7 +5,7 @@
 // (Home's "Describe the query you need", feedback #1029) opens a panel with AI Assist.
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Plus, FilePlus2, LogIn } from 'lucide-vue-next'
+import { Plus, FilePlus2, LogIn, Bookmark } from 'lucide-vue-next'
 import WorkspaceGrid from '@/components/workspace/WorkspaceGrid.vue'
 import Button from '@/components/ui/button/Button.vue'
 import { useWorkspace, LAYOUT_PRESETS } from '@/composables/useWorkspace.js'
@@ -55,28 +55,35 @@ function openLogin() {
 </script>
 
 <template>
-  <div class="h-full flex flex-col">
-    <div class="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-border bg-card">
-      <div class="flex items-center gap-0.5 border border-border rounded-md p-0.5" role="group" aria-label="Layout">
+  <div class="h-full flex flex-col bg-background">
+    <div class="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-border bg-card">
+      <span class="text-[13px] text-muted-foreground">Layout</span>
+      <div class="inline-flex items-center p-[3px] border border-border rounded-full bg-card" role="group" aria-label="Layout">
         <button v-for="preset in LAYOUT_PRESETS" :key="preset.label"
-          class="text-xs px-2 py-0.5 rounded"
-          :class="layoutRows === preset.rows && layoutCols === preset.cols ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"
+          class="h-7 px-3 rounded-full text-[13px] transition-colors"
+          :class="layoutRows === preset.rows && layoutCols === preset.cols ? 'bg-primary text-primary-foreground font-semibold' : 'text-foreground/80 font-medium hover:bg-accent'"
           :aria-pressed="layoutRows === preset.rows && layoutCols === preset.cols"
           @click="setLayout(preset.rows, preset.cols)">{{ preset.label }}</button>
       </div>
-      <Button variant="outline" size="sm" class="h-8 text-xs" :disabled="!canAddPanel" @click="addPanel()">
-        <Plus class="h-3.5 w-3.5 mr-1" /> Panel
-      </Button>
-      <span class="text-xs text-muted-foreground">{{ panels.length }} of 6 panels</span>
-      <div class="flex-1" />
-      <Button variant="ghost" size="sm" class="h-8 text-xs" title="Start with one empty panel; the queries in the current panels stay saved" @click="newWorkspace">
-        <FilePlus2 class="h-3.5 w-3.5 mr-1" /> Start fresh
-      </Button>
+      <button class="h-[34px] inline-flex items-center gap-1.5 px-3.5 rounded-full border border-border bg-card text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50 disabled:pointer-events-none"
+        :disabled="!canAddPanel" title="Add a panel (6 at most)" @click="addPanel()">
+        <Plus class="h-4 w-4" /> Panel
+      </button>
+      <span class="text-[13px] text-muted-foreground">{{ panels.length }} of 6 panels</span>
+      <span class="ml-auto flex flex-wrap gap-2">
+        <RouterLink to="/queries/saved" class="h-[34px] inline-flex items-center gap-1.5 px-3.5 rounded-full border border-border bg-card text-sm font-medium text-foreground hover:bg-accent no-underline">
+          <Bookmark class="h-4 w-4" /> Saved queries
+        </RouterLink>
+        <button class="h-[34px] inline-flex items-center gap-1.5 px-3.5 rounded-full border border-border bg-card text-sm font-medium text-foreground hover:bg-accent"
+          title="Start with one empty panel; the queries in the current panels stay saved" @click="newWorkspace">
+          <FilePlus2 class="h-4 w-4" /> Start fresh
+        </button>
+      </span>
     </div>
 
-    <div v-if="state === 'disconnected'" class="flex items-center gap-3 px-4 py-2 bg-amber-50 border-b border-amber-200 text-xs text-amber-900 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
+    <div v-if="state === 'disconnected'" class="flex items-center gap-3 px-5 py-2 bg-amber-50 border-b border-amber-200 text-[13px] text-amber-900 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
       <span class="flex-1">Not connected to Marketing Cloud. Log in to SFMC in this browser to validate and run queries.</span>
-      <Button size="sm" variant="outline" class="h-7 text-xs" @click="openLogin"><LogIn class="h-3.5 w-3.5 mr-1" /> Log in</Button>
+      <Button size="sm" variant="outline" class="h-8 rounded-full text-[13px]" @click="openLogin"><LogIn class="h-3.5 w-3.5 mr-1" /> Log in</Button>
     </div>
 
     <WorkspaceGrid v-if="ready" :panels="panels" :stack="stack" :can-interact="canInteract"

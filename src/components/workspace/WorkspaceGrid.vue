@@ -14,6 +14,8 @@ const emit = defineEmits(['remove-panel', 'duplicate-panel'])
 
 // Minimum size (percent) any single row/column track may shrink to.
 const MIN = 20
+// Space between panels (px), as in the design.
+const GAP = 16
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v))
 const even = (n) => Array.from({ length: n }, () => 100 / n)
 
@@ -38,7 +40,7 @@ const gridStyle = computed(() => ({
   display: 'grid',
   gridTemplateColumns: colSizes.value.map((s) => `${s}fr`).join(' '),
   gridTemplateRows: rowSizes.value.map((s) => `${s}fr`).join(' '),
-  gap: '6px',
+  gap: `${GAP}px`,
   height: '100%',
   minHeight: 0,
 }))
@@ -52,6 +54,8 @@ const boundaries = (sizes) => {
 }
 const colBoundaries = computed(() => boundaries(colSizes.value))
 const rowBoundaries = computed(() => boundaries(rowSizes.value))
+// The middle of the gap after track i: tracks share what the gaps leave over.
+const handleAt = (b, i, n) => `calc((100% - ${GAP * (n - 1)}px) * ${b / 100} + ${GAP * i + GAP / 2}px)`
 
 const gridRef = ref(null)
 let drag = null
@@ -78,9 +82,9 @@ function onDrag(e) {
   if (!drag) return
   const { axis, i, rect, start, a, b } = drag
   const total = a + b
-  const deltaPct = axis === 'col'
-    ? ((e.clientX - start) / rect.width) * 100
-    : ((e.clientY - start) / rect.height) * 100
+  const n = axis === 'col' ? colSizes.value.length : rowSizes.value.length
+  const span = (axis === 'col' ? rect.width : rect.height) - GAP * (n - 1)
+  const deltaPct = ((axis === 'col' ? e.clientX : e.clientY) - start) / Math.max(1, span) * 100
   const newA = clamp(a + deltaPct, MIN, total - MIN)
   const next = [...(axis === 'col' ? colSizes.value : rowSizes.value)]
   next[i] = newA
@@ -99,7 +103,7 @@ function endDrag() {
 </script>
 
 <template>
-  <div class="workspace-grid flex-1 min-h-0 p-1.5 bg-muted/30">
+  <div class="workspace-grid flex-1 min-h-0 p-3 sm:p-5 bg-background">
     <div ref="gridRef" class="relative w-full h-full" :style="gridStyle">
       <QueryPanel
         v-for="(panel, idx) in panels"
@@ -124,7 +128,7 @@ function endDrag() {
           v-for="(b, i) in colBoundaries"
           :key="`col-${i}`"
           class="group absolute top-0 bottom-0 z-20 flex justify-center cursor-col-resize"
-          :style="{ left: `${b}%`, width: '12px', transform: 'translateX(-50%)' }"
+          :style="{ left: handleAt(b, i, colSizes.length), width: '12px', transform: 'translateX(-50%)' }"
           title="Drag to resize"
           @mousedown="startDrag('col', i, $event)"
         >
@@ -136,7 +140,7 @@ function endDrag() {
           v-for="(b, i) in rowBoundaries"
           :key="`row-${i}`"
           class="group absolute left-0 right-0 z-20 flex items-center cursor-row-resize"
-          :style="{ top: `${b}%`, height: '12px', transform: 'translateY(-50%)' }"
+          :style="{ top: handleAt(b, i, rowSizes.length), height: '12px', transform: 'translateY(-50%)' }"
           title="Drag to resize"
           @mousedown="startDrag('row', i, $event)"
         >

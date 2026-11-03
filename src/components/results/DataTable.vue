@@ -12,6 +12,8 @@ import { Columns3, ArrowUp, ArrowDown, ArrowUpDown, Filter, X } from 'lucide-vue
 import { sortRows, filterRows, nextSort, isSortable, isFilterable } from '@/utils/tableSort.js'
 
 const props = defineProps({
+  // Extra classes for one row, e.g. the row whose details are open (redesign, #1031).
+  rowClass: { type: Function, default: null },
   columns: { type: Array, required: true }, // [{ key, label, class?, hideable? }]
   rows: { type: Array, required: true },
   rowKey: { type: String, default: 'id' },
@@ -115,7 +117,7 @@ function toggle(key) {
           <tr v-if="!rows.length"><td :colspan="visible.length" class="px-3 py-6 text-center text-muted-foreground">{{ emptyText }}</td></tr>
           <tr v-else-if="!shownRows.length"><td :colspan="visible.length" class="px-3 py-6 text-center text-muted-foreground">No rows match the filters.</td></tr>
           <template v-for="row in shownRows" :key="row[rowKey]">
-            <tr class="border-b border-border last:border-0 hover:bg-muted/40 align-top">
+            <tr class="border-b border-border last:border-0 hover:bg-muted/40 align-top" :class="rowClass ? rowClass(row) : ''">
               <td v-for="c in visible" :key="c.key" class="px-3 py-2" :class="c.class">
                 <slot :name="`cell-${c.key}`" :row="row">{{ row[c.key] ?? '' }}</slot>
               </td>

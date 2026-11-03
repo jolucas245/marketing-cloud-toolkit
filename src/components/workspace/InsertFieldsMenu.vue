@@ -70,15 +70,15 @@ async function pick(name) {
     </Button>
     <template v-if="open">
       <div class="fixed inset-0 z-40" @click="open = false" />
-      <div class="absolute mt-1 w-72 z-50 rounded-md border border-border bg-card shadow-lg p-2 text-[11px]" :class="bare ? 'left-0 top-6' : 'right-0'">
-        <div class="font-semibold mb-1">Insert all fields</div>
+      <div class="absolute mt-1 w-72 z-50 rounded-xl border border-border bg-card shadow-[0_18px_40px_-16px_rgba(17,24,39,0.35)] p-3 text-xs" :class="bare ? 'left-0 top-8' : 'right-0'">
+        <div class="text-[13px] font-semibold mb-1">Insert all fields</div>
         <p class="text-muted-foreground mb-2">Replaces <code>*</code> or <code>alias.*</code> for that table, or inserts at the cursor. In an empty editor it writes the whole query.</p>
 
         <template v-if="inQuery.length">
-          <div class="text-[10px] font-bold text-muted-foreground uppercase mb-1">In this query</div>
+          <div class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">In this query</div>
           <ul class="mb-2">
             <li v-for="t in inQuery" :key="t">
-              <button class="w-full text-left px-1.5 py-1 rounded hover:bg-muted flex items-center gap-1" @click="pick(t)">
+              <button class="w-full text-left px-2 py-1.5 rounded-lg hover:bg-accent flex items-center gap-1.5 font-mono" @click="pick(t)">
                 <Loader2 v-if="busy === t" class="h-3 w-3 animate-spin" />
                 <span class="truncate">{{ t }}</span>
               </button>
@@ -88,22 +88,22 @@ async function pick(name) {
 
         <input
           v-model="query"
-          class="w-full rounded border border-border bg-background text-foreground px-1.5 py-1"
+          class="w-full h-8 rounded-lg border border-border bg-background text-foreground px-2.5 focus:outline-none focus:ring-2 focus:ring-ring"
           placeholder="Search data views and DEs"
           @keydown.esc="open = false"
         />
         <div v-if="searching" class="text-muted-foreground mt-1">Searching…</div>
         <ul v-else-if="results.length" class="mt-1 max-h-56 overflow-auto">
           <li v-for="t in results" :key="t.kind + t.name">
-            <button class="w-full text-left px-1.5 py-1 rounded hover:bg-muted flex items-center gap-1" @click="pick(t.sourceType === 'shared' ? 'ENT.' + t.name : t.name)">
+            <button class="w-full text-left px-2 py-1.5 rounded-lg hover:bg-accent flex items-center gap-1.5" @click="pick(t.sourceType === 'shared' ? 'ENT.' + t.name : t.name)">
               <Loader2 v-if="busy === t.name || busy === 'ENT.' + t.name" class="h-3 w-3 animate-spin" />
-              <span class="truncate flex-1">{{ t.name }}</span>
+              <span class="truncate flex-1 font-mono">{{ t.name }}</span>
               <span class="text-muted-foreground">{{ t.kind === 'dataview' ? 'data view' : t.sourceType === 'shared' ? 'Shared DE' : t.sourceType === 'sync' ? 'Synchronized DE' : 'DE' }}</span>
             </button>
           </li>
         </ul>
         <div v-else-if="query.trim()" class="text-muted-foreground mt-1">No match. Data Extensions are searched from 2 characters.</div>
-        <p v-if="note" class="mt-1 text-red-600">{{ note }}</p>
+        <p v-if="note" class="mt-1 text-red-600 dark:text-red-400">{{ note }}</p>
       </div>
     </template>
   </div>

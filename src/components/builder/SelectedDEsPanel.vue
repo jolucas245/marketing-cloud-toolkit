@@ -10,6 +10,7 @@ import { DATA_VIEW_FIELDS, DATA_VIEWS } from '../../utils/dataViews.js'
 import { suggestJoinConditions, aliasFor, aliasOf } from '../../utils/sqlBuilder.js'
 import { defaultQueryOptions } from '../../utils/builderStorage.js'
 import { moveDE, swapDEs, joinsForOrder, smartAlias } from '../../utils/builderOrder.js'
+import { joinChoices, describeJoin } from './joinTypes.js'
 
 const props = defineProps({
   stack: { type: String, default: null },
@@ -311,6 +312,12 @@ function fieldsForDe(deId) {
   return selectedList.value.find((d) => d.id === deId)?.fields || []
 }
 
+// Name of the earlier table a join keeps rows from (for the join type descriptions).
+function leftNameOf(idx) {
+  const id = joins.value[idx]?.leftDeId
+  return selectedList.value.find((d) => d.id === id)?.name || selectedList.value[idx]?.name || 'left'
+}
+
 function toggleSection(name) {
   sectionOpen.value[name] = !sectionOpen.value[name]
 }
@@ -322,7 +329,7 @@ function toggleSection(name) {
       <!-- ═══ Step 1 · Structure ═══ -->
       <section class="border-b border-border">
         <button
-          class="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-muted-foreground uppercase tracking-wide hover:bg-muted/50"
+          class="w-full flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.06em] hover:bg-accent/60"
           @click="toggleSection('structure')"
         >
           <ChevronDown v-if="sectionOpen.structure" class="h-3.5 w-3.5" />
@@ -330,8 +337,8 @@ function toggleSection(name) {
           <span>Step 1 · Query structure</span>
         </button>
 
-        <div v-show="sectionOpen.structure" class="p-2 space-y-1">
-          <div v-if="!selectedList.length" class="text-xs text-muted-foreground text-center py-8">
+        <div v-show="sectionOpen.structure" class="px-4 pb-3 pt-1 space-y-1">
+          <div v-if="!selectedList.length" class="text-sm text-muted-foreground text-center py-8 rounded-xl border border-dashed border-border">
             Click a DE in the browser to add it to your query
           </div>
 
@@ -347,7 +354,7 @@ function toggleSection(name) {
             />
             <!-- DE chip (drag onto another to swap) -->
             <div
-              class="rounded-lg border bg-card px-2.5 py-2 flex items-center justify-between"
+              class="rounded-xl border bg-card px-3 py-2 flex items-center justify-between"
               :class="[isDrop('swap', idx) && dragFrom !== idx ? 'border-primary ring-1 ring-primary' : 'border-border', dragFrom === idx ? 'opacity-50' : '']"
               :draggable="selectedList.length > 1"
               @dragstart="onChipDragStart($event, idx)"
@@ -358,13 +365,13 @@ function toggleSection(name) {
               <div class="flex items-center gap-1.5 min-w-0">
                 <GripVertical v-if="selectedList.length > 1" class="h-3.5 w-3.5 shrink-0 text-muted-foreground cursor-grab" title="Drag to move, or drop on another to swap" />
                 <input
-                  class="w-10 text-[10px] font-mono text-center text-primary border border-border rounded px-0.5 py-0.5 bg-background focus:border-primary focus:outline-none"
+                  class="w-12 h-6 text-[11px] font-mono text-center text-primary border border-primary/30 rounded-md px-0.5 bg-background focus:border-primary focus:outline-none"
                   :value="aliasOf(de, idx)"
                   title="Table alias — edit to rename"
                   @change="updateAlias(idx, $event.target.value)"
                 />
-                <span class="text-xs font-bold text-foreground truncate">{{ de.name }}</span>
-                <span class="text-[9px] px-1 rounded bg-muted text-muted-foreground shrink-0">{{ de.sourceType }}</span>
+                <span class="text-sm font-semibold text-foreground truncate">{{ de.name }}</span>
+                <span v-if="de.sourceType" class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-muted text-muted-foreground shrink-0">{{ de.sourceType }}</span>
                 <Loader2 v-if="loadingIds.has(de.id)" class="h-3 w-3 animate-spin text-muted-foreground shrink-0" />
               </div>
               <div class="flex items-center shrink-0">
@@ -385,18 +392,17 @@ function toggleSection(name) {
             <!-- Join row to next DE -->
             <div
               v-if="idx < selectedList.length - 1 && joins[idx]"
-              class="ml-3 pl-3 border-l-2 border-dashed border-border py-2 space-y-1.5"
+              class="ml-4 pl-3 border-l-2 border-primary/40 py-2 space-y-1.5"
             >
               <div class="flex items-center gap-1">
                 <select
-                  class="text-[10px] font-semibold border rounded px-1 py-0.5 bg-background"
+                  class="h-7 text-xs font-semibold text-primary border border-primary/60 rounded-full px-2 bg-background"
+                  aria-label="Join type"
                   :value="joins[idx].joinType"
+                  :title="describeJoin(joins[idx].joinType, leftNameOf(idx), selectedList[idx + 1].name)"
                   @change="updateJoinType(idx, $event.target.value)"
                 >
-                  <option>INNER JOIN</option>
-                  <option>LEFT JOIN</option>
-                  <option>RIGHT JOIN</option>
-                  <option>FULL OUTER JOIN</option>
+                  <option v-for="jt in joinChoices(leftNameOf(idx), selectedList[idx + 1].name)" :key="jt.value" :value="jt.value" :title="jt.desc">{{ jt.value }}</option>
                 </select>
                 <span class="text-[10px] text-muted-foreground truncate">{{ selectedList[idx + 1].name }} on</span>
                 <select
@@ -410,6 +416,7 @@ function toggleSection(name) {
                 </select>
                 <span v-else class="text-[10px] text-muted-foreground truncate">{{ aliasOf(selectedList[0], 0) }}</span>
               </div>
+              <p class="text-[11px] text-muted-foreground">{{ describeJoin(joins[idx].joinType, leftNameOf(idx), selectedList[idx + 1].name) }}</p>
 
               <!-- Condition rows -->
               <div
@@ -466,9 +473,9 @@ function toggleSection(name) {
               </div>
               <div
                 v-if="!(joins[idx].conditions || []).some((c) => c.leftField && c.rightField)"
-                class="text-[9px] text-amber-600"
+                class="text-[11px] text-amber-700 dark:text-amber-300"
               >
-                ⚠ Join condition incomplete
+                Join condition incomplete
               </div>
             </div>
           </template>
@@ -487,7 +494,7 @@ function toggleSection(name) {
       <!-- ═══ Step 2 · Fields ═══ -->
       <section class="border-b border-border">
         <button
-          class="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wide hover:bg-muted/50"
+          class="w-full flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.06em] hover:bg-accent/60"
           :class="joinsComplete ? 'text-muted-foreground' : 'text-muted-foreground/40'"
           :disabled="!joinsComplete"
           @click="joinsComplete && toggleSection('fields')"
@@ -498,11 +505,11 @@ function toggleSection(name) {
           <Lock v-if="!joinsComplete" class="h-3 w-3 ml-auto" />
         </button>
 
-        <div v-show="sectionOpen.fields && joinsComplete" class="p-2 space-y-1.5">
+        <div v-show="sectionOpen.fields && joinsComplete" class="px-4 pb-3 pt-1 space-y-1.5">
           <div v-if="!selectedList.length" class="text-[11px] text-muted-foreground text-center py-4">
             Add DEs first
           </div>
-          <details v-if="selectedList.length" class="rounded-lg border border-border px-2 py-1">
+          <details v-if="selectedList.length" class="rounded-xl border border-border bg-card px-3 py-1.5">
             <summary class="text-[11px] font-bold cursor-pointer">Output columns: order and names</summary>
             <div class="pt-1.5">
               <OutputColumns
@@ -513,7 +520,7 @@ function toggleSection(name) {
               />
             </div>
           </details>
-          <div v-for="(de, idx) in selectedList" :key="de.id" class="rounded-lg border border-border">
+          <div v-for="(de, idx) in selectedList" :key="de.id" class="rounded-xl border border-border bg-card">
             <button
               class="w-full flex items-center justify-between px-2 py-1.5 hover:bg-muted/50"
               @click="toggleFieldSection(de.id)"
@@ -547,7 +554,7 @@ function toggleSection(name) {
                 >
                   <input
                     type="checkbox"
-                    class="h-3 w-3"
+                    class="h-3.5 w-3.5 accent-primary"
                     :checked="isFieldSelected(de, f.name)"
                     @change="toggleField(idx, f.name)"
                   />
@@ -562,7 +569,7 @@ function toggleSection(name) {
       <!-- ═══ Step 3 · Filters ═══ -->
       <section>
         <button
-          class="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wide hover:bg-muted/50"
+          class="w-full flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.06em] hover:bg-accent/60"
           :class="joinsComplete ? 'text-muted-foreground' : 'text-muted-foreground/40'"
           :disabled="!joinsComplete"
           @click="joinsComplete && toggleSection('filters')"
@@ -573,7 +580,7 @@ function toggleSection(name) {
           <Lock v-if="!joinsComplete" class="h-3 w-3 ml-auto" />
         </button>
 
-        <div v-show="sectionOpen.filters && joinsComplete" class="p-2">
+        <div v-show="sectionOpen.filters && joinsComplete" class="px-4 pb-3 pt-1">
           <WhereBuilder
             :field-options="allFieldOptions"
             :model-value="where"
@@ -585,14 +592,14 @@ function toggleSection(name) {
       <!-- ═══ Step 4 · Options ═══ -->
       <section class="border-t border-border">
         <button
-          class="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground hover:bg-muted/50"
+          class="w-full flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground hover:bg-accent/60"
           @click="toggleSection('options')"
         >
           <ChevronDown v-if="sectionOpen.options" class="h-3.5 w-3.5" />
           <ChevronRight v-else class="h-3.5 w-3.5" />
           <span>Step 4 · Options</span>
         </button>
-        <div v-show="sectionOpen.options" class="p-2">
+        <div v-show="sectionOpen.options" class="px-4 pb-3 pt-1">
           <QueryOptions
             :field-options="allFieldOptions"
             :model-value="queryOptions"

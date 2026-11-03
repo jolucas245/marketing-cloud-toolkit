@@ -8,7 +8,7 @@ import { Search, FileCode2, Mail, Settings, BookOpen, ArrowRight, History } from
 import { NAV_ITEMS } from '@/app/nav.js'
 import { paletteEntries } from '@/utils/paletteSearch.js'
 
-const props = defineProps({ open: Boolean })
+const props = defineProps({ open: Boolean, initialText: { type: String, default: '' } })
 const emit = defineEmits(['close'])
 const router = useRouter()
 
@@ -28,7 +28,7 @@ const entries = computed(() => paletteEntries(query.value, SECTIONS.filter((s) =
 
 watch(() => props.open, async (isOpen) => {
   if (!isOpen) return
-  query.value = ''
+  query.value = props.initialText || ''
   active.value = 0
   try { chrome.storage.local.get(null, (all) => { storage.value = all || {} }) } catch { storage.value = {} }
   await nextTick()

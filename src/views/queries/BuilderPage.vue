@@ -1,11 +1,9 @@
 <script setup>
 // Query Builder section. Kept alive while you visit other sections; `?id=` opens a
-// saved Query Builder query, New starts an empty one.
+// saved Query Builder query, New > New query starts an empty one.
 import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FilePlus2 } from 'lucide-vue-next'
 import QueryBuilder from '@/components/builder/QueryBuilder.vue'
-import Button from '@/components/ui/button/Button.vue'
 import { claim, release, isClaimedElsewhere } from '@/utils/tabClaims.js'
 
 const LAST_BUILDER_KEY = 'toolkit_lastBuilder'
@@ -66,11 +64,5 @@ if (first || firstSql) router.replace({ path: route.path })
 </script>
 
 <template>
-  <QueryBuilder v-if="session" :key="session" :open-id="openId" :import-sql="importSql" @saved="onSaved">
-    <template #actions>
-      <Button variant="ghost" size="sm" class="h-8 text-xs" title="Start a new query; this one stays saved" @click="startNew">
-        <FilePlus2 class="h-3.5 w-3.5 mr-1" /> New query
-      </Button>
-    </template>
-  </QueryBuilder>
+  <QueryBuilder v-if="session" :key="session" :open-id="openId" :import-sql="importSql" @saved="onSaved" @new-query="startNew" />
 </template>

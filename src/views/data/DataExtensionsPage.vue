@@ -6,7 +6,7 @@ import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Loader2, RefreshCw, FolderTree, Hash, ListTree, FileSpreadsheet, Copy, Play, X, ChevronDown, ChevronRight, Network, ExternalLink, Rows3, ArrowUpDown } from 'lucide-vue-next'
+import { Search, Loader2, RefreshCw, FolderTree, ListTree, FileSpreadsheet, Copy, Play, X, ChevronDown, ChevronRight, Network, ExternalLink, Rows3, ArrowUpDown, Database, Plus, KeyRound } from 'lucide-vue-next'
 import DataTable from '@/components/results/DataTable.vue'
 import DownloadMenu from '@/components/results/DownloadMenu.vue'
 import Button from '@/components/ui/button/Button.vue'
@@ -345,13 +345,58 @@ async function buildDoc() {
   }
 }
 
+// ── Detail panel (redesign #1031) ────────────────────────
+// Clicking a name opens the DE beside the list: key, ID, folder, rows, dates,
+// Query it, Open in SFMC, and tabs for Fields, Preview data and Where used.
+const detail = ref(null)
+const detailTab = ref('fields')
+const DETAIL_TABS = [
+  { id: 'fields', label: 'Fields' },
+  { id: 'preview', label: 'Preview' },
+  { id: 'usage', label: 'Where used' },
+]
+function openDetail(de) {
+  detail.value = de
+  detailTab.value = 'fields'
+  loadFields(de)
+  loadPath(de)
+  loadCount(de)
+}
+async function copyText(text, what) {
+  try {
+    await navigator.clipboard.writeText(text)
+    showToast(`${what} copied.`)
+  } catch (e) {
+    showToast(`Could not copy: ${e.message}`)
+  }
+}
+// SELECT of every field of one DE, for Query it and Copy SELECT.
+async function selectAllSql(de) {
+  await loadFields(de)
+  const list = fields[de.id]?.list
+  if (!list?.length) { showToast(fields[de.id]?.error ? `Could not load the fields: ${fields[de.id].error}` : 'This data extension has no fields.'); return '' }
+  return buildDESelect([{ de: de.name, sourceType: de.sourceType, fields: list.map((f) => f.name) }])
+}
+async function queryIt(de) {
+  const sql = await selectAllSql(de)
+  if (sql) router.push({ path: '/queries/workspace', query: { sql } })
+}
+async function copySelect(de) {
+  const sql = await selectAllSql(de)
+  if (sql) copyText(sql, 'SQL')
+}
+async function loadFoldersAndCounts() {
+  await loadAllPaths()
+  await loadAllCounts()
+}
+
 useRouteSearch('/data-extensions', (q) => { query.value = q; whenStack(search) })
 
 const columns = [
   { key: 'pick', label: '', hideable: false, class: 'w-8' },
-  { key: 'name', label: 'Name', hideable: false },
+  // The customer key shows under the name, so the name filter matches either.
+  { key: 'name', label: 'Name', hideable: false, filterValue: (r) => `${r.name} ${r.customerKey || ''}` },
   { key: 'description', label: 'Description' },
-  { key: 'customerKey', label: 'Customer key' },
   { key: 'path', label: 'Folder', sortValue: (r) => (paths[r.id]?.status === 'ok' ? paths[r.id].path || '(root)' : null) },
   { key: 'rows', label: 'Rows', class: 'text-right whitespace-nowrap', sortValue: (r) => (counts[r.id]?.status === 'ok' ? counts[r.id].count : null) },
   { key: 'modifiedDate', label: 'Modified', class: 'whitespace-nowrap', type: 'date' },
@@ -362,156 +407,295 @@ const columns = [
 </script>
 
 <template>
-  <div class="h-full flex flex-col">
-    <div class="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-border bg-card">
-      <form class="flex items-center gap-2" @submit.prevent="search">
-        <div class="relative">
-          <Search class="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <input v-model="query" type="search" placeholder="Data extension name (empty lists all)" aria-label="Data extension name"
-            class="h-8 w-72 rounded-md border border-border bg-background pl-7 pr-2 text-xs" />
+  <div class="h-full flex flex-col bg-background text-foreground">
+    <!-- Page header: title, page actions, and the Data Extensions views -->
+    <div class="border-b border-border bg-card px-5 pt-3.5 flex flex-col gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary" aria-hidden="true"><Database class="h-[18px] w-[18px]" /></span>
+          <h1 class="text-[22px] font-bold leading-tight">Data Extensions</h1>
         </div>
-        <Button size="sm" class="h-8 text-xs" type="submit" :disabled="loading">
-          <Loader2 v-if="loading" class="h-3.5 w-3.5 mr-1 animate-spin" /> Search
-        </Button>
-      </form>
-      <select v-model="sourceFilter" aria-label="Which data extensions" class="h-8 rounded-md border border-border bg-background px-2 text-xs">
-        <option value="all">All sources</option>
-        <option value="local">This BU only</option>
-        <option value="shared">Shared only</option>
-        <option value="sync">Synchronized only</option>
-      </select>
-      <label class="flex items-center gap-1.5 text-xs text-muted-foreground"><input v-model="hideSystem" type="checkbox" /> Hide system DEs</label>
-      <label class="flex items-center gap-1.5 text-xs text-muted-foreground" title="Hide the QueryStudioResults data extensions that Query Studio creates for each run"><input v-model="hideQueryStudio" type="checkbox" /> Hide QueryStudioResults</label>
-      <div class="flex-1" />
-      <template v-if="searched !== null && shown.length">
-        <Button v-if="!allShown && !allFields.running" variant="outline" size="sm" class="h-8 text-xs" @click="viewAllFields"><ListTree class="h-3.5 w-3.5 mr-1" /> View all fields</Button>
-        <Button v-else variant="outline" size="sm" class="h-8 text-xs" @click="hideAllFields"><ListTree class="h-3.5 w-3.5 mr-1" /> Hide all fields</Button>
-        <Button variant="outline" size="sm" class="h-8 text-xs" :disabled="pathsBusy" @click="loadAllPaths">
-          <Loader2 v-if="pathsBusy" class="h-3.5 w-3.5 mr-1 animate-spin" /><FolderTree v-else class="h-3.5 w-3.5 mr-1" /> Get all folders
-        </Button>
-        <Button variant="outline" size="sm" class="h-8 text-xs" :disabled="countsBusy" @click="loadAllCounts">
-          <Loader2 v-if="countsBusy" class="h-3.5 w-3.5 mr-1 animate-spin" /><Hash v-else class="h-3.5 w-3.5 mr-1" /> Get all counts
-        </Button>
-        <Button variant="outline" size="sm" class="h-8 text-xs" :disabled="exporting.running" @click="exportOpen = true"><FileSpreadsheet class="h-3.5 w-3.5 mr-1" /> {{ picked.size ? `Excel (${picked.size})` : 'Excel' }}</Button>
-        <DownloadMenu :get-doc="buildDoc" :file-name="`data-extensions-${searched || 'all'}`" :label="picked.size ? `Download ${picked.size}` : 'Download'" />
-      </template>
-      <Button variant="ghost" size="icon" class="h-8 w-8" title="Refresh: forget cached fields, folders and the Shared/Synchronized list" @click="refresh"><RefreshCw class="h-4 w-4" /></Button>
-    </div>
-
-    <div v-if="countsBusy || pathsBusy" class="px-4 py-1.5 border-b border-border bg-card">
-      <ProgressBar :value="batchDone" :max="shown.length" :label="countsBusy ? 'Reading row counts' : 'Reading folders'" show-count />
-    </div>
-    <div v-if="allFields.running || exporting.running" class="px-4 py-1.5 border-b border-border bg-card text-xs text-muted-foreground flex items-center gap-3">
-      <span>{{ exporting.running ? 'Preparing the export' : 'Loading fields' }} {{ exporting.running ? exporting.done : allFields.done }} of {{ exporting.running ? exporting.total : allFields.total }}</span>
-      <ProgressBar :value="exporting.running ? exporting.done : allFields.done" :max="exporting.running ? exporting.total : allFields.total" aria-label="Progress" class="flex-1" />
-      <button v-if="allFields.running" class="underline" @click="stopAllFields">Stop</button>
-    </div>
-
-    <div class="flex-1 min-h-0 overflow-y-auto p-4">
-      <SfmcErrorNotice :error="error" :retrying="loading" @retry="search" />
-      <div v-if="searched === null && !loading" class="max-w-md mx-auto mt-12 text-center text-sm text-muted-foreground">
-        Search for a data extension by name. Shared and Synchronized data extensions are included and tagged.
-        Search with an empty box to list all, newest first.
+        <div class="flex flex-wrap items-center gap-2">
+          <template v-if="searched !== null && shown.length">
+            <button type="button" class="h-9 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-medium hover:bg-accent disabled:opacity-50"
+              :disabled="pathsBusy || countsBusy" title="Read the folder path and row count of every data extension shown" @click="loadFoldersAndCounts">
+              <Loader2 v-if="pathsBusy || countsBusy" class="h-4 w-4 animate-spin" /><FolderTree v-else class="h-4 w-4" /> Load folders and counts
+            </button>
+            <button type="button" class="h-9 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-medium hover:bg-accent disabled:opacity-50"
+              :disabled="exporting.running" @click="exportOpen = true">
+              <FileSpreadsheet class="h-4 w-4" /> {{ picked.size ? `Excel (${picked.size})` : 'Excel' }}
+            </button>
+            <DownloadMenu :get-doc="buildDoc" :file-name="`data-extensions-${searched || 'all'}`" :label="picked.size ? `Download ${picked.size}` : 'Download'" />
+          </template>
+          <router-link to="/create-de" class="h-9 inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+            <Plus class="h-4 w-4" /> New DE
+          </router-link>
+        </div>
       </div>
-      <template v-else-if="searched !== null">
-        <p class="mb-2 text-xs text-muted-foreground">
-          {{ total.toLocaleString() }}{{ totalIsPartial ? '+' : '' }} found{{ searched ? ` for "${searched}"` : '' }}, {{ shown.length }} shown<template v-if="shown.length !== results.length"> ({{ results.length - shown.length }} hidden by the filters)</template>.
-          <span v-if="shared === null" class="inline-flex items-center gap-1 ml-1"><Loader2 class="h-3 w-3 animate-spin" /> Adding Shared and Synchronized data extensions…</span>
-          <span v-else-if="sharedError" class="ml-1 text-amber-700 dark:text-amber-400">Shared and Synchronized data extensions could not be loaded ({{ sharedError }}).</span>
-          <template v-if="picked.size"> {{ picked.size }} ticked for download. <button class="text-primary hover:underline" @click="picked = new Set()">Clear</button></template>
-        </p>
-        <DataTable :columns="columns" :rows="shown" row-key="id" storage-key="data-extensions" :expanded="expanded" empty-text="No data extensions found." @shown="filtered = $event">
-          <template #head-pick>
-            <input type="checkbox" :checked="allPicked" :indeterminate="picked.size > 0 && !allPicked" aria-label="Tick every data extension shown" @change="togglePickAll" />
-          </template>
-          <template #cell-pick="{ row }">
-            <input type="checkbox" :checked="picked.has(row.id)" :aria-label="`Tick ${row.name} for download`" @change="togglePick(row.id)" />
-          </template>
-          <template #cell-name="{ row }">
-            <span class="font-medium">{{ row.name }}</span>
-            <span v-if="row.sourceType" class="ml-1.5 text-[10px] font-semibold rounded-full px-1.5 py-px"
-              :class="row.sourceType === 'shared' ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300' : 'bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300'">
-              {{ row.sourceType === 'shared' ? 'Shared' : 'Synchronized' }}
-            </span>
-          </template>
-          <template #cell-description="{ row }">
-            <span v-if="row.description" class="block max-w-xs truncate text-muted-foreground" :title="row.description">{{ row.description }}</span>
-          </template>
-          <template #cell-path="{ row }">
-            <span v-if="paths[row.id]?.status === 'ok'">{{ paths[row.id].path || '(root)' }}</span>
-            <Loader2 v-else-if="paths[row.id]?.status === 'loading'" class="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-            <span v-else-if="paths[row.id]?.status === 'error'" class="text-red-600" :title="paths[row.id].error">Could not load</span>
-            <button v-else class="text-primary hover:underline" @click="loadPath(row)">Get folder</button>
-          </template>
-          <template #cell-rows="{ row }">
-            <span v-if="counts[row.id]?.status === 'ok'" class="tabular-nums">{{ counts[row.id].count.toLocaleString() }}</span>
-            <Loader2 v-else-if="counts[row.id]?.status === 'loading'" class="h-3.5 w-3.5 animate-spin text-muted-foreground ml-auto" />
-            <span v-else-if="counts[row.id]?.status === 'error'" class="text-red-600" :title="counts[row.id].error">Could not load</span>
-            <button v-else class="text-primary hover:underline" @click="loadCount(row)">Get count</button>
-          </template>
-          <template #cell-modifiedDate="{ row }">{{ formatDateTime(row.modifiedDate) }}</template>
-          <template #cell-createdDate="{ row }">{{ formatDateTime(row.createdDate) }}</template>
-          <template #cell-id="{ row }"><code class="text-[11px]">{{ row.id }}</code></template>
-          <template #cell-actions="{ row }">
-            <a :href="deContactBuilderUrl(stack, row)" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-primary hover:underline whitespace-nowrap mr-3"
-              :title="row.sourceType ? 'Open in Contact Builder (from the business unit that owns it)' : 'Open in Contact Builder'">SFMC <ExternalLink class="h-3 w-3" /></a>
-            <button class="inline-flex items-center gap-1 text-primary hover:underline whitespace-nowrap mr-3" title="Preview this data extension's rows (no query is run)" @click="rowsDE = row">
-              <Rows3 class="h-3.5 w-3.5" /> Preview data
-            </button>
-            <button class="inline-flex items-center gap-1 text-primary hover:underline whitespace-nowrap mr-3" title="Query activities and automations that use this data extension" @click="whereUsed(row)">
-              <Network class="h-3.5 w-3.5" /> Where used
-            </button>
-            <button class="inline-flex items-center gap-1 text-primary hover:underline whitespace-nowrap" :aria-expanded="expanded.has(row.id)" @click="toggleFields(row)">
-              <ChevronDown v-if="expanded.has(row.id)" class="h-3.5 w-3.5" /><ChevronRight v-else class="h-3.5 w-3.5" /> Fields
-            </button>
-          </template>
-          <template #expanded="{ row }">
-            <div v-if="fields[row.id]?.status === 'loading'" class="flex items-center gap-2 text-muted-foreground"><Loader2 class="h-3.5 w-3.5 animate-spin" /> Loading fields…</div>
-            <p v-else-if="fields[row.id]?.status === 'error'" class="text-red-600">Could not load the fields: {{ fields[row.id].error }}<ReportErrorButton /></p>
-            <div v-else-if="fields[row.id]?.status === 'ok'">
-              <div class="flex items-center gap-2 mb-1.5">
-                <span class="font-semibold">{{ fields[row.id].list.length }} {{ fields[row.id].list.length === 1 ? 'field' : 'fields' }}</span>
-                <button class="inline-flex items-center gap-1 text-primary hover:underline" @click="rowsDE = row"><Rows3 class="h-3.5 w-3.5" /> Preview data</button>
-                <button v-if="!row.sourceType" class="inline-flex items-center gap-1 text-primary hover:underline" title="Change the order of this data extension's columns" @click="reorderDE = row"><ArrowUpDown class="h-3.5 w-3.5" /> Reorder columns</button>
-                <button class="text-primary hover:underline" @click="tickAll(row)">
-                  {{ fields[row.id].list.length && fields[row.id].list.every((f) => isTicked(row, f.name)) ? 'Untick all' : 'Tick all for a query' }}
-                </button>
+      <nav aria-label="Data extension views" class="flex gap-1">
+        <span aria-current="page" class="-mb-px inline-flex h-11 items-center border-b-2 border-primary px-3 text-sm font-semibold">All data extensions</span>
+        <router-link to="/de-storage" class="-mb-px inline-flex h-11 items-center border-b-2 border-transparent px-3 text-sm font-medium text-muted-foreground hover:text-foreground">Storage</router-link>
+        <router-link to="/where-used" class="-mb-px inline-flex h-11 items-center border-b-2 border-transparent px-3 text-sm font-medium text-muted-foreground hover:text-foreground">Where used</router-link>
+      </nav>
+    </div>
+
+    <div class="flex-1 min-h-0 flex">
+      <div class="flex-1 min-w-0 flex flex-col">
+        <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col gap-3.5">
+          <!-- Search and filters -->
+          <div class="flex flex-wrap items-center gap-2.5">
+            <form class="flex flex-wrap items-center gap-2.5" @submit.prevent="search">
+              <div class="flex h-[38px] w-80 max-w-full items-center gap-2.5 rounded-full border border-border bg-card px-4 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10">
+                <Search class="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                <input v-model="query" type="search" placeholder="Data extension name (empty lists all)" aria-label="Data extension name"
+                  class="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
               </div>
-              <table class="w-full max-w-3xl">
-                <thead><tr class="text-left text-muted-foreground"><th class="w-6"></th><th class="py-1 pr-3">Field</th><th class="pr-3">Type</th><th class="pr-3">Primary key</th><th class="pr-3">Required</th><th>Default</th><th></th></tr></thead>
-                <tbody>
-                  <tr v-for="f in fields[row.id].list" :key="f.name" class="border-t border-border/60">
-                    <td><input type="checkbox" :checked="isTicked(row, f.name)" :aria-label="`Use ${f.name} in a query`" @change="tick(row, f.name)" /></td>
-                    <td class="py-1 pr-3" :class="{ 'font-semibold': f.isPrimaryKey }">{{ f.name }}</td>
-                    <td class="pr-3">{{ fieldTypeLabel(f) }}</td>
-                    <td class="pr-3">{{ f.isPrimaryKey ? 'Yes' : '' }}</td>
-                    <td class="pr-3">{{ f.isNullable ? '' : 'Yes' }}</td>
-                    <td class="text-muted-foreground">{{ f.defaultValue ?? '' }}</td>
-                    <td class="pl-3 text-right"><button class="inline-flex items-center gap-0.5 text-primary hover:underline whitespace-nowrap" :title="`Where is ${f.name} used?`" @click="whereFieldUsed(row, f.name)"><Network class="h-3 w-3" /> Where used</button></td>
-                  </tr>
-                </tbody>
-              </table>
+              <button type="submit" class="h-[38px] inline-flex items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60" :disabled="loading">
+                <Loader2 v-if="loading" class="h-4 w-4 animate-spin" /> Search
+              </button>
+            </form>
+            <select v-model="sourceFilter" aria-label="Which data extensions" class="h-[38px] rounded-full border border-border bg-card px-3 text-sm">
+              <option value="all">All sources</option>
+              <option value="local">This BU only</option>
+              <option value="shared">Shared only</option>
+              <option value="sync">Synchronized only</option>
+            </select>
+            <button type="button" :aria-pressed="hideSystem" class="h-[34px] inline-flex items-center rounded-full border px-3 text-[13px] font-medium"
+              :class="hideSystem ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card hover:bg-accent'" @click="hideSystem = !hideSystem">Hide system DEs</button>
+            <button type="button" :aria-pressed="hideQueryStudio" title="Hide the QueryStudioResults data extensions that Query Studio creates for each run"
+              class="h-[34px] inline-flex items-center rounded-full border px-3 text-[13px] font-medium"
+              :class="hideQueryStudio ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card hover:bg-accent'" @click="hideQueryStudio = !hideQueryStudio">Hide QueryStudioResults</button>
+            <span class="ml-auto flex items-center gap-2">
+              <template v-if="searched !== null && shown.length">
+                <button v-if="!allShown && !allFields.running" type="button" class="h-[34px] inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-[13px] font-medium hover:bg-accent" @click="viewAllFields"><ListTree class="h-4 w-4" /> View all fields</button>
+                <button v-else type="button" class="h-[34px] inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-[13px] font-medium hover:bg-accent" @click="hideAllFields"><ListTree class="h-4 w-4" /> Hide all fields</button>
+              </template>
+              <button type="button" aria-label="Refresh" title="Refresh: forget cached fields, folders and the Shared/Synchronized list"
+                class="flex h-[34px] w-[34px] items-center justify-center rounded-full border border-border bg-card hover:bg-accent" @click="refresh"><RefreshCw class="h-4 w-4" /></button>
+            </span>
+          </div>
+
+          <div v-if="countsBusy || pathsBusy" class="rounded-xl border border-border bg-card px-3 py-2">
+            <ProgressBar :value="batchDone" :max="shown.length" :label="countsBusy ? 'Reading row counts' : 'Reading folders'" show-count />
+          </div>
+          <div v-if="allFields.running || exporting.running" class="rounded-xl border border-border bg-card px-3 py-2 text-xs text-muted-foreground flex items-center gap-3">
+            <span>{{ exporting.running ? 'Preparing the export' : 'Loading fields' }} {{ exporting.running ? exporting.done : allFields.done }} of {{ exporting.running ? exporting.total : allFields.total }}</span>
+            <ProgressBar :value="exporting.running ? exporting.done : allFields.done" :max="exporting.running ? exporting.total : allFields.total" aria-label="Progress" class="flex-1" />
+            <button v-if="allFields.running" class="underline" @click="stopAllFields">Stop</button>
+          </div>
+
+          <SfmcErrorNotice :error="error" :retrying="loading" @retry="search" />
+          <div v-if="searched === null && !loading" class="mx-auto mt-10 max-w-md rounded-[14px] border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+            Search for a data extension by name. Shared and Synchronized data extensions are included and tagged.
+            Search with an empty box to list all, newest first.
+          </div>
+          <template v-else-if="searched !== null">
+            <div class="flex flex-wrap items-center gap-3 text-[13px] text-muted-foreground">
+              <span><span class="font-bold text-foreground">{{ total.toLocaleString() }}{{ totalIsPartial ? '+' : '' }}</span> found{{ searched ? ` for "${searched}"` : '' }}, {{ shown.length }} shown<template v-if="shown.length !== results.length"> ({{ results.length - shown.length }} hidden by the filters)</template></span>
+              <span v-if="shared === null" class="inline-flex items-center gap-2 rounded-full bg-primary/10 px-2.5 py-1 font-medium text-primary"><Loader2 class="h-3.5 w-3.5 animate-spin" /> Adding Shared and Synchronized data extensions</span>
+              <span v-else-if="sharedError" class="text-amber-700 dark:text-amber-400">Shared and Synchronized data extensions could not be loaded ({{ sharedError }}).</span>
+              <span v-if="picked.size">{{ picked.size }} ticked for download. <button class="text-primary hover:underline" @click="picked = new Set()">Clear</button></span>
+            </div>
+            <div class="[&>div]:rounded-[14px]">
+              <DataTable :columns="columns" :rows="shown" row-key="id" storage-key="data-extensions" :expanded="expanded" :row-class="(r) => (detail?.id === r.id ? 'bg-primary/5' : '')" empty-text="No data extensions found." @shown="filtered = $event">
+                <template #head-pick>
+                  <input type="checkbox" :checked="allPicked" :indeterminate="picked.size > 0 && !allPicked" aria-label="Tick every data extension shown" @change="togglePickAll" />
+                </template>
+                <template #cell-pick="{ row }">
+                  <input type="checkbox" :checked="picked.has(row.id)" :aria-label="`Tick ${row.name} for download`" @change="togglePick(row.id)" />
+                </template>
+                <template #cell-name="{ row }">
+                  <button type="button" class="flex flex-col gap-0.5 text-left" :aria-current="detail?.id === row.id ? 'true' : undefined" title="Open the details" @click="openDetail(row)">
+                    <span class="flex flex-wrap items-center gap-1.5">
+                      <span class="text-sm font-semibold hover:underline" :class="detail?.id === row.id ? 'text-primary' : 'text-[#1557B0] dark:text-sky-400'">{{ row.name }}</span>
+                      <span v-if="row.sourceType" class="text-[10px] font-semibold rounded-full px-1.5 py-px"
+                        :class="row.sourceType === 'shared' ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300' : 'bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300'">
+                        {{ row.sourceType === 'shared' ? 'Shared' : 'Synchronized' }}
+                      </span>
+                    </span>
+                    <code v-if="row.customerKey" class="font-mono text-[11px] text-muted-foreground break-all">{{ row.customerKey }}</code>
+                  </button>
+                </template>
+                <template #cell-description="{ row }">
+                  <span v-if="row.description" class="block max-w-xs truncate text-muted-foreground" :title="row.description">{{ row.description }}</span>
+                </template>
+                <template #cell-path="{ row }">
+                  <span v-if="paths[row.id]?.status === 'ok'" class="text-[13px]">{{ paths[row.id].path || '(root)' }}</span>
+                  <Loader2 v-else-if="paths[row.id]?.status === 'loading'" class="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                  <span v-else-if="paths[row.id]?.status === 'error'" class="text-red-600 dark:text-red-400" :title="paths[row.id].error">Could not load</span>
+                  <button v-else class="text-primary hover:underline" @click="loadPath(row)">Get folder</button>
+                </template>
+                <template #cell-rows="{ row }">
+                  <span v-if="counts[row.id]?.status === 'ok'" class="text-[13px] font-semibold tabular-nums">{{ counts[row.id].count.toLocaleString() }}</span>
+                  <Loader2 v-else-if="counts[row.id]?.status === 'loading'" class="h-3.5 w-3.5 animate-spin text-muted-foreground ml-auto" />
+                  <span v-else-if="counts[row.id]?.status === 'error'" class="text-red-600 dark:text-red-400" :title="counts[row.id].error">Could not load</span>
+                  <button v-else class="text-primary hover:underline" @click="loadCount(row)">Get count</button>
+                </template>
+                <template #cell-modifiedDate="{ row }"><span class="text-[13px]">{{ formatDateTime(row.modifiedDate) }}</span></template>
+                <template #cell-createdDate="{ row }"><span class="text-[13px] text-muted-foreground">{{ formatDateTime(row.createdDate) }}</span></template>
+                <template #cell-id="{ row }"><code class="font-mono text-[11px]">{{ row.id }}</code></template>
+                <template #cell-actions="{ row }">
+                  <a :href="deContactBuilderUrl(stack, row)" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-primary hover:underline whitespace-nowrap mr-3"
+                    :title="row.sourceType ? 'Open in Contact Builder (from the business unit that owns it)' : 'Open in Contact Builder'">SFMC <ExternalLink class="h-3 w-3" /></a>
+                  <button class="inline-flex items-center gap-1 text-primary hover:underline whitespace-nowrap mr-3" title="Preview this data extension's rows (no query is run)" @click="rowsDE = row">
+                    <Rows3 class="h-3.5 w-3.5" /> Preview data
+                  </button>
+                  <button class="inline-flex items-center gap-1 text-primary hover:underline whitespace-nowrap mr-3" title="Query activities and automations that use this data extension" @click="whereUsed(row)">
+                    <Network class="h-3.5 w-3.5" /> Where used
+                  </button>
+                  <button class="inline-flex items-center gap-1 text-primary hover:underline whitespace-nowrap" :aria-expanded="expanded.has(row.id)" @click="toggleFields(row)">
+                    <ChevronDown v-if="expanded.has(row.id)" class="h-3.5 w-3.5" /><ChevronRight v-else class="h-3.5 w-3.5" /> Fields
+                  </button>
+                </template>
+                <template #expanded="{ row }">
+                  <div v-if="fields[row.id]?.status === 'loading'" class="flex items-center gap-2 text-muted-foreground"><Loader2 class="h-3.5 w-3.5 animate-spin" /> Loading fields…</div>
+                  <p v-else-if="fields[row.id]?.status === 'error'" class="text-red-600 dark:text-red-400">Could not load the fields: {{ fields[row.id].error }}<ReportErrorButton /></p>
+                  <div v-else-if="fields[row.id]?.status === 'ok'">
+                    <div class="flex items-center gap-2 mb-1.5">
+                      <span class="font-semibold">{{ fields[row.id].list.length }} {{ fields[row.id].list.length === 1 ? 'field' : 'fields' }}</span>
+                      <button class="inline-flex items-center gap-1 text-primary hover:underline" @click="rowsDE = row"><Rows3 class="h-3.5 w-3.5" /> Preview data</button>
+                      <button v-if="!row.sourceType" class="inline-flex items-center gap-1 text-primary hover:underline" title="Change the order of this data extension's columns" @click="reorderDE = row"><ArrowUpDown class="h-3.5 w-3.5" /> Reorder columns</button>
+                      <button class="text-primary hover:underline" @click="tickAll(row)">
+                        {{ fields[row.id].list.length && fields[row.id].list.every((f) => isTicked(row, f.name)) ? 'Untick all' : 'Tick all for a query' }}
+                      </button>
+                    </div>
+                    <table class="w-full max-w-3xl">
+                      <thead><tr class="text-left text-muted-foreground"><th class="w-6"></th><th class="py-1 pr-3">Field</th><th class="pr-3">Type</th><th class="pr-3">Primary key</th><th class="pr-3">Required</th><th>Default</th><th></th></tr></thead>
+                      <tbody>
+                        <tr v-for="f in fields[row.id].list" :key="f.name" class="border-t border-border/60">
+                          <td><input type="checkbox" :checked="isTicked(row, f.name)" :aria-label="`Use ${f.name} in a query`" @change="tick(row, f.name)" /></td>
+                          <td class="py-1 pr-3" :class="{ 'font-semibold': f.isPrimaryKey }">{{ f.name }}</td>
+                          <td class="pr-3">{{ fieldTypeLabel(f) }}</td>
+                          <td class="pr-3">{{ f.isPrimaryKey ? 'Yes' : '' }}</td>
+                          <td class="pr-3">{{ f.isNullable ? '' : 'Yes' }}</td>
+                          <td class="text-muted-foreground">{{ f.defaultValue ?? '' }}</td>
+                          <td class="pl-3 text-right"><button class="inline-flex items-center gap-0.5 text-primary hover:underline whitespace-nowrap" :title="`Where is ${f.name} used?`" @click="whereFieldUsed(row, f.name)"><Network class="h-3 w-3" /> Where used</button></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </template>
+              </DataTable>
+            </div>
+            <div v-if="canLoadMore" class="text-center">
+              <button type="button" class="h-8 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-[13px] font-medium hover:bg-accent disabled:opacity-50" :disabled="loadingMore" @click="loadMore">
+                <Loader2 v-if="loadingMore" class="h-3.5 w-3.5 animate-spin" /> Load {{ DE_PAGE_SIZE }} more
+              </button>
             </div>
           </template>
-        </DataTable>
-        <div v-if="canLoadMore" class="mt-3 text-center">
-          <Button variant="outline" size="sm" class="h-8 text-xs" :disabled="loadingMore" @click="loadMore">
-            <Loader2 v-if="loadingMore" class="h-3.5 w-3.5 mr-1 animate-spin" /> Load {{ DE_PAGE_SIZE }} more
-          </Button>
         </div>
-      </template>
-    </div>
 
-    <!-- Query from ticked fields -->
-    <div v-if="tickedCount" class="border-t border-border bg-card px-4 py-2">
-      <div class="flex items-center gap-2 mb-1.5 text-xs">
-        <span class="font-semibold">Query from {{ tickedCount }} ticked {{ tickedCount === 1 ? 'field' : 'fields' }}</span>
-        <div class="flex-1" />
-        <Button size="sm" class="h-7 text-xs" @click="openInWorkspace"><Play class="h-3.5 w-3.5 mr-1" /> Run this query</Button>
-        <Button variant="outline" size="sm" class="h-7 text-xs" @click="copySql"><Copy class="h-3.5 w-3.5 mr-1" /> Copy</Button>
-        <Button variant="ghost" size="sm" class="h-7 text-xs" @click="selected = new Map()"><X class="h-3.5 w-3.5 mr-1" /> Clear</Button>
+        <!-- Query from ticked fields -->
+        <div v-if="tickedCount" class="border-t border-border bg-card px-5 py-2.5">
+          <div class="flex items-center gap-2 mb-1.5 text-xs">
+            <span class="text-sm font-semibold">Query from {{ tickedCount }} ticked {{ tickedCount === 1 ? 'field' : 'fields' }}</span>
+            <div class="flex-1" />
+            <button type="button" class="h-8 inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary/90" @click="openInWorkspace"><Play class="h-3.5 w-3.5" /> Run this query</button>
+            <button type="button" class="h-8 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-[13px] font-medium hover:bg-accent" @click="copySql"><Copy class="h-3.5 w-3.5" /> Copy</button>
+            <button type="button" class="h-8 inline-flex items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-muted-foreground hover:bg-accent" @click="selected = new Map()"><X class="h-3.5 w-3.5" /> Clear</button>
+          </div>
+          <pre class="max-h-40 overflow-auto rounded-lg bg-slate-900 text-slate-100 p-2 font-mono text-[11px]">{{ selectedSql }}</pre>
+        </div>
       </div>
-      <pre class="max-h-40 overflow-auto rounded-md bg-slate-900 text-slate-100 p-2 text-[11px]">{{ selectedSql }}</pre>
+
+      <!-- Detail panel -->
+      <aside v-if="detail" aria-label="Data extension details" class="w-[420px] max-w-[45%] shrink-0 border-l border-border bg-card flex flex-col min-h-0">
+        <div class="flex flex-col gap-3 border-b border-border px-5 py-4">
+          <div class="flex items-start justify-between gap-2.5">
+            <div class="flex min-w-0 items-start gap-3">
+              <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary" aria-hidden="true"><Database class="h-[18px] w-[18px]" /></span>
+              <div class="min-w-0">
+                <h2 class="text-[17px] font-bold break-words">{{ detail.name }}</h2>
+                <span v-if="detail.sourceType" class="text-[10px] font-semibold rounded-full px-1.5 py-px"
+                  :class="detail.sourceType === 'shared' ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300' : 'bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300'">
+                  {{ detail.sourceType === 'shared' ? 'Shared' : 'Synchronized' }}
+                </span>
+              </div>
+            </div>
+            <button type="button" aria-label="Close" class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full border border-border bg-card hover:bg-accent" @click="detail = null"><X class="h-4 w-4" /></button>
+          </div>
+          <p v-if="detail.description" class="text-[13px] text-muted-foreground">{{ detail.description }}</p>
+          <dl class="grid grid-cols-[96px_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]">
+            <dt class="text-muted-foreground">Customer key</dt>
+            <dd class="flex min-w-0 items-center gap-1.5">
+              <code class="font-mono text-[11px] break-all">{{ detail.customerKey }}</code>
+              <button v-if="detail.customerKey" type="button" aria-label="Copy customer key" class="p-0.5 text-muted-foreground hover:text-foreground" @click="copyText(detail.customerKey, 'Customer key')"><Copy class="h-3.5 w-3.5" /></button>
+            </dd>
+            <dt class="text-muted-foreground">ID</dt>
+            <dd class="flex min-w-0 items-center gap-1.5">
+              <code class="font-mono text-[11px] break-all">{{ detail.id }}</code>
+              <button type="button" aria-label="Copy ID" class="p-0.5 text-muted-foreground hover:text-foreground" @click="copyText(detail.id, 'ID')"><Copy class="h-3.5 w-3.5" /></button>
+            </dd>
+            <dt class="text-muted-foreground">Folder</dt>
+            <dd class="min-w-0 break-words">
+              <span v-if="paths[detail.id]?.status === 'ok'">{{ paths[detail.id].path || '(root)' }}</span>
+              <Loader2 v-else-if="paths[detail.id]?.status === 'loading'" class="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+              <span v-else-if="paths[detail.id]?.status === 'error'" class="text-red-600 dark:text-red-400" :title="paths[detail.id].error">Could not load</span>
+            </dd>
+            <dt class="text-muted-foreground">Rows</dt>
+            <dd>
+              <span v-if="counts[detail.id]?.status === 'ok'" class="font-semibold tabular-nums">{{ counts[detail.id].count.toLocaleString() }}</span>
+              <Loader2 v-else-if="counts[detail.id]?.status === 'loading'" class="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+              <span v-else-if="counts[detail.id]?.status === 'error'" class="text-red-600 dark:text-red-400" :title="counts[detail.id].error">Could not load</span>
+            </dd>
+            <dt class="text-muted-foreground">Modified</dt>
+            <dd>{{ formatDateTime(detail.modifiedDate) }}</dd>
+            <dt class="text-muted-foreground">Created</dt>
+            <dd>{{ formatDateTime(detail.createdDate) }}</dd>
+          </dl>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="h-[34px] inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary/90" title="Open a SELECT of every field in Run Query" @click="queryIt(detail)"><Play class="h-3.5 w-3.5" /> Query it</button>
+            <button type="button" class="h-[34px] inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[13px] font-medium hover:bg-accent" @click="copySelect(detail)"><Copy class="h-3.5 w-3.5" /> Copy SELECT</button>
+            <a :href="deContactBuilderUrl(stack, detail)" target="_blank" rel="noopener" class="h-[34px] inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[13px] font-medium hover:bg-accent"
+              :title="detail.sourceType ? 'Open in Contact Builder (from the business unit that owns it)' : 'Open in Contact Builder'">Open in SFMC <ExternalLink class="h-3.5 w-3.5" /></a>
+          </div>
+        </div>
+        <nav aria-label="Details" class="flex gap-1 border-b border-border px-3">
+          <button v-for="t in DETAIL_TABS" :key="t.id" type="button" :aria-current="detailTab === t.id ? 'page' : undefined"
+            class="-mb-px h-[42px] border-b-2 px-2.5 text-[13px]"
+            :class="detailTab === t.id ? 'border-primary font-semibold text-foreground' : 'border-transparent font-medium text-muted-foreground hover:text-foreground'"
+            @click="detailTab = t.id">{{ t.label }}</button>
+        </nav>
+        <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4 text-[13px]">
+          <template v-if="detailTab === 'fields'">
+            <div v-if="fields[detail.id]?.status === 'loading'" class="flex items-center gap-2 text-muted-foreground"><Loader2 class="h-3.5 w-3.5 animate-spin" /> Loading fields…</div>
+            <p v-else-if="fields[detail.id]?.status === 'error'" class="text-red-600 dark:text-red-400">Could not load the fields: {{ fields[detail.id].error }}<ReportErrorButton /></p>
+            <div v-else-if="fields[detail.id]?.status === 'ok'" class="flex flex-col gap-2">
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span class="font-semibold">{{ fields[detail.id].list.length }} {{ fields[detail.id].list.length === 1 ? 'field' : 'fields' }}</span>
+                <button v-if="!detail.sourceType" class="inline-flex items-center gap-1 text-primary hover:underline" title="Change the order of this data extension's columns" @click="reorderDE = detail"><ArrowUpDown class="h-3.5 w-3.5" /> Reorder columns</button>
+                <button class="text-primary hover:underline" @click="tickAll(detail)">
+                  {{ fields[detail.id].list.length && fields[detail.id].list.every((f) => isTicked(detail, f.name)) ? 'Untick all' : 'Tick all for a query' }}
+                </button>
+              </div>
+              <ul class="divide-y divide-border rounded-xl border border-border">
+                <li v-for="f in fields[detail.id].list" :key="f.name" class="flex items-center gap-2.5 px-3 py-2">
+                  <input type="checkbox" :checked="isTicked(detail, f.name)" :aria-label="`Use ${f.name} in a query`" @change="tick(detail, f.name)" />
+                  <span class="min-w-0 flex-1">
+                    <span class="flex items-center gap-1.5">
+                      <KeyRound v-if="f.isPrimaryKey" class="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-label="Primary key" />
+                      <span class="break-all" :class="{ 'font-semibold': f.isPrimaryKey }">{{ f.name }}</span>
+                    </span>
+                    <span class="block text-[11px] text-muted-foreground">
+                      {{ fieldTypeLabel(f) }}<template v-if="!f.isNullable"> · Required</template><template v-if="f.defaultValue != null && f.defaultValue !== ''"> · Default {{ f.defaultValue }}</template>
+                    </span>
+                  </span>
+                  <button type="button" class="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground" :title="`Where is ${f.name} used?`" :aria-label="`Where is ${f.name} used?`" @click="whereFieldUsed(detail, f.name)"><Network class="h-3.5 w-3.5" /></button>
+                </li>
+              </ul>
+              <p class="text-[12px] text-muted-foreground">Ticked fields build a query at the bottom of the list.</p>
+            </div>
+          </template>
+          <div v-else-if="detailTab === 'preview'" class="flex flex-col items-start gap-3">
+            <p class="text-muted-foreground">Read this data extension's rows, 50 at a time. No query is run.</p>
+            <button type="button" class="h-[34px] inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary/90" @click="rowsDE = detail"><Rows3 class="h-3.5 w-3.5" /> Preview data</button>
+          </div>
+          <div v-else class="flex flex-col items-start gap-3">
+            <p class="text-muted-foreground">Find the queries, automations, journeys and content that use this data extension.</p>
+            <button type="button" class="h-[34px] inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary/90" @click="whereUsed(detail)"><Network class="h-3.5 w-3.5" /> Find where it is used</button>
+          </div>
+        </div>
+      </aside>
     </div>
 
     <DERowsViewer v-if="rowsDE" :key="rowsDE.id" :stack="stack" :de="rowsDE" @close="rowsDE = null" />
@@ -519,14 +703,14 @@ const columns = [
 
     <!-- Excel export -->
     <div v-if="exportOpen" class="fixed inset-0 z-120 flex items-center justify-center bg-black/40 p-4" @mousedown.self="exportOpen = false">
-      <div class="w-full max-w-sm rounded-lg border border-border bg-card p-4 shadow-xl text-sm" role="dialog" aria-modal="true" aria-labelledby="de-export-title">
-        <h2 id="de-export-title" class="font-semibold mb-3">Export {{ exportList.length }} {{ picked.size ? 'ticked' : '' }} data extensions to Excel</h2>
+      <div class="w-full max-w-sm rounded-[14px] border border-border bg-card p-5 shadow-xl text-sm" role="dialog" aria-modal="true" aria-labelledby="de-export-title">
+        <h2 id="de-export-title" class="text-base font-semibold mb-3">Export {{ exportList.length }} {{ picked.size ? 'ticked' : '' }} data extensions to Excel</h2>
         <label class="flex items-start gap-2 mb-2"><input v-model="exportKind" type="radio" value="names" class="mt-1" /><span>Names only<br /><span class="text-xs text-muted-foreground">One sheet: name, customer key, ID, source, dates.</span></span></label>
         <label class="flex items-start gap-2 mb-3"><input v-model="exportKind" type="radio" value="fields" class="mt-1" /><span>All fields<br /><span class="text-xs text-muted-foreground">An index sheet plus one sheet of fields per data extension.</span></span></label>
         <label class="flex items-center gap-2 mb-4"><input v-model="exportPaths" type="checkbox" /> Include folder paths</label>
         <div class="flex justify-end gap-2">
-          <Button variant="outline" size="sm" class="h-8 text-xs" @click="exportOpen = false">Cancel</Button>
-          <Button size="sm" class="h-8 text-xs" @click="runExcelExport">Export</Button>
+          <Button variant="outline" size="sm" class="h-8 rounded-full text-xs" @click="exportOpen = false">Cancel</Button>
+          <Button size="sm" class="h-8 rounded-full text-xs" @click="runExcelExport">Export</Button>
         </div>
       </div>
     </div>

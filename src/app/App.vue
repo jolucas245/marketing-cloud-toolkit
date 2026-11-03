@@ -18,12 +18,17 @@ import { useUsage, targetTitle } from '@/composables/useUsage.js'
 import { useStack } from '@/composables/useStack.js'
 import { sendToBackground } from '@/utils/messaging.js'
 import { useTheme } from '@/composables/useTheme.js'
+import { paletteState } from '@/composables/usePalette.js'
 import { preloadWhenIdle } from '@/utils/preloadOverviews.js'
 import { errorReport } from '@/composables/useReportError.js'
 
 const route = useRoute()
 const KEEP_ALIVE = ['WorkspacePage', 'BuilderPage', 'DataExtensionsPage', 'WhereUsedPage', 'DEStoragePage', 'AutomationsPage', 'ActivitiesPage', 'JourneysPage', 'JourneyEntryPage', 'CloudPagesPage']
-const paletteOpen = ref(false)
+// The palette can also be opened with text (Home's search box): composables/usePalette.js.
+const paletteOpen = computed({
+  get: () => paletteState.value.open,
+  set: (v) => { paletteState.value = { open: v, text: v ? paletteState.value.text : '' } },
+})
 const showFeedback = ref(false)
 // Report the error (any error message): the form opens with the error filled in.
 watch(errorReport, (r) => { if (r) showFeedback.value = true })
@@ -57,34 +62,41 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
-  <div class="flex h-screen overflow-hidden bg-background text-foreground">
+  <!-- Redesign (feedback #1031): the header runs across the top, the sidebar sits under it. -->
+  <div class="flex flex-col h-screen overflow-hidden bg-background text-foreground">
+    <header class="flex flex-wrap items-center gap-x-3 gap-y-1 min-h-[52px] px-4 py-1.5 border-b border-border bg-card shrink-0">
+      <RouterLink to="/home" class="flex items-center gap-2.5 font-semibold text-[15px] shrink-0" title="Home">
+        <img src="/images/icon32x32.png" alt="" class="h-[26px] w-[26px] rounded-lg" />
+        <span class="hidden md:inline">Marketing Cloud Toolkit</span>
+      </RouterLink>
+      <div class="min-w-0 flex-1 flex items-center gap-1.5 text-sm">
+        <span class="hidden md:inline text-border" aria-hidden="true">/</span>
+        <span v-if="route.meta.group" class="text-muted-foreground truncate">{{ route.meta.group }} /</span>
+        <span class="font-medium truncate">{{ route.meta.title }}</span>
+      </div>
+      <button
+        class="hidden sm:flex items-center gap-2 h-9 w-56 px-3 rounded-full border border-border bg-card text-sm text-muted-foreground hover:bg-accent"
+        @click="paletteOpen = true"
+      >
+        <Search class="h-4 w-4" />
+        <span class="flex-1 text-left">Search</span>
+        <kbd class="text-[11px] border border-border rounded px-1.5 font-sans">{{ isMac ? '⌘' : 'Ctrl' }} K</kbd>
+      </button>
+      <button v-if="usage.state.target && !usage.state.open" class="flex items-center gap-1.5 h-9 rounded-full border border-border px-3 text-xs hover:bg-accent" :title="`Where used: ${targetTitle(usage.state.target)}`" @click="usage.state.open = true">
+        <Loader2 v-if="usage.state.running" class="h-3.5 w-3.5 animate-spin text-primary" /><Network v-else class="h-3.5 w-3.5" />
+        <span class="max-w-32 truncate">{{ targetTitle(usage.state.target) }}</span>
+        <span v-if="usage.state.running" class="text-muted-foreground">{{ usagePercent }}%</span>
+      </button>
+      <ConnectionMenu />
+      <NoticesMenu />
+      <button v-if="!policy.disableFeedback" class="h-9 w-9 flex items-center justify-center rounded-lg text-foreground/80 hover:bg-accent" title="Send feedback" aria-label="Send feedback" @click="showFeedback = true">
+        <MessageSquare class="h-[18px] w-[18px]" />
+      </button>
+      <ThemeSwitcher />
+    </header>
+    <div class="flex flex-1 min-h-0">
     <AppSidebar />
     <div class="flex-1 flex flex-col min-w-0">
-      <header class="flex items-center gap-3 h-12 px-4 border-b border-border bg-card">
-        <div class="min-w-0 flex-1">
-          <span v-if="route.meta.group" class="text-xs text-muted-foreground">{{ route.meta.group }} / </span>
-          <span class="text-sm font-semibold">{{ route.meta.title }}</span>
-        </div>
-        <button
-          class="hidden sm:flex items-center gap-2 h-8 w-56 px-2.5 rounded-md border border-border text-xs text-muted-foreground hover:bg-accent"
-          @click="paletteOpen = true"
-        >
-          <Search class="h-3.5 w-3.5" />
-          <span class="flex-1 text-left">Search</span>
-          <kbd class="text-[10px] border border-border rounded px-1">{{ isMac ? '⌘' : 'Ctrl' }} K</kbd>
-        </button>
-        <button v-if="usage.state.target && !usage.state.open" class="flex items-center gap-1.5 h-8 rounded-md border border-border px-2 text-xs hover:bg-accent" :title="`Where used: ${targetTitle(usage.state.target)}`" @click="usage.state.open = true">
-          <Loader2 v-if="usage.state.running" class="h-3.5 w-3.5 animate-spin text-primary" /><Network v-else class="h-3.5 w-3.5" />
-          <span class="max-w-32 truncate">{{ targetTitle(usage.state.target) }}</span>
-          <span v-if="usage.state.running" class="text-muted-foreground">{{ usagePercent }}%</span>
-        </button>
-        <ConnectionMenu />
-        <NoticesMenu />
-        <button v-if="!policy.disableFeedback" class="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent" title="Send feedback" @click="showFeedback = true">
-          <MessageSquare class="h-4 w-4" />
-        </button>
-        <ThemeSwitcher />
-      </header>
       <main class="flex-1 min-h-0 overflow-auto">
         <!-- These stay alive in the background, so a running query, a half-built join
              or a list of search results survives a visit to another section. -->
@@ -96,7 +108,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
       </main>
       <ApiConsole />
     </div>
-    <CommandPalette :open="paletteOpen" @close="paletteOpen = false" />
+    </div>
+    <CommandPalette :open="paletteOpen" :initial-text="paletteState.text" @close="paletteOpen = false" />
     <UsagePanel />
     <ToastHost />
     <WhatsNew />

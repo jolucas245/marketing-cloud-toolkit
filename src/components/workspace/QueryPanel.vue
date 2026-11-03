@@ -6,7 +6,9 @@ import {
   Pencil, Check, X, Play, ShieldCheck, ChevronDown, LogIn, History,
   FolderOpen, RefreshCw, Search, Share2, Copy, ExternalLink, Maximize2, Minimize2, AlignLeft,
   Table2, FileOutput, Blocks, Share, Wand2, Users, Eye, ListPlus, TextCursorInput, Save as SaveIcon, Rows3, Eraser, ArchiveRestore, TextSearch,
+  Bookmark, Database,
 } from 'lucide-vue-next'
+import { referencedTables } from '../../utils/sqlContext.js'
 import AiAssistDialog from './AiAssistDialog.vue'
 import AiButton from '../ai/AiButton.vue'
 import ToolbarMenu from './ToolbarMenu.vue'
@@ -66,7 +68,7 @@ function queryToDiagramforce() {
 }
 
 const {
-  queryName, isEditingName, editableName, saveStatus, isRunning,
+  queryRecord, queryName, isEditingName, editableName, saveStatus, isRunning,
   resultsMode, validationResults, stepStatuses, stepErrors, stepDetails,
   elapsedSeconds, completedSummary, resultRows, resultColumns, totalRowCount,
   isFetchingMore, fetchMoreRows, fetchAllRows, LOAD_ALL_LIMIT,
@@ -92,6 +94,21 @@ const {
 })
 
 const panelTitle = computed(() => queryName.value || `Panel ${props.panelIndex + 1}`)
+// Under the title: save state, business unit and the last run, from the panel's record.
+const runList = computed(() => (Array.isArray(runs.value) ? runs.value : Object.values(runs.value || {})))
+const lastRunAt = computed(() => runList.value.reduce((m, r) => Math.max(m, r?.runAt || 0), 0))
+const panelMeta = computed(() => [
+  saveStatus.value === 'saving' ? 'Saving…' : 'Saved',
+  queryRecord.value?.businessUnit?.name || '',
+  lastRunAt.value ? `last run ${formatRunDate(lastRunAt.value)}` : 'not run yet',
+].filter(Boolean).join(' · '))
+// The empty results area: what the query reads from, or where to start.
+const readsFrom = computed(() => {
+  try { return [...new Set(referencedTables(queryText.value).map((r) => r.name))].slice(0, 3) } catch { return [] }
+})
+// Shared look of the toolbar buttons (design: 32px pills).
+const pill = 'tb-btn h-8 inline-flex items-center gap-1.5 px-2.5 rounded-full border border-border bg-card text-[13px] font-medium text-foreground hover:bg-accent disabled:opacity-50 disabled:pointer-events-none shrink-0'
+const iconPill = 'tb-icon h-8 w-8 inline-flex items-center justify-center rounded-full border border-border bg-card text-foreground/80 hover:bg-accent hover:text-foreground shrink-0'
 
 // Format SQL (button or Shift+Alt+F in the editor). A short note shows when it couldn't.
 const editorRef = ref(null)
@@ -117,6 +134,7 @@ function formatQuery() {
 // Cmd/Ctrl+Enter in the editor runs the selection, or the whole query (feedback #75).
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '')
 const runKey = isMac ? 'Cmd+Enter' : 'Ctrl+Enter'
+const runShortcut = isMac ? '⌘↵' : 'Ctrl+↵'
 function runFromKey(selection) {
   if (!props.canInteract || isRunning.value) return
   runQuery(0, selection ? { sql: selection } : {})
@@ -282,33 +300,40 @@ function openSchema() {
 </script>
 
 <template>
-  <div class="query-panel flex flex-col min-h-0 min-w-0 rounded-lg border border-border bg-card overflow-hidden shadow-sm">
-    <div class="query-toolbar flex flex-wrap items-center gap-x-1.5 gap-y-1 px-2 py-1.5 border-b border-border shrink-0">
-      <span class="text-[10px] font-bold text-muted-foreground">#{{ panelIndex + 1 }}</span>
-      <template v-if="!isEditingName">
-        <span class="text-xs font-semibold truncate min-w-[4rem] flex-1" :title="panelTitle" @dblclick="enableNameEditing">{{ panelTitle }}</span>
-        <Button variant="ghost" size="icon" class="h-6 w-6" title="Rename panel" @click="enableNameEditing"><Pencil class="h-3 w-3" /></Button>
-      </template>
-      <template v-else>
-        <Input v-model="editableName" class="h-6 text-xs flex-1 min-w-[6rem]" @keyup.enter="saveName" />
-        <Button variant="ghost" size="icon" class="h-6 w-6" title="Save name" @click="saveName"><Check class="h-3 w-3" /></Button>
-      </template>
+  <div class="query-panel flex flex-col min-h-0 min-w-0 rounded-[14px] border border-border bg-card overflow-hidden">
+    <div class="query-toolbar flex flex-wrap items-center gap-2 px-3 py-2.5 border-b border-border shrink-0">
+      <span class="text-xs font-bold text-muted-foreground px-[7px] py-0.5 rounded-md bg-muted shrink-0">#{{ panelIndex + 1 }}</span>
+      <div class="flex flex-col min-w-[8rem] flex-1 basis-40">
+        <span v-if="!isEditingName" class="flex items-center gap-1 min-w-0">
+          <span class="text-sm font-semibold truncate" :title="panelTitle" @dblclick="enableNameEditing">{{ panelTitle }}</span>
+          <button type="button" class="p-0.5 rounded text-muted-foreground hover:text-foreground shrink-0" :aria-label="`Rename panel ${panelIndex + 1}`" title="Rename panel" @click="enableNameEditing"><Pencil class="h-3.5 w-3.5" /></button>
+        </span>
+        <span v-else class="flex items-center gap-1 min-w-0">
+          <Input v-model="editableName" class="h-7 text-sm flex-1 min-w-[6rem] rounded-lg" @keyup.enter="saveName" />
+          <button type="button" class="p-1 rounded text-muted-foreground hover:text-foreground shrink-0" title="Save name" aria-label="Save name" @click="saveName"><Check class="h-3.5 w-3.5" /></button>
+        </span>
+        <span class="text-[11px] text-muted-foreground truncate" data-testid="panel-meta">{{ panelMeta }}</span>
+      </div>
       <!-- Feedback #1030: the tools grouped into four labelled menus. -->
-      <ToolbarMenu label="Edit" :icon="TextCursorInput" title="Format, fix, find, insert fields, clear, earlier text" :items="editItems" />
-      <InsertFieldsMenu ref="insertMenu" bare :editor="editorRef" :disabled="activeTab !== 'editor' || isRunning" />
-      <ToolbarMenu label="Tables" :icon="Table2" title="Schema search, sample rows, shared snippets" :items="tableItems" />
-      <ToolbarMenu label="Open" :icon="FolderOpen" title="Open a query activity, or this query in Query Builder or Diagramforce" :items="openItems" />
-      <ToolbarMenu label="Save" :icon="SaveIcon" title="Save as query activity, share" :items="saveItems" />
-      <AiButton size="sm" label="Ask AI" label-class="tb-label" :disabled="activeTab !== 'editor'" title="Ask AI (experimental): write or fix this query with Gemini Nano in Chrome, on this computer" @click="openAi()" />
-      <Button variant="outline" size="sm" class="h-6 text-[11px] px-1.5" :disabled="!canInteract || isRunning" title="Validate: check the query with SFMC without running it" @click="runValidation"><ShieldCheck class="h-3 w-3" /><span class="tb-label ml-1">Validate</span></Button>
-      <Button variant="outline" size="sm" class="h-6 text-[11px] px-1.5" :disabled="!canInteract || isRunning || !queryText.trim()" :title="`Preview: run with TOP ${PREVIEW_ROWS} (the selection, or the whole query) to see the first rows quickly`" @click="previewTop"><Eye class="h-3 w-3" /><span class="tb-label ml-1">Preview</span></Button>
-      <Button size="sm" class="h-6 text-[11px] px-1.5 bg-[#0176D3] text-white" :disabled="!canInteract || isRunning" :title="`Run query (${runKey}; with text selected, runs only the selection)`" @click="runQuery(0)"><Play class="h-3 w-3 fill-white" /><span class="tb-label ml-1">Run</span></Button>
-      <Button variant="ghost" size="icon" class="h-6 w-6" :title="activeTab === 'history' ? 'Back to editor' : 'Run history'" @click="activeTab = activeTab === 'history' ? 'editor' : 'history'"><History class="h-3 w-3" /></Button>
-      <Button variant="ghost" size="icon" class="h-6 w-6" :title="isExpanded ? 'Minimize panel' : 'Expand panel'" @click="$emit('expand')">
-        <Minimize2 v-if="isExpanded" class="h-3 w-3" />
-        <Maximize2 v-else class="h-3 w-3" />
-      </Button>
-      <Button v-if="showClose" variant="ghost" size="icon" class="h-6 w-6" title="Close panel" @click="$emit('close')"><X class="h-3 w-3" /></Button>
+      <span class="tb-acts ml-auto flex flex-wrap items-center justify-end gap-1.5">
+        <ToolbarMenu label="Edit" :icon="TextCursorInput" title="Format, fix, find, insert fields, clear, earlier text" :items="editItems" />
+        <InsertFieldsMenu ref="insertMenu" bare :editor="editorRef" :disabled="activeTab !== 'editor' || isRunning" />
+        <ToolbarMenu label="Tables" :icon="Table2" title="Schema search, sample rows, shared snippets" :items="tableItems" />
+        <ToolbarMenu label="Open" :icon="FolderOpen" title="Open a query activity, or this query in Query Builder or Diagramforce" :items="openItems" />
+        <ToolbarMenu label="Save" :icon="SaveIcon" title="Save as query activity, share" :items="saveItems" />
+        <AiButton label="Ask AI" label-class="tb-label" class="tb-btn h-8 px-2.5 rounded-full bg-card border-border text-[13px] font-medium" :disabled="activeTab !== 'editor'" title="Ask AI (experimental): write or fix this query with Gemini Nano in Chrome, on this computer" @click="openAi()" />
+        <button type="button" :class="pill" :disabled="!canInteract || isRunning" title="Validate: check the query with SFMC without running it" @click="runValidation"><ShieldCheck class="h-3.5 w-3.5" /><span class="tb-label">Validate</span></button>
+        <button type="button" :class="pill" :disabled="!canInteract || isRunning || !queryText.trim()" :title="`Preview: run with TOP ${PREVIEW_ROWS} (the selection, or the whole query) to see the first rows quickly`" @click="previewTop"><Eye class="h-3.5 w-3.5" /><span class="tb-label">Preview</span></button>
+        <button type="button" class="tb-btn h-8 inline-flex items-center gap-1.5 px-3.5 rounded-full bg-primary text-primary-foreground text-[13px] font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:pointer-events-none shrink-0" :disabled="!canInteract || isRunning" :title="`Run query (${runKey}; with text selected, runs only the selection)`" @click="runQuery(0)">
+          <Play class="h-3 w-3 fill-current" /><span class="tb-label">Run</span><kbd class="tb-label font-sans text-[10px] opacity-85">{{ runShortcut }}</kbd>
+        </button>
+        <button type="button" :class="[iconPill, activeTab === 'history' ? 'bg-accent' : '']" :aria-pressed="activeTab === 'history'" :title="activeTab === 'history' ? 'Back to editor' : 'Run history'" @click="activeTab = activeTab === 'history' ? 'editor' : 'history'"><History class="h-4 w-4" /></button>
+        <button type="button" :class="iconPill" :title="isExpanded ? 'Minimize panel' : 'Expand panel'" @click="$emit('expand')">
+          <Minimize2 v-if="isExpanded" class="h-4 w-4" />
+          <Maximize2 v-else class="h-4 w-4" />
+        </button>
+        <button v-if="showClose" type="button" :class="iconPill" title="Close panel" @click="$emit('close')"><X class="h-4 w-4" /></button>
+      </span>
     </div>
 
     <AiAssistDialog v-if="ai.shown.value" :open="showAi" :sql="queryText" :editor="editorRef" :run-problems="runProblems" :initial-mode="aiMode" :initial-request="aiRequest" :auto-ask="!!aiRequest" @close="closeAi" @apply="applyAi" @new-panel="openInNewPanel" />
@@ -421,44 +446,44 @@ function openSchema() {
     <!-- Share query: confirm what leaves the browser first (utils/share.js) -->
     <ShareQueryDialog :open="shareOpen" :name="queryName || 'Untitled Query'" :sql="queryText" @close="shareOpen = false" />
 
-    <div v-if="clearedText" class="px-2 py-1 text-[11px] flex items-center gap-2 bg-muted/60 border-b border-border shrink-0">Cleared. <button class="text-primary hover:underline font-medium" @click="undoClear">Undo</button><button class="ml-auto text-muted-foreground hover:text-foreground" title="Dismiss" @click="clearedText = ''"><X class="h-3 w-3" /></button></div>
-    <div v-if="formatNote" class="px-2 py-1 text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-b border-border shrink-0">{{ formatNote }}</div>
+    <div v-if="clearedText" class="px-3 py-1.5 text-xs flex items-center gap-2 bg-muted border-b border-border shrink-0">Cleared. <button class="text-primary hover:underline font-medium" @click="undoClear">Undo</button><button class="ml-auto text-muted-foreground hover:text-foreground" title="Dismiss" @click="clearedText = ''"><X class="h-3.5 w-3.5" /></button></div>
+    <div v-if="formatNote" class="px-3 py-1.5 text-xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-b border-border shrink-0">{{ formatNote }}</div>
     <div v-show="activeTab === 'editor'" class="flex-1 flex flex-col min-h-0">
       <div class="overflow-hidden shrink-0 flex min-w-0" :style="{ height: editorHeightPct + '%' }">
         <div class="flex-1 min-w-0 h-full">
           <QueryEditor ref="editorRef" :modelValue="queryText" :stack="stack" @update:modelValue="onEditorChange" @format="onFormatResult" @run="runFromKey" @schema-search="openSchema" />
         </div>
-        <div v-if="showSchema" class="w-64 shrink-0 h-full">
+        <div v-if="showSchema" class="w-64 shrink-0 h-full border-l border-border">
           <SchemaPanel ref="schemaPanel" :editor="editorRef" :stack="stack" @close="setSchema(false)" />
         </div>
       </div>
-      <div class="h-1 bg-border cursor-ns-resize shrink-0" @mousedown="onResizeStart($event)" />
+      <div class="h-1.5 bg-border/70 hover:bg-primary/50 cursor-ns-resize shrink-0 transition-colors" title="Drag to resize" @mousedown="onResizeStart($event)" />
       <div class="flex flex-col flex-1 min-h-0 overflow-hidden">
-        <div v-if="ai.shown.value && fixCount && activeTab === 'editor'" class="flex items-center gap-2 px-2 py-1 border-b border-border text-[11px] bg-muted/30 shrink-0">
+        <div v-if="ai.shown.value && fixCount && activeTab === 'editor'" class="flex items-center gap-2 px-3 py-1.5 border-b border-border text-xs bg-muted/50 shrink-0">
           <span class="text-muted-foreground flex-1">{{ fixCount === 1 ? '1 problem' : `${fixCount} problems` }} found by {{ runProblems.length ? 'the last check or run' : 'the SQL checks' }}.</span>
           <AiButton size="sm" label="Fix with AI" title="Fix with AI (experimental): Gemini Nano in Chrome suggests a fixed query; you see the changes before applying them" @click="openAi('fix')" />
         </div>
         <ValidationPanel v-if="resultsMode === 'validating' || resultsMode === 'validation'" :results="validationResults" :isRunning="resultsMode === 'validating'" />
         <RunStepper v-else-if="showRunStepper" :stepStatuses="stepStatuses" :stepErrors="stepErrors" :stepDetails="stepDetails" :elapsedSeconds="elapsedSeconds" :completedSummary="null" :sql="queryText" @retry="runQuery" @login="openSfmcLogin" @prompt="answerPrompt" />
         <template v-else-if="resultsMode === 'results'">
-          <div class="flex items-center border-b">
-            <button class="flex-1 px-2 py-1 text-[10px] font-semibold flex items-center justify-between" @click="isResultsOpen = !isResultsOpen">
-              <span>{{ completedSummary }}</span>
-              <ChevronDown class="h-3 w-3" :class="{ 'rotate-180': isResultsOpen }" />
+          <div class="flex items-center gap-2 border-b border-border px-1">
+            <button class="flex-1 min-w-0 px-2 py-1.5 text-xs font-semibold text-foreground flex items-center justify-between gap-2" :aria-expanded="isResultsOpen" @click="isResultsOpen = !isResultsOpen">
+              <span class="truncate">{{ completedSummary }}</span>
+              <ChevronDown class="h-3.5 w-3.5 shrink-0 text-muted-foreground" :class="{ 'rotate-180': isResultsOpen }" />
             </button>
-            <button class="shrink-0 px-2 py-1 text-[10px] text-primary hover:underline disabled:opacity-50" :disabled="!resultRows.length || !canInteract" title="Copy these rows into an existing or a new data extension" @click="showSaveResults = true">Save to data extension</button>
+            <button class="shrink-0 h-7 inline-flex items-center gap-1 px-2.5 rounded-full border border-border bg-card text-xs font-medium text-foreground hover:bg-accent disabled:opacity-50 disabled:pointer-events-none" :disabled="!resultRows.length || !canInteract" title="Copy these rows into an existing or a new data extension" @click="showSaveResults = true"><Database class="h-3.5 w-3.5" /> Save to data extension</button>
           </div>
-          <div v-if="currentRun && (currentRun.deName || currentRun.activityName)" class="px-2 py-1 border-b text-[10px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-0.5">
-            <span v-if="currentRun.deName">Results DE: <b class="text-foreground select-all">{{ currentRun.deName }}</b>
+          <div v-if="currentRun && (currentRun.deName || currentRun.activityName)" class="px-3 py-1.5 border-b border-border text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-0.5">
+            <span v-if="currentRun.deName">Results DE: <b class="text-foreground font-mono font-medium select-all">{{ currentRun.deName }}</b>
               <a v-if="currentRun.deId" :href="currentRun.deUrl" target="_blank" rel="noopener" class="ml-1 text-primary hover:underline" @click="openInSfmc($event, currentRun.deUrl)">SFMC</a>
               <RouterLink v-if="deSearchLink" :to="deSearchLink" class="ml-1 text-primary hover:underline">Data Extensions</RouterLink>
             </span>
-            <span v-if="currentRun.activityName">Query activity: <b class="text-foreground select-all">{{ currentRun.activityName }}</b>
+            <span v-if="currentRun.activityName">Query activity: <b class="text-foreground font-mono font-medium select-all">{{ currentRun.activityName }}</b>
               <a v-if="currentRun.activityId" :href="currentRun.activityUrl" target="_blank" rel="noopener" class="ml-1 text-primary hover:underline" @click="openInSfmc($event, currentRun.activityUrl)">SFMC</a>
             </span>
           </div>
-          <div v-if="currentRun?.preview" class="px-2 py-1 border-b text-[10px] text-sky-800 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40">Preview: the first {{ PREVIEW_ROWS }} rows only (the query ran with TOP {{ PREVIEW_ROWS }}). Run it to get every row.</div>
-          <div v-if="staleResults" class="px-2 py-1 border-b text-[10px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40">
+          <div v-if="currentRun?.preview" class="px-3 py-1.5 border-b border-border text-[11px] text-sky-800 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40">Preview: the first {{ PREVIEW_ROWS }} rows only (the query ran with TOP {{ PREVIEW_ROWS }}). Run it to get every row.</div>
+          <div v-if="staleResults" class="px-3 py-1.5 border-b border-border text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40">
             The SQL was edited after this run, so these results may not match it. Run again to refresh them.
           </div>
           <div v-show="isResultsOpen" class="flex-1 overflow-auto min-h-0" :class="staleResults ? 'opacity-60' : ''">
@@ -468,18 +493,51 @@ function openSchema() {
             <CleanupActions :deKey="createdDeKey" :activityId="createdActivityId" :isDeleting="isDeleting" @delete-de="handleDeleteDE(currentRunId)" @delete-activity="handleDeleteActivity(currentRunId)" />
           </div>
         </template>
-        <div v-if="sessionExpired" class="px-2 py-1 text-[10px] text-red-600 flex justify-between"><span>Session expired</span><Button size="sm" class="h-5 text-[9px]" @click="openSfmcLogin"><LogIn class="h-3 w-3" /></Button></div>
-        <div v-if="contactBuilderNeeded" class="px-2 py-1 text-[10px] text-amber-700">Open Contact Builder and Automation Studio in SFMC, then press Retry</div>
-        <div v-if="resultsMode === 'empty' && !sessionExpired" class="flex-1 flex items-center justify-center text-[10px] text-muted-foreground">Run to see results</div>
+        <div v-if="sessionExpired" class="px-3 py-1.5 text-xs text-red-600 dark:text-red-400 flex items-center justify-between gap-2"><span>Session expired</span><button type="button" class="h-7 inline-flex items-center gap-1 px-2.5 rounded-full bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90" @click="openSfmcLogin"><LogIn class="h-3.5 w-3.5" /> Log in</button></div>
+        <div v-if="contactBuilderNeeded" class="px-3 py-1.5 text-xs text-amber-700 dark:text-amber-300">Open Contact Builder and Automation Studio in SFMC, then press Retry</div>
+        <div v-if="resultsMode === 'empty' && !sessionExpired" class="flex-1 min-h-0 overflow-y-auto">
+          <!-- Ready to run: the tables the query reads from (design). -->
+          <div v-if="hasSql" class="min-h-full flex flex-col items-center justify-center gap-2.5 p-6 text-center">
+            <span class="h-11 w-11 shrink-0 rounded-xl bg-primary/10 text-primary flex items-center justify-center"><Play class="h-5 w-5" /></span>
+            <span class="text-[15px] font-semibold">Ready to run</span>
+            <span class="text-[13px] text-muted-foreground max-w-[340px]">
+              <template v-if="readsFrom.length">Reads from <template v-for="(t, i) in readsFrom" :key="t"><code class="font-mono text-xs text-foreground break-all">{{ t }}</code>{{ i < readsFrom.length - 1 ? ', ' : '' }}</template>. </template>Results appear here with the row count and downloads.
+            </span>
+            <button type="button" class="h-9 shrink-0 inline-flex items-center gap-1.5 px-3.5 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:pointer-events-none" :disabled="!canInteract || isRunning" @click="runQuery(0)"><Play class="h-3.5 w-3.5 fill-current" /> Run query</button>
+          </div>
+          <!-- Empty editor: ways to start (design "Start from"). -->
+          <div v-else class="p-4 sm:p-5 flex flex-col gap-2.5">
+            <span class="text-[13px] font-semibold text-foreground/80">Start from</span>
+            <RouterLink to="/queries/saved" class="start-card">
+              <span class="start-icon bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"><Bookmark class="h-4 w-4" /></span>
+              <span class="flex flex-col min-w-0"><span class="text-sm font-semibold">A saved query</span><span class="text-xs text-muted-foreground">Open one from Saved queries</span></span>
+            </RouterLink>
+            <button type="button" class="start-card text-left disabled:opacity-50" :disabled="!canInteract || isRunning" @click="openQueryPicker">
+              <span class="start-icon bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"><FolderOpen class="h-4 w-4" /></span>
+              <span class="flex flex-col min-w-0"><span class="text-sm font-semibold">A query activity</span><span class="text-xs text-muted-foreground">From Automation Studio, into this panel</span></span>
+            </button>
+            <RouterLink to="/queries/builder" class="start-card">
+              <span class="start-icon bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"><Blocks class="h-4 w-4" /></span>
+              <span class="flex flex-col min-w-0"><span class="text-sm font-semibold">Build it visually</span><span class="text-xs text-muted-foreground">Pick data extensions and fields in Query Builder</span></span>
+            </RouterLink>
+            <button type="button" class="start-card text-left disabled:opacity-50" :disabled="isRunning" @click="insertMenu?.toggle?.()">
+              <span class="start-icon bg-primary/10 text-primary"><Database class="h-4 w-4" /></span>
+              <span class="flex flex-col min-w-0"><span class="text-sm font-semibold">A data extension</span><span class="text-xs text-muted-foreground">Every field of a data extension or data view, as a SELECT</span></span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div v-show="activeTab === 'history'" class="flex-1 overflow-y-auto p-2 text-[10px]">
-      <div v-if="!runs.length" class="text-center text-muted-foreground py-4">No runs yet</div>
-      <div v-for="run in runs" :key="run.runId" class="mb-2 p-2 border rounded">
-        <div class="font-semibold">{{ formatRunDate(run.runAt) }}</div>
-        <button class="text-primary underline" @click="toggleHistoryResults(run)">View results</button>
-        <div v-if="historyResults[run.runId]?.open && historyResults[run.runId]?.rows" class="mt-1 max-h-24 overflow-auto">
+    <div v-show="activeTab === 'history'" class="flex-1 overflow-y-auto p-3 text-xs flex flex-col gap-2">
+      <div class="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Run history</div>
+      <div v-if="!runs.length" class="text-center text-muted-foreground py-6">No runs yet</div>
+      <div v-for="run in runs" :key="run.runId" class="p-3 border border-border rounded-xl bg-card">
+        <div class="flex items-center justify-between gap-2">
+          <span class="font-semibold">{{ formatRunDate(run.runAt) }}</span>
+          <button class="text-primary hover:underline font-medium" @click="toggleHistoryResults(run)">{{ historyResults[run.runId]?.open ? 'Hide results' : 'View results' }}</button>
+        </div>
+        <div v-if="historyResults[run.runId]?.open && historyResults[run.runId]?.rows" class="mt-2 max-h-48 overflow-auto rounded-lg border border-border">
           <ResultsTable :rows="historyResults[run.runId].rows" :columns="historyResults[run.runId].columns" filename="run" :sql="run.queryText" />
         </div>
       </div>
@@ -489,10 +547,20 @@ function openSchema() {
 
 <style scoped>
 .query-panel { height: 100%; }
+.start-card { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 12px; border: 1px solid hsl(var(--border)); border-radius: 12px; color: hsl(var(--foreground)); text-decoration: none; background: hsl(var(--card)); transition: background-color .15s; }
+.start-card:hover { background: hsl(var(--accent)); }
+.start-icon { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
 </style>
 
 <style>
 /* Feedback #1030: labels on the toolbar, dropped when the panel is narrow. */
 .query-panel { container-type: inline-size; }
 @container (max-width: 760px) { .query-toolbar .tb-label { display: none; } }
+/* Narrow panels (2x3): smaller pills, no menu arrows, so the tools fit in fewer rows. */
+@container (max-width: 520px) {
+  .query-toolbar .tb-chev { display: none; }
+  .query-toolbar .tb-btn { height: 28px; padding-left: 8px; padding-right: 8px; }
+  .query-toolbar .tb-icon { height: 28px; width: 28px; }
+  .query-toolbar .tb-acts { gap: 4px; }
+}
 </style>

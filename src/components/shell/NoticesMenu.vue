@@ -29,7 +29,7 @@ const KIND = { paused: 'Paused', activated: 'Activated', fails: 'Failed', runs: 
 
 <template>
   <div class="relative">
-    <button class="relative p-1.5 rounded-md text-muted-foreground hover:bg-accent" :title="unread ? `${unread} new about watched automations and journeys` : 'Watched automations and journeys'" :aria-expanded="open" @click="toggle">
+    <button class="relative h-9 w-9 flex items-center justify-center rounded-lg text-foreground/80 hover:bg-accent" :title="unread ? `${unread} new about watched automations and journeys` : 'Watched automations and journeys'" :aria-expanded="open" @click="toggle">
       <Bell class="h-4 w-4" />
       <span v-if="unread" class="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-red-600 text-white text-[10px] font-bold leading-4 text-center">{{ unread > 99 ? '99+' : unread }}</span>
     </button>

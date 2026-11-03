@@ -39,17 +39,17 @@ function onKey(e) {
 
 <template>
   <div class="relative shrink-0">
-    <button type="button" class="inline-flex items-center gap-1 h-6 px-1.5 rounded-md border border-border text-[11px] font-medium hover:bg-accent"
+    <button type="button" class="tb-btn inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full border border-border bg-card text-[13px] font-medium text-foreground hover:bg-accent"
       :class="open ? 'bg-accent' : ''" :title="title || label" aria-haspopup="menu" :aria-expanded="open" @click="toggle">
-      <component :is="icon" v-if="icon" class="h-3 w-3" />
+      <component :is="icon" v-if="icon" class="h-3.5 w-3.5" />
       <span class="tb-label">{{ label }}</span>
-      <ChevronDown class="h-3 w-3 text-muted-foreground" />
+      <ChevronDown class="tb-chev h-3.5 w-3.5 text-muted-foreground" />
     </button>
     <template v-if="open">
       <div class="fixed inset-0 z-40" @click="open = false" />
-      <div ref="menu" class="absolute left-0 top-7 z-50 w-72 rounded-md border border-border bg-card shadow-lg p-1 text-xs" role="menu" :aria-label="label" @keydown="onKey">
+      <div ref="menu" class="absolute left-0 top-10 z-50 w-72 rounded-xl border border-border bg-card shadow-[0_18px_40px_-16px_rgba(17,24,39,0.35)] p-1.5 text-[13px]" role="menu" :aria-label="label" @keydown="onKey">
         <button v-for="item in visible" :key="item.id" type="button" role="menuitem" :disabled="item.disabled"
-          class="w-full flex items-start gap-2 text-left px-2 py-1.5 rounded hover:bg-accent focus:bg-accent focus:outline-none disabled:opacity-40 disabled:hover:bg-transparent"
+          class="w-full flex items-start gap-2.5 text-left px-2.5 py-2 rounded-lg text-foreground hover:bg-accent focus:bg-accent focus:outline-none disabled:opacity-40 disabled:hover:bg-transparent"
           @click="pick(item)">
           <component :is="item.icon" v-if="item.icon" class="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
           <span class="flex-1 min-w-0">
@@ -58,7 +58,7 @@ function onKey(e) {
               <Check v-if="item.checked" class="h-3 w-3 text-primary" aria-label="on" />
               <kbd v-if="item.shortcut" class="ml-auto text-[10px] text-muted-foreground font-sans">{{ item.shortcut }}</kbd>
             </span>
-            <span v-if="item.desc" class="block text-[11px] text-muted-foreground">{{ item.desc }}</span>
+            <span v-if="item.desc" class="block text-xs text-muted-foreground">{{ item.desc }}</span>
           </span>
         </button>
       </div>

@@ -356,6 +356,14 @@ function setDebounce(e) {
     </section>
 
     <section class="rounded-lg border border-border bg-card p-4">
+      <h2 class="text-sm font-semibold mb-3">Clean up</h2>
+      <div class="flex items-start gap-3">
+        <p class="flex-1 text-xs text-muted-foreground">The query activities and results data extensions Run Query left in Marketing Cloud (formerly Delete Toolkit runs in the sidebar). You pick what to delete.</p>
+        <RouterLink to="/queries/cleanup" class="inline-flex items-center h-8 px-3 rounded-full border border-border text-xs font-medium hover:bg-accent">Open Clean up</RouterLink>
+      </div>
+    </section>
+
+    <section class="rounded-lg border border-border bg-card p-4">
       <h2 class="text-sm font-semibold mb-3">Storage</h2>
       <StorageUsage />
     </section>

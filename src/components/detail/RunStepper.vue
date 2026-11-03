@@ -65,7 +65,7 @@ function toggleWarnings(idx) {
 
     <!-- Completed summary banner -->
     <div v-if="completedSummary"
-      class="flex items-center gap-2 px-3.5 py-2.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+      class="flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
       <Check class="h-4 w-4 shrink-0" />
       {{ completedSummary }}
     </div>
@@ -135,7 +135,7 @@ function toggleWarnings(idx) {
             class="w-full p-1.5 flex flex-col gap-1 items-center bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded text-center">
             <span class="text-[10px] text-amber-800 dark:text-amber-300 leading-snug">{{ stepDetails[idx].prompt.text }}</span>
             <div class="flex gap-1">
-              <Button size="sm" class="h-6 text-[10px] bg-primary hover:bg-primary/90 text-white" @click="emit('prompt', true)">
+              <Button size="sm" class="h-6 text-[10px] bg-primary hover:bg-primary/90 text-primary-foreground rounded-full" @click="emit('prompt', true)">
                 {{ stepDetails[idx].prompt.confirmLabel || 'Yes' }}
               </Button>
               <Button variant="outline" size="sm" class="h-6 text-[10px]" @click="emit('prompt', false)">
@@ -149,7 +149,7 @@ function toggleWarnings(idx) {
             class="w-full p-1.5 flex flex-col gap-1 items-center bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded text-center">
             <template v-if="stepErrors[idx]?.includes('SESSION_EXPIRED')">
               <span class="text-[10px] text-red-700 dark:text-red-400 leading-snug">Session expired - please log in.</span>
-              <Button size="sm" class="h-6 text-[10px] bg-primary hover:bg-primary/90 text-white" @click="emit('login')">
+              <Button size="sm" class="h-6 text-[10px] bg-primary hover:bg-primary/90 text-primary-foreground rounded-full" @click="emit('login')">
                 <LogIn class="h-3 w-3 mr-1" /> Log in to SFMC
               </Button>
             </template>
@@ -202,8 +202,8 @@ function toggleWarnings(idx) {
 .step--pending .step-pill { background: hsl(var(--muted)); border-color: hsl(var(--border)); }
 
 /* Icon / label colours per state */
-.step--done    .step-icon  { color: white; }
-.step--done    .step-label { color: white; }
+.step--done    .step-icon  { color: hsl(var(--primary-foreground)); }
+.step--done    .step-label { color: hsl(var(--primary-foreground)); }
 .step--running .step-label { color: hsl(var(--primary)); }
 .step--error   .step-label { color: hsl(var(--destructive)); }
 .step--error   .step-icon  { color: hsl(var(--destructive)); }

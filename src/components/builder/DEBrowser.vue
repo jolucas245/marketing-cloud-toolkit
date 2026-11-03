@@ -1,8 +1,7 @@
 <script setup>
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { ChevronRight, ChevronDown, Database, Search, Loader2, Folder } from 'lucide-vue-next'
-import Input from '../ui/input/Input.vue'
 import {
   loadRootSections, loadFolderContents, getDataViewNodes, debouncedSearchDEs,
 } from '../../utils/deCatalog.js'
@@ -12,7 +11,10 @@ import { withReconnect, searchError as describeError } from '../../utils/sfmcErr
 
 const props = defineProps({
   stack: { type: String, default: null },
+  // Ids of the tables already in the query, marked "in query" in the lists.
+  selectedIds: { type: Array, default: () => [] },
 })
+const inQuery = computed(() => new Set(props.selectedIds.map(String)))
 
 const emit = defineEmits(['select-de'])
 
@@ -112,12 +114,12 @@ function onDeDragStart(e, node) {
 
 function badgeClass(sourceType) {
   const map = {
-    folder: 'bg-blue-100 text-blue-700',
-    shared: 'bg-purple-100 text-purple-700',
-    sync: 'bg-teal-100 text-teal-700',
-    salesforce: 'bg-orange-100 text-orange-700',
-    dataview: 'bg-slate-200 text-slate-700',
-    search: 'bg-amber-100 text-amber-700',
+    folder: 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
+    shared: 'bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
+    sync: 'bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300',
+    salesforce: 'bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300',
+    dataview: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+    search: 'bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
   }
   return map[sourceType] || 'bg-muted text-muted-foreground'
 }
@@ -125,50 +127,53 @@ function badgeClass(sourceType) {
 </script>
 
 <template>
-  <div class="de-browser flex flex-col h-full border-r border-border bg-card">
-    <div class="p-2 border-b border-border shrink-0">
-      <div class="relative">
-        <Search class="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        <Input v-model="searchQuery" class="pl-8 h-8 text-xs" placeholder="Search all DEs and data views…" @input="onSearchInput" />
+  <aside class="de-browser flex flex-col h-full border-r border-border bg-card" aria-label="Data sources">
+    <div class="p-3 shrink-0">
+      <label for="qb-src" class="sr-only">Search DEs and data views</label>
+      <div class="flex items-center gap-2.5 h-[38px] px-4 rounded-full border border-border bg-card focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10">
+        <Search class="h-4 w-4 shrink-0 text-muted-foreground" />
+        <input id="qb-src" v-model="searchQuery" type="text" class="flex-1 min-w-0 bg-transparent border-0 outline-none text-sm placeholder:text-muted-foreground" placeholder="Search DEs and data views" @input="onSearchInput" />
       </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto p-1 text-xs">
-      <div v-if="searchQuery.trim()">
-        <div v-if="searching" class="flex items-center gap-1 p-2 text-muted-foreground">
-          <Loader2 class="h-3 w-3 animate-spin" /> Searching…
+    <div class="flex-1 overflow-y-auto px-2 pb-3 text-[13px]">
+      <div v-if="searchQuery.trim()" class="flex flex-col gap-0.5">
+        <div v-if="searching" class="flex items-center gap-1.5 px-2.5 py-1.5 text-muted-foreground">
+          <Loader2 class="h-3.5 w-3.5 animate-spin" /> Searching...
         </div>
         <button
           v-for="node in searchResults"
           :key="node.id"
-          class="w-full text-left px-2 py-1.5 rounded hover:bg-muted flex items-center gap-1.5 cursor-grab active:cursor-grabbing"
+          class="w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 cursor-grab active:cursor-grabbing"
+          :class="inQuery.has(String(node.id)) ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-accent'"
           draggable="true"
           @dragstart="onDeDragStart($event, node)"
           @click="selectDe(node)"
         >
-          <Database class="h-3 w-3 shrink-0" />
+          <Database class="h-3.5 w-3.5 shrink-0" />
           <span class="truncate flex-1">{{ node.name }}</span>
-          <span class="text-[9px] px-1 rounded" :class="badgeClass(node.sourceType)">{{ node.sourceType === 'dataview' ? 'Data view' : node.sourceType }}</span>
+          <span v-if="inQuery.has(String(node.id))" class="shrink-0 text-[11px]">in query</span>
+          <span v-else class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-md" :class="badgeClass(node.sourceType)">{{ node.sourceType === 'dataview' ? 'data view' : node.sourceType }}</span>
         </button>
-        <div v-if="!searching && !searchResults.length && searchError" class="p-2 text-red-600" role="alert">Search failed: {{ searchError }}<ReportErrorButton /></div>
-        <div v-else-if="!searching && !searchResults.length" class="p-2 text-muted-foreground italic">No matches</div>
+        <div v-if="!searching && !searchResults.length && searchError" class="px-2.5 py-1.5 text-destructive" role="alert">Search failed: {{ searchError }}<ReportErrorButton /></div>
+        <div v-else-if="!searching && !searchResults.length" class="px-2.5 py-1.5 text-muted-foreground">No matches</div>
       </div>
 
       <template v-else>
         <!-- Root folders -->
-        <div class="mt-1 text-xs"><SfmcErrorNotice v-if="rootsError" :error="rootsError" :retrying="loadingRoots" @retry="loadRoots" /></div>
-        <div v-for="root in roots" :key="root.id" class="mt-1">
-          <button class="w-full flex items-center gap-1 px-1 py-1 hover:bg-muted rounded" @click="toggleExpand(root)">
-            <ChevronDown v-if="expanded.has(String(root.id))" class="h-3 w-3" />
-            <ChevronRight v-else class="h-3 w-3" />
-            <Folder class="h-3 w-3 text-muted-foreground" />
-            <span class="font-medium truncate">{{ root.name }}</span>
-            <span class="text-[9px] px-1 rounded ml-auto" :class="badgeClass(root.sourceType)">{{ root.sourceType }}</span>
+        <div v-if="rootsError" class="text-xs"><SfmcErrorNotice :error="rootsError" :retrying="loadingRoots" @retry="loadRoots" /></div>
+        <div v-for="root in roots" :key="root.id">
+          <button class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg font-semibold hover:bg-accent" :aria-expanded="expanded.has(String(root.id))" @click="toggleExpand(root)">
+            <ChevronDown v-if="expanded.has(String(root.id))" class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <ChevronRight v-else class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <Folder class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span class="truncate">{{ root.name }}</span>
+            <span v-if="root.sourceType && root.sourceType !== 'folder'" class="ml-auto shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-md" :class="badgeClass(root.sourceType)">{{ root.sourceType }}</span>
           </button>
 
-          <div v-if="expanded.has(String(root.id))">
-            <div v-if="loadingFolders.has(String(root.id))" class="p-1 text-muted-foreground flex gap-1">
-              <Loader2 class="h-3 w-3 animate-spin" /> Loading…
+          <div v-if="expanded.has(String(root.id))" class="text-[13px]">
+            <div v-if="loadingFolders.has(String(root.id))" class="flex items-center gap-1.5 py-1 pl-8 text-muted-foreground">
+              <Loader2 class="h-3.5 w-3.5 animate-spin" /> Loading...
             </div>
             <DETreeNode
               v-for="child in folderChildren[String(root.id)] || []"
@@ -178,34 +183,41 @@ function badgeClass(sourceType) {
               :expanded="expanded"
               :loading-folders="loadingFolders"
               :folder-children="folderChildren"
+              :in-query="inQuery"
               @toggle="toggleExpand"
               @select="selectDe"
             />
           </div>
         </div>
 
-        <div v-if="!roots.length && stack" class="p-2 text-muted-foreground">Loading folders…</div>
-        <div v-if="!stack" class="p-2 text-muted-foreground">Connect to SFMC first</div>
+        <div v-if="!roots.length && stack && !rootsError" class="flex flex-col gap-2 px-2.5 py-2" aria-label="Loading folders">
+          <span class="sr-only">Loading folders...</span>
+          <span aria-hidden="true" class="block h-2 w-36 rounded-full bg-muted" />
+          <span aria-hidden="true" class="block h-2 w-28 rounded-full bg-muted" />
+        </div>
+        <div v-if="!stack" class="px-2.5 py-2 text-muted-foreground">Connect to SFMC first</div>
 
-        <!-- System Data Views (moved to bottom) -->
-        <button class="w-full flex items-center gap-1 px-1 py-1 mt-2 border-t border-border font-semibold text-[10px] uppercase text-muted-foreground" @click="showDataViews = !showDataViews">
+        <!-- System data views -->
+        <button class="w-full flex items-center gap-1.5 px-2.5 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground hover:text-foreground" :aria-expanded="showDataViews" @click="showDataViews = !showDataViews">
+          System data views · {{ dataViews.length }}
           <ChevronDown v-if="showDataViews" class="h-3 w-3" /><ChevronRight v-else class="h-3 w-3" />
-          System Data Views
         </button>
-        <template v-if="showDataViews">
+        <div v-if="showDataViews" class="flex flex-col gap-0.5">
           <button
             v-for="dv in dataViews"
             :key="dv.id"
-            class="w-full text-left pl-4 pr-2 py-1 rounded hover:bg-muted flex items-center gap-1 cursor-grab active:cursor-grabbing"
+            class="w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 cursor-grab active:cursor-grabbing"
+            :class="inQuery.has(String(dv.id)) ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-accent'"
             draggable="true"
             @dragstart="onDeDragStart($event, dv)"
             @click="selectDe(dv)"
           >
-            <Database class="h-3 w-3" />
+            <Database class="h-3.5 w-3.5 shrink-0" />
             <span class="truncate">{{ dv.name }}</span>
+            <span v-if="inQuery.has(String(dv.id))" class="ml-auto shrink-0 text-[11px]">in query</span>
           </button>
-        </template>
+        </div>
       </template>
     </div>
-  </div>
+  </aside>
 </template>
