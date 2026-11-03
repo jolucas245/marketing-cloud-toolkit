@@ -32,6 +32,10 @@ function blankForm() {
   return { activityName: '', targetMode: 'new', deName: '', deFolderId: null, existingDE: null, qaFolderId: null, updateType: 0 }
 }
 const step = ref('form') // form | confirm | saving | done
+// Ask before overwriting (feedback #1028): an existing data extension with the Overwrite
+// data action loses all its rows each time the activity runs, so the user ticks first.
+const overwriteOk = ref(false)
+const overwritesExisting = computed(() => form.value.targetMode === 'existing' && Number(form.value.updateType) === 0)
 const error = ref('')
 const result = ref(null)
 
@@ -113,7 +117,7 @@ async function runChecks() {
 function review() {
   error.value = checkSaveForm({ ...form.value, updateType: Number(form.value.updateType) })
   if (!props.sql.trim()) error.value = 'The editor is empty.'
-  if (!error.value) { step.value = 'confirm'; runChecks() }
+  if (!error.value) { overwriteOk.value = false; step.value = 'confirm'; runChecks() }
 }
 
 async function create() {
@@ -204,6 +208,10 @@ const deUrl = computed(() => result.value && `https://mc.${props.stack}.marketin
               <li v-else>Writes to the existing data extension <b>{{ form.existingDE?.name }}</b></li>
               <li>Query activity <b>{{ form.activityName.trim() }}</b> in <b>{{ qaFolderPath }}</b>, data action <b>{{ updateLabel }}</b></li>
             </ul>
+            <label v-if="overwritesExisting" class="flex items-start gap-2 rounded border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-2 py-1.5">
+              <input v-model="overwriteOk" type="checkbox" class="mt-0.5" />
+              <span>Overwrite replaces <b>every row</b> in <b>{{ form.existingDE?.name }}</b> each time the activity runs. I understand.</span>
+            </label>
             <div class="space-y-1">
               <div class="font-semibold">Checks against the target</div>
               <div v-if="checking" class="flex items-center gap-1 text-muted-foreground"><Loader2 class="h-3 w-3 animate-spin" /> Checking...</div>
@@ -236,7 +244,7 @@ const deUrl = computed(() => result.value && `https://mc.${props.stack}.marketin
           </template>
           <template v-else-if="step === 'confirm' || step === 'saving'">
             <Button variant="outline" size="sm" class="h-8 text-xs" :disabled="step === 'saving'" @click="step = 'form'">Back</Button>
-            <Button size="sm" class="h-8 text-xs" :disabled="step === 'saving'" @click="create">
+            <Button size="sm" class="h-8 text-xs" :disabled="step === 'saving' || (overwritesExisting && !overwriteOk)" :title="overwritesExisting && !overwriteOk ? 'Tick the overwrite box first' : ''" @click="create">
               <Loader2 v-if="step === 'saving'" class="h-3.5 w-3.5 mr-1 animate-spin" /> {{ checks.some((c) => c.level === 'error') ? 'Create anyway' : 'Create in SFMC' }}
             </Button>
           </template>

@@ -2,7 +2,7 @@
 // (utils/policy.js) and the service worker (background/policy.js). No Vue here.
 export const POLICY_KEYS = [
   'disableHistory', 'disableShare', 'disableFeedback', 'disableFeedbackMetadata',
-  'disableScreenshots', 'disableContacts', 'disableDiagramforce',
+  'disableScreenshots', 'disableContacts', 'disableDiagramforce', 'disableAiAssist',
 ]
 
 /** Only `true` turns a policy on; anything else (missing, false, a string) leaves it off. */

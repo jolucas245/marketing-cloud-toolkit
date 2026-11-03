@@ -35,6 +35,11 @@
       "title": "Turn off Open in Diagramforce",
       "description": "Hides Open in Diagramforce, which sends a query's table and column names to diagramforce.com.",
       "type": "boolean"
+    },
+    "disableAiAssist": {
+      "title": "Turn off AI Assist",
+      "description": "Hides AI Assist in Run Query (Chrome's built-in model, on the computer; nothing is sent over the network).",
+      "type": "boolean"
     }
   }
 }

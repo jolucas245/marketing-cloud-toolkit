@@ -137,13 +137,13 @@ export async function fetchDEMetadata(stack, deName) {
     })
     if (shared) {
       _logInfo(`DE "${deName}" found in ${shared.sourceType === 'sync' ? 'Synchronized' : 'Shared'} Data Extensions - id: ${shared.id}`)
-      return { id: shared.id, name: shared.name, fieldCount: shared.fieldCount ?? 0 }
+      return { id: shared.id, name: shared.name, fieldCount: shared.fieldCount ?? 0, ...(shared.key ?? shared.customerKey ? { key: shared.key ?? shared.customerKey } : {}) }
     }
     if (!items.length) throw new Error(`DE not found: ${deName}`)
   }
   const item = exact ?? items[0]
   _logInfo(`DE "${deName}" found - id: ${item.id}, fields: ${item.fieldCount ?? 0}`)
-  return { id: item.id, name: item.name, fieldCount: item.fieldCount ?? 0 }
+  return { id: item.id, name: item.name, fieldCount: item.fieldCount ?? 0, ...(item.key ?? item.customerKey ? { key: item.key ?? item.customerKey } : {}) }
 }
 
 // ── Field builder ─────────────────────────────────────────

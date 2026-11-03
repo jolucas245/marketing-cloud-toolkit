@@ -63,6 +63,11 @@ watch(deQuery, (q) => {
 
 const partial = computed(() => props.totalCount != null && props.totalCount > props.rows.length)
 
+// Ask before overwriting (feedback #1028): Update changes the rows that share a primary key.
+const updateOk = ref(false)
+watch([mode, existingDE, targetMode], () => { updateOk.value = false })
+const needsUpdateOk = computed(() => targetMode.value === 'existing' && mode.value === 'upsert' && !!existingDE.value)
+
 async function save() {
   error.value = ''
   if (targetMode.value === 'existing' && !existingDE.value) { error.value = 'Pick the data extension.'; return }
@@ -120,6 +125,10 @@ async function save() {
                 <label class="flex items-center gap-1.5"><input v-model="mode" type="radio" value="append" /> Append (add the rows)</label>
                 <label class="flex items-center gap-1.5"><input v-model="mode" type="radio" value="upsert" /> Update (add or update by primary key)</label>
               </div>
+              <label v-if="needsUpdateOk" class="flex items-start gap-2 rounded border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-2 py-1.5">
+                <input v-model="updateOk" type="checkbox" class="mt-0.5" />
+                <span>Rows in <b>{{ existingDE.name }}</b> with the same primary key are <b>overwritten</b> by these. I understand.</span>
+              </label>
             </template>
             <template v-else>
               <label class="block space-y-1">
@@ -141,7 +150,7 @@ async function save() {
         <div class="flex items-center justify-end gap-2 px-4 py-3 border-t border-border shrink-0">
           <template v-if="step !== 'done'">
             <Button variant="outline" size="sm" class="h-8 text-xs" :disabled="step === 'saving'" @click="emit('close')">Cancel</Button>
-            <Button size="sm" class="h-8 text-xs" :disabled="step === 'saving' || !rows.length" @click="save">
+            <Button size="sm" class="h-8 text-xs" :disabled="step === 'saving' || !rows.length || (needsUpdateOk && !updateOk)" :title="needsUpdateOk && !updateOk ? 'Tick the overwrite box first' : ''" @click="save">
               <Loader2 v-if="step === 'saving'" class="h-3.5 w-3.5 mr-1 animate-spin" /> Save rows
             </Button>
           </template>

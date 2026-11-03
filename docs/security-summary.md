@@ -88,6 +88,8 @@ The service worker accepts from content scripts only the messages those scripts 
 | `query-saver-feedback.mathes-btech.workers.dev` | Only when the user sends feedback, after a payload preview | Message, details, kind, page (no IDs), version, optional name and email; opt-in technical details; opt-in screenshot |
 | `diagramforce.com` | Only when the user clicks Open in Diagramforce (new tab, `postMessage`) | Table, column and join names of the query |
 
+AI Assist (Run Query) makes no network call of its own: it uses Chrome's Prompt API (`LanguageModel`), whose model runs on the device; Chrome downloads that model from Google once, outside the extension. The prompt holds the request, the SQL, problems found and table/field names, never results; the user sees it before it runs (`src/utils/aiAssist.js`, `components/workspace/AiAssistDialog.vue`). No permission is needed.
+
 There is no analytics or telemetry (Google Analytics was removed in 2.0.18).
 
 ## Share flow
@@ -118,6 +120,7 @@ Set through Chrome policy for the extension (schema `public/managed_schema.json`
 | `disableScreenshots` | Feedback never offers a screenshot. |
 | `disableContacts` | No Contacts page; Contact Builder's headers are not read. |
 | `disableDiagramforce` | No Open in Diagramforce. |
+| `disableAiAssist` | No AI Assist (Chrome's on-device model). |
 
 ## Supply chain
 

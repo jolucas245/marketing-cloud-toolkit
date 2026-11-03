@@ -43,6 +43,7 @@ The extension reads these keys from Chrome's managed storage (`chrome.storage.ma
 | `disableScreenshots` | Feedback never offers a screenshot. |
 | `disableContacts` | No Contacts page, and Contact Builder's request headers are not read. |
 | `disableDiagramforce` | No Open in Diagramforce (which sends table and column names to diagramforce.com). |
+| `disableAiAssist` | No AI Assist in Run Query (Chrome's built-in model, on the computer; nothing is sent over the network). |
 
 A strict setup for a regulated organization:
 

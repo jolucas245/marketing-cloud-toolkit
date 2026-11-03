@@ -5,8 +5,12 @@ import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } f
 import {
   Pencil, Check, X, Play, ShieldCheck, ChevronDown, LogIn, History,
   FolderOpen, RefreshCw, Search, Share2, Copy, ExternalLink, Maximize2, Minimize2, AlignLeft,
-  Table2, FileOutput, Blocks, Share, Wand2, Users,
+  Table2, FileOutput, Blocks, Share, Wand2, Users, Sparkles, Eye, Rows3, Eraser, ArchiveRestore, TextSearch,
 } from 'lucide-vue-next'
+import AiAssistDialog from './AiAssistDialog.vue'
+import SampleDialog from './SampleDialog.vue'
+import EarlierTextDialog from './EarlierTextDialog.vue'
+import { topPreviewSql, PREVIEW_ROWS } from '../../utils/previewSql.js'
 import { importSqlToBuilder } from '../../utils/builderImport.js'
 import ShareQueryDialog from './ShareQueryDialog.vue'
 import { SHARE_SETTING, shareAllowed } from '../../utils/share.js'
@@ -75,6 +79,7 @@ const {
   relativeDate, queryPickerTree, expandedQaFolders, toggleQaFolder, queryPickerItems,
   copiedText, copyToClipboard,
   cleanQueryText, resolveTargetFields,
+  snapshots, takeSnapshot, restoreSnapshot, readSnapshots,
 } = useQueryPanel({
   queryId: props.queryId,
   stack: toRef(props, 'stack'),
@@ -137,9 +142,77 @@ const deSearchLink = computed(() => currentRun.value?.deName ? `/data-extensions
 // selection still counts as current while the selection is unchanged in the editor.
 const squash = (t) => String(t || '').replace(/\s+/g, ' ').trim()
 const staleResults = computed(() => {
-  const ran = squash(currentRun.value?.queryText)
+  // A preview run keeps the editor text it came from (feedback #1028).
+  const ran = squash(currentRun.value?.editorText ?? currentRun.value?.queryText)
   return !!ran && !squash(queryText.value).includes(ran)
 })
+
+// ── Feedback #1028: Run Query tools after Query Studio 2's list ──
+// Preview with TOP 10: runs the query limited to its first rows.
+function previewTop() {
+  const sql = topPreviewSql(editorRef.value?.selectedText?.() || queryText.value)
+  if (!sql) { formatNote.value = 'Preview needs a SELECT.'; return }
+  runQuery(0, { sql, editorText: queryText.value, preview: true })
+}
+// SQL into a new panel (AI Assist, Sample); Run Query adds a panel when this one has text.
+function openInNewPanel(sql) {
+  showAi.value = false
+  showSample.value = false
+  router.push({ path: '/queries/workspace', query: { sql } })
+}
+// Clear, with Undo (the text is also kept under Earlier text).
+const clearedText = ref('')
+let clearTimer = null
+async function clearQuery() {
+  const text = queryText.value
+  if (!text.trim()) return
+  await takeSnapshot('clear', text)
+  if (!editorRef.value?.replaceAll?.('')) onEditorChange('')
+  clearedText.value = text
+  clearTimeout(clearTimer)
+  clearTimer = setTimeout(() => { clearedText.value = '' }, 20000)
+}
+function undoClear() {
+  const text = clearedText.value
+  clearedText.value = ''
+  if (!editorRef.value?.replaceAll?.(text)) onEditorChange(text)
+}
+// Earlier text (unsaved query recovery).
+const showEarlier = ref(false)
+async function openEarlier() { await readSnapshots(); showEarlier.value = true }
+async function restoreEarlier(snap) {
+  showEarlier.value = false
+  if (!snap) return
+  await takeSnapshot('restore')
+  if (!editorRef.value?.replaceAll?.(snap.text)) onEditorChange(snap.text)
+}
+// AI Assist (Chrome's built-in model). Hidden when an admin policy turns it off.
+const showAi = ref(false)
+const runProblems = computed(() => [
+  ...(stepErrors.value || []).filter(Boolean).map(String),
+  ...(validationResults.value?.fatalError ? [validationResults.value.fatalError] : []),
+  ...((validationResults.value?.errors || []).map((e) => (typeof e === 'string' ? e : e?.message)).filter(Boolean)),
+])
+async function applyAi(sql) {
+  showAi.value = false
+  await takeSnapshot('ai')
+  if (!editorRef.value?.replaceAll?.(sql)) onEditorChange(sql)
+}
+const showSample = ref(false)
+// Opening a query activity over SQL in this panel asks first (ask before overwriting).
+const pendingActivity = ref(null)
+function pickActivity(item) {
+  const here = queryText.value.trim()
+  if (here && here !== String(item.queryText || '').trim()) { pendingActivity.value = item; return }
+  selectQueryActivity(item)
+}
+function confirmActivity(where) {
+  const item = pendingActivity.value
+  pendingActivity.value = null
+  if (!item) return
+  if (where === 'replace') selectQueryActivity(item)
+  else { showQueryPicker.value = false; openInNewPanel(item.queryText || '') }
+}
 
 // Schema search beside the editor (feedback #72), open or closed for every panel.
 const SCHEMA_KEY = 'toolkit_schemaPanel'
@@ -173,6 +246,11 @@ function openSchema() {
       <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!queryText.trim() || activeTab !== 'editor'" title="Format SQL (Shift+Alt+F)" @click="formatQuery"><AlignLeft class="h-3 w-3" /></Button>
       <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!canInteract || activeTab !== 'editor'" title="Shared snippets: SQL your team keeps in this business unit" @click="openSnippets"><Users class="h-3 w-3" /></Button>
       <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!queryText.trim() || activeTab !== 'editor'" title="Fix all: apply every one-click fix the SQL checks offer" @click="fixAllQuery"><Wand2 class="h-3 w-3" /></Button>
+      <Button v-if="!policy.disableAiAssist" variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="activeTab !== 'editor'" title="AI Assist (beta): write or fix this query with Chrome's built-in model, on this computer" @click="showAi = true"><Sparkles class="h-3 w-3" /></Button>
+      <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="activeTab !== 'editor'" :title="`Find and replace (${isMac ? 'Cmd' : 'Ctrl'}+F in the editor)`" @click="editorRef?.openFind?.()"><TextSearch class="h-3 w-3" /></Button>
+      <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!queryText.trim() || activeTab !== 'editor'" title="Clear the SQL (Undo brings it back; it is also kept under Earlier text)" @click="clearQuery"><Eraser class="h-3 w-3" /></Button>
+      <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="activeTab !== 'editor'" title="Earlier text: this panel's SQL from the last 24 hours" @click="openEarlier"><ArchiveRestore class="h-3 w-3" /></Button>
+      <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!canInteract || !queryText.trim() || activeTab !== 'editor'" title="Sample: the first 10 rows of each table in the query, without running it" @click="showSample = true"><Rows3 class="h-3 w-3" /></Button>
       <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!queryText.trim()" title="Open in Query Builder: draw this query as tables and joins" @click="router.push({ path: '/queries/builder', query: { sql: queryText } })"><Blocks class="h-3 w-3" /></Button>
       <Button v-if="!policy.disableDiagramforce" variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!queryText.trim()" title="Open in Diagramforce: the query's lineage (source fields to output columns) as a diagram on diagramforce.com" @click="queryToDiagramforce"><Share class="h-3 w-3" /></Button>
       <InsertFieldsMenu :editor="editorRef" :disabled="activeTab !== 'editor' || isRunning" />
@@ -183,11 +261,15 @@ function openSchema() {
       </Button>
       <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!canInteract || isRunning || !queryText.trim()" title="Save as query activity: a named activity writing to a new or existing data extension" @click="showSaveAs = true"><FileOutput class="h-3 w-3" /></Button>
       <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!canInteract || isRunning" title="Validate query" @click="runValidation"><ShieldCheck class="h-3 w-3" /></Button>
+      <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!canInteract || isRunning || !queryText.trim()" :title="`Preview: run with TOP ${PREVIEW_ROWS} (the selection, or the whole query) to see the first rows quickly`" @click="previewTop"><Eye class="h-3 w-3" /></Button>
       <Button size="sm" class="h-6 text-[10px] px-1 bg-[#0176D3] text-white" :disabled="!canInteract || isRunning" :title="`Run query (${runKey}; with text selected, runs only the selection)`" @click="runQuery(0)"><Play class="h-3 w-3 fill-white" /></Button>
       <Button variant="ghost" size="icon" class="h-6 w-6" :title="activeTab === 'history' ? 'Back to editor' : 'View run history'" @click="activeTab = activeTab === 'history' ? 'editor' : 'history'"><History class="h-3 w-3" /></Button>
       <Button v-if="showClose" variant="ghost" size="icon" class="h-6 w-6" title="Close panel" @click="$emit('close')"><X class="h-3 w-3" /></Button>
     </div>
 
+    <AiAssistDialog v-if="!policy.disableAiAssist" :open="showAi" :sql="queryText" :editor="editorRef" :run-problems="runProblems" @close="showAi = false" @apply="applyAi" @new-panel="openInNewPanel" />
+    <SampleDialog :open="showSample" :stack="stack" :editor="editorRef" @close="showSample = false" @new-panel="openInNewPanel" />
+    <EarlierTextDialog :open="showEarlier" :snapshots="snapshots" :current="queryText" @close="showEarlier = false" @restore="restoreEarlier" />
     <SharedSnippetsDialog :open="showSnippets" :stack="stack" :current-sql="snippetSql" @insert="insertSnippet" @close="showSnippets = false" />
     <SaveResultsDialog :open="showSaveResults" :stack="stack" :rows="resultRows" :total-count="totalRowCount" :sql="currentRun?.queryText || queryText" :default-name="queryName" :resolve-fields="resolveTargetFields" @close="showSaveResults = false" />
     <SaveAsActivityDialog :open="showSaveAs" :stack="stack" :sql="queryText" :default-name="queryName" :resolve-fields="resolveTargetFields" :clean-sql="cleanQueryText" @close="showSaveAs = false" />
@@ -229,6 +311,14 @@ function openSchema() {
             </div>
           </div>
 
+          <div v-if="pendingActivity" class="mx-4 mb-2 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 p-2 text-xs space-y-2" role="alertdialog" aria-label="Replace the SQL in this panel?">
+            <p>This panel already has SQL. Replace it with <b>{{ pendingActivity.name }}</b>? The current text is kept under Earlier text.</p>
+            <div class="flex gap-2">
+              <Button size="sm" class="h-7 text-xs" @click="confirmActivity('replace')">Replace</Button>
+              <Button variant="outline" size="sm" class="h-7 text-xs" @click="confirmActivity('new')">Open in a new panel</Button>
+              <Button variant="ghost" size="sm" class="h-7 text-xs" @click="pendingActivity = null">Cancel</Button>
+            </div>
+          </div>
           <div class="flex-1 overflow-y-auto px-4 pb-4 flex flex-col gap-1 min-h-0">
             <div v-if="queryPickerLoading" class="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
               <span class="inline-block h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -249,7 +339,7 @@ function openSchema() {
                 v-for="item in filteredPickerItems"
                 :key="item.queryDefinitionId"
                 class="flex items-start justify-between gap-3 w-full text-left px-3 py-2.5 rounded-lg border border-transparent hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer bg-transparent"
-                @click="selectQueryActivity(item)"
+                @click="pickActivity(item)"
               >
                 <span class="text-sm font-medium text-foreground truncate flex-1 min-w-0">{{ item.name }}</span>
                 <span class="text-[10px] text-muted-foreground shrink-0 mt-0.5">{{ relativeDate(item.modifiedDate) }}</span>
@@ -268,7 +358,7 @@ function openSchema() {
               :expanded="expandedQaFolders"
               :relative-date="relativeDate"
               @toggle="toggleQaFolder"
-              @select="selectQueryActivity"
+              @select="pickActivity"
             />
           </div>
 
@@ -287,6 +377,7 @@ function openSchema() {
     <!-- Share query: confirm what leaves the browser first (utils/share.js) -->
     <ShareQueryDialog :open="shareOpen" :name="queryName || 'Untitled Query'" :sql="queryText" @close="shareOpen = false" />
 
+    <div v-if="clearedText" class="px-2 py-1 text-[11px] flex items-center gap-2 bg-muted/60 border-b border-border shrink-0">Cleared. <button class="text-primary hover:underline font-medium" @click="undoClear">Undo</button><button class="ml-auto text-muted-foreground hover:text-foreground" title="Dismiss" @click="clearedText = ''"><X class="h-3 w-3" /></button></div>
     <div v-if="formatNote" class="px-2 py-1 text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-b border-border shrink-0">{{ formatNote }}</div>
     <div v-show="activeTab === 'editor'" class="flex-1 flex flex-col min-h-0">
       <div class="overflow-hidden shrink-0 flex min-w-0" :style="{ height: editorHeightPct + '%' }">
@@ -318,6 +409,7 @@ function openSchema() {
               <a v-if="currentRun.activityId" :href="currentRun.activityUrl" target="_blank" rel="noopener" class="ml-1 text-primary hover:underline" @click="openInSfmc($event, currentRun.activityUrl)">SFMC</a>
             </span>
           </div>
+          <div v-if="currentRun?.preview" class="px-2 py-1 border-b text-[10px] text-sky-800 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40">Preview: the first {{ PREVIEW_ROWS }} rows only (the query ran with TOP {{ PREVIEW_ROWS }}). Run it to get every row.</div>
           <div v-if="staleResults" class="px-2 py-1 border-b text-[10px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40">
             The SQL was edited after this run, so these results may not match it. Run again to refresh them.
           </div>

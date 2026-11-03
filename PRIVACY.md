@@ -20,7 +20,8 @@ Publisher: Matheswaran Kanagarajan, an individual developer. Contact: mathes.bte
 ## What is stored in your browser
 
 - Saved queries and, while Keep query history is on, the SQL of each run. A run also records the data extension and query activity it created in Marketing Cloud, so they can be cleaned up later.
-- If you turn them on: saved email versions (at most 10 per email), saved Query and Script activity versions, and queries you ran in Query Studio.
+- Unless you turn them off: saved email versions (at most 10 per email), saved Query and Script activity versions, and queries you ran in Query Studio.
+- Earlier text: copies of each Run Query panel's SQL from the last 24 hours (taken before Clear, opening a query activity, AI Assist and Restore, and every few minutes while typing), deleted after 24 hours.
 - Query Builder drafts, Where used scans (names and SQL of Marketing Cloud items, used to show what depends on what), watched automations and journeys, and your settings.
 - **Query results are never stored in your browser.** They stay in Marketing Cloud, in the data extension the query wrote to.
 - Settings > Storage > Clear all deletes everything the extension stores. Removing the extension deletes it too.
@@ -31,11 +32,12 @@ Publisher: Matheswaran Kanagarajan, an individual developer. Contact: mathes.bte
 - **Einstein activity icons.** Journey previews can load icon images from HTTPS URLs under `sfmc-einstein.com` supplied in the activity definition. These image requests send no referrer. The built-in icon remains available while the image loads or if it fails to load.
 - **Share (shown by default; nothing is sent until you confirm).** When you share a query, its name and SQL are sent to the Toolkit's share service (`sfmc-share-worker.mathes-btech.workers.dev`, run on Cloudflare Workers). Anyone with the link can read it for 24 hours, after which it is deleted. Before anything is sent, the extension shows exactly what will be sent and asks you to confirm. No results, data extension rows or account details are sent. The share service does not store who sent it.
 - **Feedback (only when you send it).** The feedback form sends your message, the kind of feedback, the page you were on (without record IDs), the extension version and, only if you fill them in, your name and email. Technical details (browser, language, window size, Marketing Cloud stack and the status codes of recent failed calls) and a screenshot are added only if you choose them; before sending, the form shows exactly what will be sent. Technical details never include business unit names or IDs, SQL, results, record names or Marketing Cloud addresses. Feedback is stored in a Cloudflare D1 database (`query-saver-feedback.mathes-btech.workers.dev`), read only by the developer, and deleted after 180 days. IP addresses are not stored.
+- **AI Assist: nothing is sent.** AI Assist in Run Query uses the language model built into Chrome (Gemini Nano, through Chrome's Prompt API), which runs on your computer. The request, the SQL, the problems found and the names and fields of the tables you list are given to that model on your computer and are not sent over the network by the extension. Query results are never included. Chrome downloads the model once from Google when you first use it; Google's terms for Chrome's built-in AI apply to that download.
 - **Diagramforce (only when you click Open in Diagramforce).** The query's table, column and join names are passed to diagramforce.com, a free diagram editor by Mateusz Dabrowski, in a new tab. That site's own privacy policy applies.
 
 ## Controls for organizations
 
-Administrators can turn features off for everyone through Chrome policy (managed storage): local query history and the capture features, Share, the feedback form, technical details in feedback, screenshots in feedback, the Contacts page, and Open in Diagramforce. See `docs/enterprise-deployment.md` in the source repository.
+Administrators can turn features off for everyone through Chrome policy (managed storage): local query history and the capture features, Share, the feedback form, technical details in feedback, screenshots in feedback, the Contacts page, Open in Diagramforce, and AI Assist. See `docs/enterprise-deployment.md` in the source repository.
 
 ## Retention and deletion
 

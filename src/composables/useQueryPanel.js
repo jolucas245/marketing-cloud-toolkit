@@ -5,6 +5,7 @@ import { DATA_VIEW_FIELDS, isSkippableDE } from '../utils/dataViews.js'
 import { bareTableName } from '../utils/schemaCatalog.js'
 import { openTab } from '../utils/openTab.js'
 import { useStoredSetting } from './useStoredSetting.js'
+import { SNAPSHOTS_KEY, addSnapshot, pruneSnapshots, typingSnapshotDue } from '../utils/textSnapshots.js'
 import { HISTORY_SETTING, historyAllowed, runsForStorage } from '../utils/history.js'
 import {
   fetchDEMetadata, fetchDEFields, buildDEFields,
@@ -192,23 +193,69 @@ export function useQueryPanel(options) {
   onUnmounted(() => {
     pollAborted = true
     if (promptResolver) promptResolver(false)
-    clearTimeout(saveTimer)
+    flushSave() // a pending save is written, not dropped (feedback #1028)
+    window.removeEventListener('pagehide', flushSave)
     clearInterval(elapsedTimer)
     document.removeEventListener('mousemove', onResizeMove)
     document.removeEventListener('mouseup', onResizeEnd)
   })
 
   // ── Auto-save ─────────────────────────────────────────────
+  let pendingText = null
+  function writeText(text) {
+    const updated = { ...queryRecord.value, queryText: text }
+    queryRecord.value = updated
+    return new Promise((resolve) => chrome.storage.local.set({ [queryId]: updated }, resolve))
+  }
   function onEditorChange(newText) {
     queryText.value  = newText
     saveStatus.value = 'saving'
+    pendingText = newText
     clearTimeout(saveTimer)
     saveTimer = setTimeout(async () => {
-      const updated = { ...queryRecord.value, queryText: newText }
-      queryRecord.value = updated
-      await new Promise((resolve) => chrome.storage.local.set({ [queryId]: updated }, resolve))
+      pendingText = null
+      await writeText(newText)
       saveStatus.value = 'saved'
+      if (typingSnapshotDue(snapshots.value, newText)) takeSnapshot('typing', newText)
     }, 500)
+  }
+  // Closing the panel or the tab within the save delay still saves the text.
+  function flushSave() {
+    clearTimeout(saveTimer)
+    if (pendingText == null) return
+    const text = pendingText
+    pendingText = null
+    try { writeText(text) } catch { /* extension context gone */ }
+  }
+  try { window.addEventListener('pagehide', flushSave) } catch { /* no window */ }
+
+  // ── Earlier text (feedback #1028) ─────────────────────────
+  // Copies of this panel's SQL from the last 24 hours (utils/textSnapshots.js).
+  const snapshots = ref([])
+  function readSnapshots() {
+    return new Promise((resolve) => chrome.storage.local.get(SNAPSHOTS_KEY, (r) => {
+      const all = r?.[SNAPSHOTS_KEY] || {}
+      snapshots.value = pruneSnapshots(all[queryId])
+      resolve(all)
+    }))
+  }
+  async function takeSnapshot(reason, text = queryText.value) {
+    try {
+      const all = await readSnapshots()
+      const list = addSnapshot(all[queryId], text, reason)
+      snapshots.value = list
+      // Old copies of every panel are dropped on the way.
+      const next = {}
+      for (const [k, v] of Object.entries(all)) { const kept = pruneSnapshots(v); if (kept.length) next[k] = kept }
+      if (list.length) next[queryId] = list
+      else delete next[queryId]
+      await new Promise((resolve) => chrome.storage.local.set({ [SNAPSHOTS_KEY]: next }, resolve))
+    } catch { /* not in an extension */ }
+  }
+  /** Puts an earlier text back; the text it replaces is kept as a copy first. */
+  async function restoreSnapshot(snap) {
+    await takeSnapshot('restore')
+    onEditorChange(snap.text)
   }
 
   // ── Name editing ──────────────────────────────────────────
@@ -354,7 +401,8 @@ export function useQueryPanel(options) {
     openQueryPicker()
   }
 
-  function selectQueryActivity(item) {
+  async function selectQueryActivity(item) {
+    await takeSnapshot('open')
     onEditorChange(item.queryText || '')
     if (item.name) {
       queryName.value = item.name
@@ -487,10 +535,18 @@ export function useQueryPanel(options) {
   // The SQL of the current run: the editor's text, or only the selected part when
   // run with Cmd/Ctrl+Enter on a selection (feedback #75). Retry keeps it.
   let runText = ''
+  // Preview with TOP 10 (feedback #1028): the run's SQL differs from the editor's, so the
+  // run keeps the editor text it came from for the "edited since this run" check.
+  let runEditorText = null
+  let runPreview = false
 
   async function runQuery(fromStep = 0, opts = {}) {
     if (isRunning.value) return
-    if (fromStep <= 0 || !runText) runText = typeof opts?.sql === 'string' && opts.sql.trim() ? opts.sql : queryText.value
+    if (fromStep <= 0 || !runText) {
+      runText = typeof opts?.sql === 'string' && opts.sql.trim() ? opts.sql : queryText.value
+      runEditorText = typeof opts?.editorText === 'string' ? opts.editorText : null
+      runPreview = !!opts?.preview
+    }
     isRunning.value        = true
     resultsMode.value      = 'running'
     completedSummary.value = null
@@ -707,6 +763,8 @@ export function useQueryPanel(options) {
         runAt:        Date.now(),
         stack:        stack.value,
         queryText:    runText,
+        ...(runEditorText != null ? { editorText: runEditorText } : {}),
+        ...(runPreview ? { preview: true } : {}),
         deId:         createdDeId.value,
         deKey:        createdDeKey.value,
         deName:       createdDeName.value,
@@ -1027,7 +1085,7 @@ export function useQueryPanel(options) {
     })
   }
 
-  onMounted(() => loadQueryRecord())
+  onMounted(() => { loadQueryRecord(); readSnapshots().catch(() => undefined) })
 
   return {
     queryId, queryRecord, queryText, queryName, saveStatus,
@@ -1047,5 +1105,6 @@ export function useQueryPanel(options) {
     showQueryPicker, queryPickerLoading, queryPickerSearch, queryPickerError,
     filteredPickerItems, openQueryPicker, refreshQueryPicker, selectQueryActivity,
     relativeDate, queryPickerTree, expandedQaFolders, toggleQaFolder, queryPickerItems,
+    snapshots, takeSnapshot, restoreSnapshot, readSnapshots,
   }
 }

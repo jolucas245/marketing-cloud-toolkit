@@ -10,6 +10,9 @@ import { planInsertAllFields, fieldRef, tableRef } from '@/utils/insertFields.js
 import { bareTableName } from '@/utils/schemaCatalog.js'
 import { referencedTables } from '@/utils/sqlContext.js'
 import { planJoin } from '@/utils/joinInsert.js'
+import { openSearchPanel } from '@codemirror/search'
+import { lintSql } from '@/utils/sqlLint.js'
+import { disabledRules } from '@/editor/lintSettings.js'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -145,7 +148,38 @@ function fixAll() {
   return fixAllCommand(view.value, catalog)
 }
 
-defineExpose({ joinTable, fixAll, format, insertAllFields, tablesInQuery, searchTables, selectedText, insertText, fieldFor })
+/** Opens CodeMirror's find and replace panel (also Ctrl/Cmd+F in the editor; feedback #1028). */
+function openFind() {
+  const v = view.value
+  if (!v) return false
+  v.focus()
+  return openSearchPanel(v)
+}
+
+/**
+ * Replaces the whole text as one edit, so Ctrl/Cmd+Z in the editor brings the old
+ * text back (Clear and AI Assist, feedback #1028).
+ */
+function replaceAll(text) {
+  const v = view.value
+  if (!v) return false
+  v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: text }, selection: { anchor: text.length } })
+  v.focus()
+  return true
+}
+
+/** Fields of a table as the catalog knows them ([{ name, type }]), or []. */
+function fieldsOf(tableName) {
+  return catalog.fieldsFor(tableName)
+}
+
+/** The SQL checks' findings as text ("QS012: ..."), errors and warnings only. */
+function problems() {
+  const sql = view.value?.state.doc.toString() || props.modelValue || ''
+  return lintSql(sql, { disabled: [...disabledRules()] }).filter((d) => d.severity !== 'info').map((d) => `${d.code}: ${d.message}`)
+}
+
+defineExpose({ joinTable, fixAll, format, insertAllFields, tablesInQuery, searchTables, selectedText, insertText, fieldFor, openFind, replaceAll, fieldsOf, problems })
 </script>
 
 <template>

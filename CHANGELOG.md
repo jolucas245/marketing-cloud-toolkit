@@ -10,6 +10,14 @@ All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are pub
 - Contact journeys: each entry into a journey (definitionInstanceId) shows as one flow, such as Entry attempted, Entry, Journey started, Email, Left the journey, with times on hover; pick an entry to see its path on the canvas (feedback #1020). Results stay while you visit other pages (#1017). Download menu (Markdown, Word, PDF, HTML, with the canvas and the path) and CSV of every step (#1019).
 - Journey HTML and PDF downloads draw the new journey canvas (shapes, icons, connectors, path labels, join points).
 - Automation overview: Unwatch per watched automation, Unwatch all, Unwatch the ones not found (feedback #1027).
+- Run Query (feedback #1028):
+  - AI Assist (beta): write a query from a description, or fix the one in the panel, with Chrome's built-in model (Gemini Nano). It runs on the computer: nothing is sent over the network and query results are never in the prompt. The whole prompt is shown before it runs, the answer is a diff you apply or open in a new panel. Needs Chrome 138 or later on a desktop with enough memory; admins can turn it off (`disableAiAssist`).
+  - Preview: runs the query (or the selection) with TOP 10 to see the first rows quickly.
+  - Sample: the first 10 rows of each data extension in the query, read without running it; data views get a TOP 10 query in a new panel.
+  - Find and replace button (also Ctrl/Cmd+F in the editor).
+  - Clear, with Undo.
+  - Earlier text: the panel's SQL from the last 24 hours (kept before Clear, opening a query activity, AI Assist and Restore, and every few minutes while typing), with a diff and Restore.
+  - Ask before overwriting: opening a query activity into a panel with SQL asks to replace it or open a new panel; Save as query activity into an existing data extension with Overwrite, and Save to data extension with Update, need a tick first.
 
 **Changed:**
 - Save email versions, Save Query and Script activity versions, Share queries and Save Query Studio runs are on by default (feedback #1021). Each can be turned off in Settings, admin policies still turn them off, Share still shows what will be sent and asks first, and Query Studio still needs Chrome's permission once. PRIVACY.md and the security summary are updated.
@@ -20,6 +28,7 @@ All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are pub
 - Contact journeys could not draw a journey when Journey Builder answered 404 for the id in the history (feedback #1024): it now looks the journey up by key and by name, and says when the drawing is from another version.
 - Contacts listed one contact twice, once per address (email, mobile); they are now one contact with its addresses (feedback #1022/#1023).
 - Email validation by contact checked a Contact Builder formula value such as {toLower(@EmailAddress)} as an address (feedback #1022).
+- Run Query: text typed just before closing a panel or the tab could be lost (the save waited 500 ms and was cancelled on close); it is now written.
 
 ## 2.0.18 (2026-11-02)
 
