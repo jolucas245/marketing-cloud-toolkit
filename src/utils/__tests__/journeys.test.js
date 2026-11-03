@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { journeyGraph, layoutJourney, describeJourneyNode, nodeSummary, nodeKind, outcomeLabel, journeyDoc, nodeEmailId, describeCriteria } from '../journeys.js'
 import { toMarkdown, toHtml } from '../exportDoc.js'
-import { journeySvg } from '../journeySvg.js'
+import { journeySvg, wrapText } from '../journeySvg.js'
+import { journeyCanvasModel } from '../journeyCanvas.js'
 
 // Entry → Email → Decision (Yes → Wait → Email 2; No → exit)
 const journey = {
@@ -101,14 +102,36 @@ describe('journey node content', () => {
     const l = layoutJourney(g)
     for (const o of ['horizontal', 'vertical']) {
       const svg = journeySvg(g, l, o)
-      expect(svg.match(/<rect /g).length).toBe(g.nodes.length)
-      expect(svg.match(/<path d=/g).length).toBe(g.edges.length + 1) // plus the arrowhead
+      const model = journeyCanvasModel(g, l, o)
+      // One group per activity, one connector per edge, drawn with the canvas's own routes.
+      expect(svg.match(/<g class="activity"/g).length).toBe(model.nodes.filter((n) => n.type === 'journeyActivity').length)
+      expect(svg.match(/stroke="#c4d8e8"/g).length).toBe(model.edges.length)
+      for (const e of model.edges) expect(svg).toContain(`<path d="${e.data.path}"`)
+      for (const n of model.nodes.filter((x) => x.type === 'journeyActivity')) expect(svg).toContain(`fill="${n.data.visual.color}"`)
+      expect(svg).toContain('Opened')
       expect(svg).toContain('Welcome &lt;b&gt;email&lt;/b&gt;')
       expect(svg).not.toContain('<b>')
     }
     const doc = journeyDoc(journey, g, l, journeySvg(g, l))
     expect(toHtml(doc)).toContain('<div class="diagram"><svg')
     expect(toMarkdown(doc)).toContain('_Journey diagram: in the HTML and PDF downloads._')
+  })
+
+  it('never loads remote Einstein icons in a download', () => {
+    const icon = 'https://eef.us.sfmc-einstein.com/activity/static/media/EEF-Split.png'
+    const g = journeyGraph({ ...journey, activities: journey.activities.map((a, i) => (i === 1 ? { ...a, type: 'EINSTEINSPLIT', metaData: { icon } } : a)) })
+    const svg = journeySvg(g, layoutJourney(g))
+    expect(svg).not.toContain('sfmc-einstein')
+    expect(svg).not.toContain('<image')
+    expect(svg).toContain('fill="#032d60"') // Einstein colour, built-in icon
+  })
+
+  it('wraps activity names to two lines like the canvas', () => {
+    expect(wrapText('Welcome email')).toEqual(['Welcome email'])
+    expect(wrapText('Send the second reminder email to everyone')).toEqual(['Send the second reminder', 'email to everyone'])
+    expect(wrapText('Send the second reminder email to everyone who did not open')).toEqual(['Send the second reminder', 'email to everyone who…'])
+    expect(wrapText('A'.repeat(30), 24, 2)).toEqual(['A'.repeat(24), 'AAAAAA'])
+    expect(wrapText('')).toEqual([])
   })
 })
 
