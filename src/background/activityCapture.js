@@ -82,7 +82,7 @@ export function captureActivity(details) {
 
 async function store(hit, key, saved, beforePromise, savedAt) {
   const prefs = await storageGet('local', [ACTIVITY_SAVER_SETTING, ACTIVITY_MAX_SETTING, key])
-  if (prefs[ACTIVITY_SAVER_SETTING] !== true) return // off unless turned on (security review)
+  if (prefs[ACTIVITY_SAVER_SETTING] === false) return // on unless turned off (feedback #1021: on by default; an admin policy can still turn it off)
   const beforeObj = pickActivity(hit.kind, await beforePromise)
   const incoming = []
   if (beforeObj) incoming.push(makeVersion(beforeObj, { savedAt: savedAt - 1, source: 'before-save', stack: hit.stack }))

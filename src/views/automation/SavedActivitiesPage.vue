@@ -1,4 +1,5 @@
 <script setup>
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 // SQL Query and Script activities saved in Automation Studio, with every version the
 // service worker captured (feedback #122; background/activityCapture.js). The list at
 // /saved-activities, one activity at /saved-activities/<record key>: its versions, the
@@ -22,7 +23,7 @@ import {
 
 const route = useRoute()
 const router = useRouter()
-const { value: saverEnabled } = useStoredSetting(ACTIVITY_SAVER_SETTING, false, (v) => v === true)
+const { value: saverEnabled } = useStoredSetting(ACTIVITY_SAVER_SETTING, true, (v) => v !== false)
 
 const records = ref([])
 const loaded = ref(false)
@@ -240,7 +241,7 @@ const automationStudioUrl = (stack) => `https://mc.${stack}.exacttarget.com/clou
             <div v-else-if="restoreState === 'done'" class="mx-4 mt-3 flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400"><Check class="h-3 w-3" /> Restored in Automation Studio.</div>
             <div v-else-if="restoreState?.error" class="mx-4 mt-3 flex items-start gap-1.5 text-xs text-red-700 dark:text-red-400 rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 px-3 py-2" role="alert">
               <AlertCircle class="h-3.5 w-3.5 shrink-0 mt-px" />
-              <span class="flex-1 wrap-break-word">Could not restore: {{ restoreState.error }}
+              <span class="flex-1 wrap-break-word">Could not restore: {{ restoreState.error }}<ReportErrorButton :error="`Could not restore: ${restoreState.error}`" />
                 <a :href="automationStudioUrl(selected.stack || record.stack)" target="_blank" rel="noopener" class="underline inline-flex items-center gap-0.5 ml-1">Open Automation Studio <ExternalLink class="h-2.5 w-2.5" /></a>
               </span>
               <button class="underline" @click="restoreState = 'idle'">Close</button>

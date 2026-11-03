@@ -3,6 +3,7 @@
 // addresses of contacts found by Contact Key, or a data extension column. For a data
 // extension the results go into three of its fields (matched by primary key) or into
 // a new data extension. One SFMC call per address.
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, ref, watch } from 'vue'
 import { Loader2, MailCheck, Upload, Download, Square, Database, CheckCircle2, XCircle, HelpCircle } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
@@ -349,7 +350,7 @@ const openRow = ref(null)
             <div v-if="!deSearching && !deResults.length" class="p-1 text-muted-foreground italic">No matches</div>
           </div>
         </div>
-        <p v-if="fieldsError" class="text-red-600">{{ fieldsError }}</p>
+        <p v-if="fieldsError" class="text-red-600">{{ fieldsError }}<ReportErrorButton /></p>
         <template v-if="de && fields.length">
           <label class="flex items-center gap-2">Email field
             <select v-model="emailField" class="h-8 rounded-md border border-border bg-background px-2" :disabled="busy">
@@ -404,7 +405,7 @@ const openRow = ref(null)
         </div>
         <ProgressBar :value="progress.done" :max="progress.total" />
       </div>
-      <p v-if="error" class="text-red-600 text-xs" role="alert">{{ error }}</p>
+      <p v-if="error" class="text-red-600 text-xs" role="alert">{{ error }}<ReportErrorButton /></p>
     </section>
 
     <section v-if="shown.length" class="rounded-lg border border-border bg-card p-3 space-y-2 text-xs">

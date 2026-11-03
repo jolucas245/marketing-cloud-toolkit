@@ -1,6 +1,7 @@
 <script setup>
 // Reorder columns (feedback #1013): drag the fields (or use the arrows) into a new
 // order, then save it in place or make a copy of the DE in that order (utils/deReorder.js).
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, onMounted, ref } from 'vue'
 import { ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, GripVertical, Loader2, X, RotateCcw } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
@@ -91,7 +92,7 @@ function close() { if (!busy.value) emit('close') }
       </div>
 
       <div class="flex-1 overflow-auto px-4 py-3 space-y-3">
-        <p v-if="loadError" class="text-red-600">Could not load the fields: {{ loadError }}</p>
+        <p v-if="loadError" class="text-red-600">Could not load the fields: {{ loadError }}<ReportErrorButton /></p>
         <div v-else-if="phase === 'loading'" class="flex items-center gap-2 text-muted-foreground"><Loader2 class="h-3.5 w-3.5 animate-spin" /> Loading fields…</div>
 
         <template v-else-if="phase === 'done'">

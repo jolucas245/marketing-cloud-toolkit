@@ -32,14 +32,29 @@ export async function searchContactKey(stack, contactKey, page = 1) {
 }
 
 const valueOf = (v) => v?.innerValue ?? v?.value ?? v?.displayValue ?? ''
+// A plain value, or { type, value } as the address search sends IDs and keys.
+const scalar = (x) => (x && typeof x === 'object' ? valueOf(x) : x) ?? ''
 
 /**
  * Contacts from a search response: `addresses` (or `items`), each with its key, ID,
  * dates and the attribute values Contact Builder sent (valueSets[].values[]).
  */
+// addressTypeID in the address search (seen 2026-11-03: 1 holds the email address,
+// 4 the mobile number); others are shown by number.
+const ADDRESS_TYPES = { 1: 'Email', 4: 'Mobile' }
+export const addressTypeName = (id) => ADDRESS_TYPES[id] || (id != null ? `Address type ${id}` : 'Address')
+
+/**
+ * Contacts from Contact Builder's address search. It returns one record per address
+ * (email, mobile, ...) of a contact, so records with the same contact ID are merged
+ * into one contact (feedback #1022/#1023): its values from every address, its
+ * `addresses`, and `raws` with every record.
+ */
 export function parseContacts(data) {
   const list = data?.addresses || data?.items || data?.contacts || []
-  const contacts = list.map((c) => {
+  const byId = new Map()
+  const contacts = []
+  for (const c of list) {
     const values = []
     for (const set of c.valueSets || []) {
       for (const v of set.values || []) {
@@ -48,17 +63,26 @@ export function parseContacts(data) {
       }
     }
     const keyValue = values.find((v) => /^contact ?key$/i.test(v.name))?.value
-    return {
-      contactKey: c.contactKey ?? keyValue ?? '',
-      contactId: c.contactID ?? c.contactId ?? c.id ?? '',
-      createdDate: c.createdDate || '',
-      modifiedDate: c.modifiedDate || '',
-      values,
-      raw: c,
+    const contactKey = scalar(c.contactKey) || keyValue || ''
+    const contactId = scalar(c.contactID ?? c.contactId ?? c.id)
+    const address = scalar(c.addressKey) || scalar(c.addressID)
+    const addr = c.addressTypeID != null || address ? { type: addressTypeName(c.addressTypeID), typeId: c.addressTypeID ?? null, address: address || '' } : null
+    const id = String(contactId || contactKey)
+    const known = id && byId.get(id)
+    if (known) {
+      const have = new Set(known.values.map((v) => `${v.set}|${v.name}|${v.value}`))
+      for (const v of values) if (!have.has(`${v.set}|${v.name}|${v.value}`)) known.values.push(v)
+      if (addr) known.addresses.push(addr)
+      known.raws.push(c)
+      if (c.modifiedDate && c.modifiedDate > known.modifiedDate) known.modifiedDate = c.modifiedDate
+      continue
     }
-  })
+    const contact = { contactKey, contactId, createdDate: c.createdDate || '', modifiedDate: c.modifiedDate || '', values, addresses: addr ? [addr] : [], raw: c, raws: [c] }
+    if (id) byId.set(id, contact)
+    contacts.push(contact)
+  }
   const total = Number(data?.totalCount ?? data?.count)
-  return { contacts, total: Number.isFinite(total) ? total : contacts.length }
+  return { contacts, total: Number.isFinite(total) && total >= contacts.length ? total : contacts.length }
 }
 
 /** Keys from pasted text or a file: one per line, or separated by commas, semicolons or tabs. Duplicates removed. */

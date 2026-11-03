@@ -4,6 +4,7 @@
 // length, primary key, required, default), set the data extension's name, folder
 // (the last one used is remembered per stack and BU), sendable, testable and data
 // retention, review, then create it in SFMC. The sample rows can be added too.
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import { computed, ref, watch } from 'vue'
 import { Loader2, Upload, Plus, Trash2, ArrowUp, ArrowDown, ExternalLink, FileText, AlertTriangle, RotateCcw } from 'lucide-vue-next'
@@ -252,7 +253,7 @@ const maxMB = Math.round(MAX_SAMPLE_BYTES / 1048576)
         </div>
 
         <p class="text-[11px] text-muted-foreground">Only the start of a sample is read: the first {{ MAX_SAMPLE_ROWS.toLocaleString() }} rows, {{ maxMB }} MB at most. Values stay in this browser unless you choose to add them to the new data extension.</p>
-        <p v-if="readError" class="text-xs text-red-600" role="alert">{{ readError }}</p>
+        <p v-if="readError" class="text-xs text-red-600" role="alert">{{ readError }}<ReportErrorButton /></p>
         <p v-if="sample" class="text-xs text-muted-foreground">
           Read {{ sample.rows.length.toLocaleString() }} row(s) and {{ sample.columns.length }} column(s){{ fileName ? ` from ${fileName}` : '' }}{{ sample.sheet ? ` (sheet ${sample.sheet})` : '' }}{{ sample.truncated ? '; the rest of the file was not read' : '' }}.
         </p>
@@ -364,7 +365,7 @@ const maxMB = Math.round(MAX_SAMPLE_BYTES / 1048576)
       <div v-if="fields.length" class="flex items-center gap-2">
         <Button size="sm" class="h-8 text-xs" :disabled="!stack" @click="review">Review</Button>
         <span v-if="!stack" class="text-xs text-muted-foreground">Connect to Marketing Cloud first.</span>
-        <span v-if="error" class="text-xs text-red-600" role="alert">{{ error }}</span>
+        <span v-if="error" class="text-xs text-red-600" role="alert">{{ error }}<ReportErrorButton /></span>
       </div>
     </template>
 
@@ -382,7 +383,7 @@ const maxMB = Math.round(MAX_SAMPLE_BYTES / 1048576)
         Also add the {{ loadPlan.items.length.toLocaleString() }} sample row(s){{ loadPlan.skipped ? ` (${loadPlan.skipped.toLocaleString()} with values that do not fit are left out)` : '' }}
       </label>
       <ProgressBar v-if="step === 'saving'" indeterminate :label="sample && loadRows ? 'Creating the data extension and sending rows' : 'Creating the data extension'" class="max-w-md" />
-      <p v-if="error" class="text-red-600" role="alert">{{ error }}</p>
+      <p v-if="error" class="text-red-600" role="alert">{{ error }}<ReportErrorButton /></p>
       <div v-if="textFix && step !== 'saving'" class="rounded-md border border-border bg-muted/40 p-2 space-y-1.5">
         <p>SFMC would not take <b>{{ textFix.name.trim() }}</b> as {{ textFix.type }}{{ textFix.isPrimaryKey ? ' while it is the primary key' : '' }}. A Text field of 254 characters holds the same values (254 is the longest email address).</p>
         <Button variant="outline" size="sm" class="h-7 text-xs" @click="retryAsText">Make {{ textFix.name.trim() }} Text (254) and try again</Button>
@@ -399,7 +400,7 @@ const maxMB = Math.round(MAX_SAMPLE_BYTES / 1048576)
     <section v-else-if="step === 'done' && result" class="rounded-lg border border-border bg-card p-3 space-y-2 text-xs" role="status">
       <h2 class="font-semibold">Created {{ result.de.name }}</h2>
       <p v-if="result.loaded">{{ result.loaded.toLocaleString() }} row(s) sent to SFMC; it adds them in the background, so they can take a minute to show.<span v-if="result.skipped"> {{ result.skipped.toLocaleString() }} row(s) were left out.</span></p>
-      <p v-if="result.loadError" class="text-red-600" role="alert">The rows were not added: {{ result.loadError }}</p>
+      <p v-if="result.loadError" class="text-red-600" role="alert">The rows were not added: {{ result.loadError }}<ReportErrorButton /></p>
       <div class="flex flex-wrap gap-3">
         <a v-if="deUrl" :href="deUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-primary hover:underline" @click="openInSfmc($event, deUrl)"><ExternalLink class="h-3.5 w-3.5" /> Open in Contact Builder</a>
         <router-link :to="toolkitLink" class="inline-flex items-center gap-1 text-primary hover:underline">Find it in Data Extensions</router-link>

@@ -1,6 +1,7 @@
 <script setup>
 // A CloudPage's preview, source and raw asset (feedback #1010, #1011). The preview is
 // a sandboxed frame without scripts; the source is read only.
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, ref, watch } from 'vue'
 import { X, Loader2, Copy, Download } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
@@ -69,7 +70,7 @@ function download() {
       </div>
       <div class="flex-1 min-h-0 flex flex-col">
         <div v-if="loading" class="m-auto flex items-center gap-2 text-muted-foreground text-xs"><Loader2 class="h-4 w-4 animate-spin" /> Reading the page…</div>
-        <p v-else-if="error" class="m-4 text-xs text-red-600">{{ error }}</p>
+        <p v-else-if="error" class="m-4 text-xs text-red-600">{{ error }}<ReportErrorButton /></p>
         <template v-else-if="src">
           <p v-for="(e, i) in src.errors" :key="i" class="mx-4 mt-2 text-xs text-amber-700">{{ e }}</p>
           <template v-if="tab === 'preview'">

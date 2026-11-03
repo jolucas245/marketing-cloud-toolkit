@@ -15,6 +15,7 @@
 // The data-view SQL (`journeySendsSql`) is the fallback: email sends only, from _Sent
 // joined to _JourneyActivity and _Journey.
 import { sfmcFetch } from './sfmcApi.js'
+import { fetchJourney } from './journeys.js'
 
 const JB = (stack) => `https://jbinteractions.${stack}.marketingcloudapps.com/fuelapi/interaction/v1`
 
@@ -83,6 +84,8 @@ export function parseHistoryItem(it) {
     definitionKey: String(pick(it, 'definitionKey', 'DefinitionKey', 'interactionKey') ?? ''),
     journeyName: String(pick(it, 'definitionName', 'DefinitionName', 'interactionName', 'journeyName') ?? ''),
     version: pick(it, 'version', 'Version', 'versionNumber', 'interactionVersion'),
+    // One contact's run through the journey (feedback #1020): every row of one entry shares it.
+    instanceId: String(pick(it, 'definitionInstanceId', 'DefinitionInstanceId', 'definitionInstanceID', 'instanceId') ?? ''),
     activityId: String(pick(it, 'activityId', 'ActivityId', 'activityID') ?? ''),
     activityKey: String(pick(it, 'activityKey', 'ActivityKey') ?? ''),
     activityName: String(pick(it, 'activityName', 'ActivityName') ?? ''),
@@ -112,12 +115,51 @@ export function groupByJourney(items) {
     g.first = g.steps[0]?.time || ''
     g.last = g.steps[g.steps.length - 1]?.time || ''
     g.failed = g.steps.filter((s) => /fail|error/i.test(s.status)).length
+    g.entries = splitEntries(g.steps)
     return g
   })
   return out.sort((a, b) => timeOf({ time: b.last }) - timeOf({ time: a.last }))
 }
 
-const timeOf = (s) => { if (s.ms) return s.ms; const t = Date.parse(s.time); return Number.isFinite(t) ? t : 0 }
+/**
+ * A journey's steps split into entries by definitionInstanceId (feedback #1020): each
+ * entry is one run of the contact through the journey, steps oldest first. Rows
+ * without an instance id join the entry whose time range they fall in, else their own.
+ * Returns [{ id, steps, first, last, failed }] newest first.
+ */
+export function splitEntries(steps) {
+  const byId = new Map()
+  const loose = []
+  for (const s of steps) {
+    if (!s.instanceId) { loose.push(s); continue }
+    if (!byId.has(s.instanceId)) byId.set(s.instanceId, [])
+    byId.get(s.instanceId).push(s)
+  }
+  const entries = [...byId.entries()].map(([id, list]) => ({ id, steps: list }))
+  for (const s of loose) {
+    const t = timeOf(s)
+    const home = entries.find((e) => t >= timeOf(e.steps[0]) && t <= timeOf(e.steps[e.steps.length - 1]))
+    if (home) home.steps.push(s)
+    else entries.push({ id: '', steps: [s] })
+  }
+  // Loose rows outside every entry: one entry for them all.
+  const merged = []
+  let other = null
+  for (const e of entries) {
+    if (e.id) merged.push(e)
+    else if (other) other.steps.push(...e.steps)
+    else { other = e; merged.push(e) }
+  }
+  for (const e of merged) {
+    e.steps.sort((a, b) => timeOf(a) - timeOf(b))
+    e.first = e.steps[0]?.time || ''
+    e.last = e.steps[e.steps.length - 1]?.time || ''
+    e.failed = e.steps.filter((s) => /fail|error/i.test(s.status)).length
+  }
+  return merged.sort((a, b) => timeOf({ time: b.last, ms: b.steps[b.steps.length - 1]?.ms }) - timeOf({ time: a.last, ms: a.steps[a.steps.length - 1]?.ms }))
+}
+
+function timeOf(s) { if (s.ms) return s.ms; const t = Date.parse(s.time); return Number.isFinite(t) ? t : 0 }
 
 // Rows Journey Builder logs around entry and exit that are not canvas activities
 // (seen live 2026-11-02): an entry attempt with no activity, the Trigger (entry event),
@@ -200,4 +242,82 @@ FROM _Sent s
 INNER JOIN _JourneyActivity ja ON ja.JourneyActivityObjectID = s.TriggererSendDefinitionObjectID
 INNER JOIN _Journey j ON j.VersionID = ja.VersionID
 WHERE s.SubscriberKey = ${sqlText(contactKey)}`
+}
+
+const notFound = (e) => e?.status === 404 || /error 404|matching criteria not found/i.test(e?.message || '')
+
+/**
+ * The journey definition behind one history group (feedback #1024). The history's
+ * definitionId is usually the version's id, but Journey Builder answers 404 for some
+ * (a deleted version, or the id shared by every version). Then: by key, then the
+ * journeys with that name (every version) matched on definitionId or id, else by exact
+ * name, newest version first. Returns { journey, fallback } where `fallback` says the
+ * drawing is from another version than the one the history named.
+ */
+export async function journeyForHistory(stack, g, { get = fetchJourney, fetcher = sfmcFetch } = {}) {
+  const id = g.definitionId || g.definitionKey
+  if (!id) throw new Error('The history does not say which journey this is.')
+  try {
+    return { journey: await get(stack, id, g.version), fallback: false }
+  } catch (e) {
+    if (!notFound(e)) throw e
+  }
+  if (g.definitionKey) {
+    try { return { journey: await get(stack, `key:${g.definitionKey}`), fallback: true } } catch (e) { if (!notFound(e)) throw e }
+  }
+  if (g.name) {
+    const params = new URLSearchParams({ $page: '1', $pageSize: '50', $orderBy: 'ModifiedDate DESC', mostRecentVersionOnly: 'false', nameOrDescription: g.name })
+    const data = await fetcher(`${JB(stack)}/interactions?${params}`, 'GET')
+    const items = data?.items || []
+    const lc = (v) => String(v ?? '').toLowerCase()
+    const want = lc(g.definitionId)
+    const hit = (want && items.filter((j) => lc(j.definitionId) === want || lc(j.id) === want))
+    const pool = hit?.length ? hit : items.filter((j) => lc(j.name) === lc(g.name))
+    const best = [...pool].sort((a, b) => (Number(b.version) || 0) - (Number(a.version) || 0))[0]
+    if (best) {
+      const exact = lc(best.id) === want
+      return { journey: await get(stack, best.id, exact ? g.version : best.version), fallback: !exact }
+    }
+  }
+  throw new Error('Journey Builder no longer has this journey version (it was deleted, or it is in another business unit). The steps above are still from the history.')
+}
+
+const STEP_COLUMNS = ['#', 'When', 'Step', 'Type', 'Status', 'Message']
+const stepRow = (s, i, fmt) => [String(i + 1), s.time ? fmt(s.time) : '', stepLabel(s), s.activityType, s.status, s.message]
+
+/** The flow of one entry as text: "Entry attempted → Entry: event → ... → Left the journey". */
+export const entryFlowText = (entry) => entry.steps.map(stepLabel).join(' → ')
+
+/**
+ * The page as a document for the Download menu (feedback #1019): who and when, the
+ * journeys the contact is in now, and per journey each entry's flow and steps, with
+ * the canvas drawing (`diagrams`: group id → SVG) where one was opened.
+ */
+export function contactJourneysDoc({ contactKey, scopeLabel, periodLabel, membership, groups, diagrams = {}, fmt = (t) => t }) {
+  const blocks = [{ type: 'kv', rows: [['Contact Key', contactKey], ['Journeys', scopeLabel], ['Period', periodLabel]] },
+    { type: 'h', level: 2, text: 'In now' }]
+  if (membership?.error) blocks.push({ type: 'p', text: `Could not read: ${membership.error}` })
+  else if (!membership?.length) blocks.push({ type: 'p', text: 'Not in any journey now.' })
+  else blocks.push({ type: 'table', columns: ['Journey key', 'Version'], rows: membership.map((m) => [m.definitionKey, String(m.version ?? '')]) })
+  blocks.push({ type: 'h', level: 2, text: 'Journey history' })
+  if (!groups.length) blocks.push({ type: 'p', text: 'No journey steps for this contact in this period.' })
+  for (const g of groups) {
+    blocks.push({ type: 'h', level: 3, text: `${g.name || g.definitionKey || g.definitionId || 'Journey'}${g.version != null ? ` (version ${g.version})` : ''}` })
+    if (diagrams[g.id]) blocks.push({ type: 'svg', svg: diagrams[g.id], note: 'Journey diagram with the path: in the HTML and PDF downloads.' })
+    g.entries.forEach((e, n) => {
+      blocks.push({ type: 'h', level: 4, text: `Entry ${g.entries.length - n}${e.first ? `: ${fmt(e.first)}` : ''}${e.failed ? ` (${e.failed} failed)` : ''}` })
+      blocks.push({ type: 'p', text: entryFlowText(e) })
+      blocks.push({ type: 'table', columns: STEP_COLUMNS, rows: e.steps.map((s, i) => stepRow(s, i, fmt)) })
+    })
+  }
+  return { title: `Contact journeys: ${contactKey}`, blocks }
+}
+
+/** Every step as CSV rows (journey, version, entry, step fields). */
+export function contactJourneysRows(groups) {
+  const rows = [['Journey', 'Version', 'Entry', 'Instance ID', 'Step #', 'When', 'Step', 'Type', 'Status', 'Message']]
+  for (const g of groups) {
+    g.entries.forEach((e, n) => e.steps.forEach((s, i) => rows.push([g.name || g.definitionKey || g.definitionId, String(g.version ?? ''), String(g.entries.length - n), e.id, String(i + 1), s.time, stepLabel(s), s.activityType, s.status, s.message])))
+  }
+  return rows
 }

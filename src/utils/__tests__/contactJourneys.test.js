@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { fetchContactMembership, fetchContactHistory, historyBody, parseHistoryItem, groupByJourney, matchSteps, pathOnGraph, stepNumbers, journeySendsSql, HISTORY_PAGE_SIZE } from '../contactJourneys.js'
+import { fetchContactMembership, fetchContactHistory, historyBody, parseHistoryItem, groupByJourney, matchSteps, pathOnGraph, stepNumbers, journeySendsSql, HISTORY_PAGE_SIZE, splitEntries, entryFlowText, journeyForHistory } from '../contactJourneys.js'
 import { journeyGraph } from '../journeys.js'
 
 const JB = 'https://jbinteractions.s7.marketingcloudapps.com/fuelapi/interaction/v1'
@@ -127,5 +127,36 @@ describe('history rows as Journey Builder sends them (live, 2026-11-02)', async 
     const pairs = [...edges].map((i) => `${graph.edges[i].from}>${graph.edges[i].to}`)
     expect(pairs).toEqual(expect.arrayContaining(['__entry>WAIT-1', 'WAIT-1>SPLIT-1', 'SPLIT-1>WAIT-B']))
     expect(pairs.some((p) => p.startsWith('WAIT-B>__exit'))).toBe(true)
+  })
+})
+
+describe('entries by definitionInstanceId (feedback #1020)', () => {
+  const row = (instanceId, ms, activityType, activityName = '', status = 'Complete') => ({ instanceId, ms, time: new Date(ms).toISOString(), activityType, activityName, status, activityId: '', activityKey: '', message: '' })
+  it('splits a journey into entries, newest first, with loose rows placed by time', () => {
+    const steps = [row('A', 1000, ''), row('A', 2000, 'Trigger', 'Evt'), row('A', 4000, 'EMAILV2', 'Hi'),
+      row('B', 9000, 'Trigger', 'Evt'), row('B', 9500, 'StopInteractionActivity'), row('', 3000, 'WaitActivity', 'Wait')]
+    const e = splitEntries(steps)
+    expect(e.map((x) => x.id)).toEqual(['B', 'A'])
+    expect(e[1].steps.map((s) => s.activityType)).toEqual(['', 'Trigger', 'WaitActivity', 'EMAILV2'])
+    expect(entryFlowText(e[0])).toBe('Entry: Evt → Left the journey')
+  })
+  it('reads definitionInstanceId from a history item', () => {
+    expect(parseHistoryItem({ definitionInstanceId: 'x-1' }).instanceId).toBe('x-1')
+  })
+})
+
+describe('journey for a history group (feedback #1024)', () => {
+  const nf = () => Object.assign(new Error('SFMC API error 404: Interaction matching criteria not found.'), { status: 404 })
+  it('falls back to the journeys with that name, matched on definitionId', async () => {
+    const calls = []
+    const get = async (stack, id, v) => { calls.push([id, v]); if (id === 'v3-id') return { id: 'v3-id', version: 3 }; throw nf() }
+    const fetcher = async () => ({ items: [{ id: 'v2-id', definitionId: 'def-1', version: 2, name: 'J' }, { id: 'v3-id', definitionId: 'def-1', version: 3, name: 'J' }] })
+    const r = await journeyForHistory('s1', { definitionId: 'def-1', name: 'J', version: null }, { get, fetcher })
+    expect(r).toEqual({ journey: { id: 'v3-id', version: 3 }, fallback: true })
+    expect(calls[0]).toEqual(['def-1', null])
+  })
+  it('says plainly when the journey is gone', async () => {
+    const get = async () => { throw nf() }
+    await expect(journeyForHistory('s1', { definitionId: 'x', name: 'J' }, { get, fetcher: async () => ({ items: [] }) })).rejects.toThrow(/no longer has this journey/)
   })
 })

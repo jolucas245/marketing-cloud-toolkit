@@ -12,7 +12,7 @@ export const MAX_SHARE_SQL = 100_000
 export const MAX_SHARE_NAME = 200
 
 /** Sharing is offered when the user turned it on and no policy turns it off. */
-export const shareAllowed = (setting) => setting === true && !policy.disableShare
+export const shareAllowed = (setting) => setting !== false && !policy.disableShare
 
 /** Exactly what is sent. */
 export function sharePayload(name, sql) {

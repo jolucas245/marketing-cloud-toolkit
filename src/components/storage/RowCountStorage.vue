@@ -2,6 +2,7 @@
 // DE storage fallback (feedback #68), used when SFMC's storage calls fail: every DE
 // in the business unit with its row count, largest first, and totals per folder.
 // Kept per stack and BU while the tab is open (utils/pageCache.js).
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import { computed, ref } from 'vue'
 import { Loader2, Play, Square, FolderTree, Download } from 'lucide-vue-next'
@@ -119,7 +120,7 @@ whenStack(async () => {
       <Button v-else size="sm" class="h-8 text-xs" @click="start"><Play class="h-3.5 w-3.5 mr-1" /> {{ rows.length ? 'Read again' : 'Read row counts' }}</Button>
     </div>
     <p v-if="!rows.length && !busy" class="text-xs text-muted-foreground">Lists every data extension in this business unit (up to {{ MAX_DES.toLocaleString() }}, plus Shared and Synchronized ones) and reads each one's row count, 10 at a time, then shows the largest first. SFMC does not report storage in bytes through these APIs, so rows are the measure; an upper bound on size can be estimated from the fields.</p>
-    <p v-if="error" class="text-red-600 text-xs" role="alert">{{ error }}</p>
+    <p v-if="error" class="text-red-600 text-xs" role="alert">{{ error }}<ReportErrorButton /></p>
     <p v-if="capped" class="text-xs text-amber-700 dark:text-amber-400">Only the {{ MAX_DES.toLocaleString() }} most recently changed local data extensions were read.</p>
 
     <template v-if="summary">

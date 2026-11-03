@@ -2,6 +2,7 @@
 // Data Extensions (SFMC Automation Viewer's Data Extension Finder): search local,
 // Shared and Synchronized DEs, see folder paths and fields, tick fields to build a
 // query, export to Excel or a document.
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -466,7 +467,7 @@ const columns = [
           </template>
           <template #expanded="{ row }">
             <div v-if="fields[row.id]?.status === 'loading'" class="flex items-center gap-2 text-muted-foreground"><Loader2 class="h-3.5 w-3.5 animate-spin" /> Loading fields…</div>
-            <p v-else-if="fields[row.id]?.status === 'error'" class="text-red-600">Could not load the fields: {{ fields[row.id].error }}</p>
+            <p v-else-if="fields[row.id]?.status === 'error'" class="text-red-600">Could not load the fields: {{ fields[row.id].error }}<ReportErrorButton /></p>
             <div v-else-if="fields[row.id]?.status === 'ok'">
               <div class="flex items-center gap-2 mb-1.5">
                 <span class="font-semibold">{{ fields[row.id].list.length }} {{ fields[row.id].list.length === 1 ? 'field' : 'fields' }}</span>

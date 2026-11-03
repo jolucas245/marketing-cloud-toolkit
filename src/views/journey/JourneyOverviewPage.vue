@@ -1,6 +1,7 @@
 <script setup>
 // Journey overview (feedback #50): journeys counted by status, and on request what
 // each live journey sends (email, SMS, push), read from its definition.
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, ref } from 'vue'
 import { Loader2, RefreshCw, Mail } from 'lucide-vue-next'
 import StatusBadge from '@/components/results/StatusBadge.vue'
@@ -97,7 +98,7 @@ whenStack(start)
         <Loader2 v-if="loading" class="h-3.5 w-3.5 mr-1 animate-spin" /><RefreshCw v-else class="h-3.5 w-3.5 mr-1" /> Refresh
       </Button>
     </div>
-    <p v-if="error" class="text-red-600 text-xs" role="alert">{{ error }}</p>
+    <p v-if="error" class="text-red-600 text-xs" role="alert">{{ error }}<ReportErrorButton /></p>
 
     <template v-if="summary">
       <section class="grid grid-cols-2 sm:grid-cols-4 gap-3">

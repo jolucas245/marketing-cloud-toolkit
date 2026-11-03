@@ -1,4 +1,5 @@
 <script setup>
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, ref, toRef } from 'vue'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'radix-vue'
 import {
@@ -44,7 +45,7 @@ const router = useRouter()
 
 // Share: only when turned on in Settings and allowed by policy (utils/share.js).
 const shareOpen = ref(false)
-const { value: shareSetting } = useStoredSetting(SHARE_SETTING, false, (v) => v === true)
+const { value: shareSetting } = useStoredSetting(SHARE_SETTING, true, (v) => v !== false)
 const canShare = computed(() => shareAllowed(shareSetting.value))
 
 // Open in Diagramforce: lineage of this query (tables looked up as for Open in Query Builder).
@@ -236,7 +237,7 @@ function openSchema() {
 
             <div v-else-if="queryPickerError"
               class="text-xs text-red-600 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-md p-3 mt-1">
-              {{ queryPickerError }}
+              {{ queryPickerError }}<ReportErrorButton />
             </div>
 
             <div v-else-if="queryPickerSearch.trim()">

@@ -12,14 +12,14 @@ import { showToast } from '@/composables/useToast.js'
 
 const props = defineProps({
   code: { type: String, default: '' },
-  lang: { type: String, default: 'sql' }, // sql | javascript | text
+  lang: { type: String, default: 'sql' }, // sql | javascript | json | text
   maxHeight: { type: String, default: '420px' },
 })
 const host = ref(null)
 let view = null
 
 function extensions() {
-  const lang = props.lang === 'sql' ? [sql({ dialect: MSSQL })] : props.lang === 'javascript' ? [javascript()] : []
+  const lang = props.lang === 'sql' ? [sql({ dialect: MSSQL })] : ['javascript', 'json'].includes(props.lang) ? [javascript()] : []
   return [lineNumbers(), oneDark, EditorState.readOnly.of(true), EditorView.editable.of(false), EditorView.lineWrapping, ...lang,
     EditorView.theme({ '&': { fontSize: '12px', maxHeight: props.maxHeight }, '.cm-scroller': { overflow: 'auto' } })]
 }

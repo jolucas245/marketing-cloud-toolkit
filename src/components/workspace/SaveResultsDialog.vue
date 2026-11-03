@@ -1,6 +1,7 @@
 <script setup>
 // Save results to a data extension: the rows loaded in the results go into an existing
 // data extension (Append or Update) or a new one made from the query's columns.
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, ref, watch } from 'vue'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'radix-vue'
 import { Loader2, X, Database } from 'lucide-vue-next'
@@ -135,7 +136,7 @@ async function save() {
             <p v-if="result.dropped.length" class="text-amber-700 dark:text-amber-300">Left out (no field in the data extension): {{ result.dropped.join(', ') }}</p>
             <p class="text-muted-foreground">SFMC processes them in the background; rows it refuses (wrong type, too long, duplicate key on Append) are not reported here.</p>
           </template>
-          <p v-if="error" class="text-red-600" role="alert">{{ error }}</p>
+          <p v-if="error" class="text-red-600" role="alert">{{ error }}<ReportErrorButton /></p>
         </div>
         <div class="flex items-center justify-end gap-2 px-4 py-3 border-t border-border shrink-0">
           <template v-if="step !== 'done'">

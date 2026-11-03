@@ -2,6 +2,7 @@
 // One journey on a canvas (horizontal or vertical), with each node's content in a
 // side panel: email subject, preheader and a preview, waits, split paths and their
 // criteria, and every setting. Read-only.
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ArrowLeft, Loader2, ExternalLink, X, Columns3, Rows3 } from 'lucide-vue-next'
@@ -126,7 +127,7 @@ const getDoc = () => journeyDoc(journey.value, graph.value, layout.value, journe
 
     <div v-if="loading" class="p-4 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 class="h-4 w-4 animate-spin" /> Loading the journey…</div>
     <div v-else-if="error" class="p-4 text-sm text-red-600" role="alert">
-      <p>{{ error }}</p>
+      <p>{{ error }}<ReportErrorButton /></p>
       <button type="button" class="mt-2 rounded-md border border-border px-3 py-1 text-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring" @click="load">Retry</button>
     </div>
     <div v-else-if="journey" class="relative flex-1 min-h-0 flex">
@@ -156,7 +157,7 @@ const getDoc = () => journeyDoc(journey.value, graph.value, layout.value, journe
             <div class="px-3 py-2 border-b border-border text-xs font-semibold">Email preview<span v-if="preview.name" class="font-normal text-muted-foreground"> · {{ preview.name }}</span></div>
             <div v-if="preview.status === 'loading'" class="p-3 flex items-center gap-2 text-xs text-muted-foreground"><Loader2 class="h-3.5 w-3.5 animate-spin" /> Finding the email in Content Builder…</div>
             <p v-else-if="preview.status === 'none'" class="p-3 text-xs text-muted-foreground">This email was not found in Content Builder.</p>
-            <p v-else-if="preview.status === 'error'" class="p-3 text-xs text-red-600">Could not load the email: {{ preview.error }}</p>
+            <p v-else-if="preview.status === 'error'" class="p-3 text-xs text-red-600">Could not load the email: {{ preview.error }}<ReportErrorButton /></p>
             <iframe v-else :srcdoc="preview.html" sandbox class="w-full h-112 border-0 bg-white rounded-b-lg" title="Email preview" />
           </div>
         </div>

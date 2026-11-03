@@ -2,6 +2,7 @@
 // One automation: overview, schedule, error notifications and every step's activities,
 // as an Overview (steps side by side, like Automation Studio) or a Full view (every
 // activity's details). Read-only.
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ArrowLeft, Loader2, ExternalLink, Mail, ChevronDown, ChevronRight, X, Network } from 'lucide-vue-next'
@@ -134,7 +135,7 @@ function getDoc() {
 
     <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
       <div v-if="loading" class="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 class="h-4 w-4 animate-spin" /> Loading the automation…</div>
-      <p v-else-if="error" class="text-sm text-red-600" role="alert">{{ error }}</p>
+      <p v-else-if="error" class="text-sm text-red-600" role="alert">{{ error }}<ReportErrorButton /></p>
       <template v-else-if="details">
         <section class="rounded-lg border border-border bg-card p-3">
           <dl class="grid grid-cols-[minmax(7rem,10rem)_1fr_minmax(7rem,10rem)_1fr] gap-x-4 gap-y-1 text-xs">
@@ -207,7 +208,7 @@ function getDoc() {
                   <Loader2 class="h-3.5 w-3.5 animate-spin" /> <ActivityIcon :type="a.objectTypeId" /> {{ si + 1 }}.{{ ai + 1 }} {{ a.name }}
                 </div>
                 <template v-else-if="acts[key(si, ai)]">
-                  <p v-if="acts[key(si, ai)].status === 'error'" class="text-xs text-red-600">Could not load {{ si + 1 }}.{{ ai + 1 }}: {{ acts[key(si, ai)].error }}</p>
+                  <p v-if="acts[key(si, ai)].status === 'error'" class="text-xs text-red-600">Could not load {{ si + 1 }}.{{ ai + 1 }}: {{ acts[key(si, ai)].error }}<ReportErrorButton /></p>
                   <ActivityCard :description="acts[key(si, ai)].desc" :heading="`${si + 1}.${ai + 1}`" :show-all-fields="showAllFields" />
                 </template>
               </template>

@@ -2,6 +2,7 @@
 // Shared snippets: SQL the team keeps in the Toolkit_Shared_Snippets data extension of
 // this business unit. Insert one at the cursor, share the selection (or the whole
 // query), and delete your own.
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, ref, watch } from 'vue'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'radix-vue'
 import { Loader2, X, Plus, Trash2, RefreshCw } from 'lucide-vue-next'
@@ -144,7 +145,7 @@ const shown = computed(() => {
             </div>
             <p class="text-muted-foreground">New snippets reach the data extension in the background; others see them after a reload.</p>
           </template>
-          <p v-if="error" class="text-red-600" role="alert">{{ error }}</p>
+          <p v-if="error" class="text-red-600" role="alert">{{ error }}<ReportErrorButton /></p>
         </div>
       </DialogContent>
     </DialogPortal>

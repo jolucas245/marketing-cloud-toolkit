@@ -51,3 +51,26 @@ describe('many contact keys (feedback #151)', () => {
     expect(contactDetailId({ id: 2812620 })).toBe(null)
   })
 })
+
+describe('address records of one contact are merged (feedback #1022/#1023)', () => {
+  it('gives one contact with both addresses and every value', () => {
+    const rec = (typeId, addr, values) => ({
+      contactID: { type: 'string', value: '194' }, contactKey: { type: 'string', value: 'gid://x/1' },
+      addressTypeID: typeId, addressKey: { type: 'string', value: addr }, addressID: { type: 'string', value: addr },
+      modifiedDate: '2026-07-16T02:17:41.32',
+      valueSets: [{ name: 'Primary', values: values.map(([name, innerValue]) => ({ name, innerValue })) }],
+    })
+    const r = parseContacts({ totalCount: 0, addresses: [
+      rec(4, '', [['MobileNumber', ''], ['Ordinal', '1']]),
+      rec(1, 'jo@example.com', [['EmailAddress', 'jo@example.com'], ['Ordinal', '1']]),
+    ] })
+    expect(r.total).toBe(1)
+    expect(r.contacts).toHaveLength(1)
+    const c = r.contacts[0]
+    expect(c.contactKey).toBe('gid://x/1')
+    expect(c.contactId).toBe('194')
+    expect(c.addresses).toEqual([{ type: 'Mobile', typeId: 4, address: '' }, { type: 'Email', typeId: 1, address: 'jo@example.com' }])
+    expect(c.values.map((v) => v.name)).toEqual(['MobileNumber', 'Ordinal', 'EmailAddress'])
+    expect(c.raws).toHaveLength(2)
+  })
+})

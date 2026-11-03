@@ -1,6 +1,7 @@
 <script setup>
 // Automation Templates (feedback #38): pick a template, fill in its options, read
 // exactly what will be created, then create it in SFMC. Nothing is scheduled or run.
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import { computed, reactive, ref, watch } from 'vue'
 import { ExternalLink, Loader2, Check, X, ChevronRight } from 'lucide-vue-next'
@@ -185,12 +186,12 @@ async function undo() {
             </label>
           </div>
         </div>
-        <p v-if="folderError" class="text-xs text-red-600">{{ folderError }}</p>
+        <p v-if="folderError" class="text-xs text-red-600">{{ folderError }}<ReportErrorButton /></p>
       </section>
 
       <section class="rounded-lg border border-border bg-card p-4 space-y-3">
         <h2 class="font-semibold">What will be created</h2>
-        <p v-if="plan.error" class="text-red-600 text-xs" role="alert">{{ plan.error }}</p>
+        <p v-if="plan.error" class="text-red-600 text-xs" role="alert">{{ plan.error }}<ReportErrorButton /></p>
         <template v-else>
           <div>
             <div class="text-xs font-medium mb-1">Data extensions (in {{ deFolderPath || 'the Data Extensions folder' }})</div>
@@ -256,7 +257,7 @@ async function undo() {
               {{ KIND[e.kind] }} <span class="font-mono">{{ e.name }}</span>
               <a v-if="e.kind === 'de' && contactBuilderDEUrl(stack, e.id)" :href="contactBuilderDEUrl(stack, e.id)" target="_blank" rel="noopener" class="ml-1 text-primary hover:underline">SFMC</a>
               <a v-if="e.kind === 'automation' && e.status === 'done'" :href="automationStudioUrl(stack)" target="_blank" rel="noopener" class="ml-1 text-primary hover:underline">Automation Studio</a>
-              <span v-if="e.error" class="block text-red-600 whitespace-pre-line">{{ e.error }}</span>
+              <span v-if="e.error" class="block text-red-600 whitespace-pre-line">{{ e.error }}<ReportErrorButton /></span>
               <span v-if="e.note" class="block text-amber-700 dark:text-amber-400">{{ e.note }}</span>
             </span>
           </li>
@@ -270,7 +271,7 @@ async function undo() {
           </Button>
         </div>
         <p v-if="result?.failed && !result.created.length && result.failed.kind === 'check'" class="text-xs text-muted-foreground">Nothing was created. Fix the names above, or create the missing list or data extension, then try again.</p>
-        <p v-if="undoFailed?.length" class="text-xs text-red-600 whitespace-pre-line">Not deleted (delete them in SFMC):\n{{ undoFailed.map((f) => `${KIND[f.kind]} ${f.name}: ${f.error}`).join('\n') }}</p>
+        <p v-if="undoFailed?.length" class="text-xs text-red-600 whitespace-pre-line">Not deleted (delete them in SFMC):\n{{ undoFailed.map((f) => `${KIND[f.kind]} ${f.name}: ${f.error}`).join('\n') }}<ReportErrorButton /></p>
       </section>
 
       <div v-if="confirmOpen && plan.ok" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="confirmOpen = null">

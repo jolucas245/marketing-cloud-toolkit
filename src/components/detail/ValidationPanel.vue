@@ -1,4 +1,5 @@
 <script setup>
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 defineProps({
   results:   { type: Object, default: null },
   isRunning: { type: Boolean, default: false },
@@ -27,7 +28,7 @@ defineProps({
       <!-- Fatal error -->
       <div v-else-if="results.fatalError"
         class="text-sm leading-relaxed p-3 rounded-md bg-red-50 dark:bg-red-950/40 border-l-4 border-red-500 dark:border-red-700 text-red-700 dark:text-red-400">
-        <strong>Validation failed:</strong> {{ results.fatalError }}
+        <strong>Validation failed:</strong> {{ results.fatalError }}<ReportErrorButton />
       </div>
 
       <template v-else>

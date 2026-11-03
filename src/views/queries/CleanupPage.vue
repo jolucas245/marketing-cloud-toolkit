@@ -1,6 +1,7 @@
 <script setup>
 // Run Query clean-up (feedback #30): lists the data extensions and Query activities
 // Run Query created in SFMC (named SFMCQS_...) and deletes the ticked ones.
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, ref } from 'vue'
 import { Search, Loader2, Trash2 } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
@@ -103,7 +104,7 @@ whenStack(load)
       <span class="text-xs text-muted-foreground">Only items named {{ TOOLKIT_PREFIX }}... are listed: the ones Run Query (and SFMC Query Saver) created in this business unit.</span>
     </div>
     <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-6">
-      <p v-if="error" class="text-sm text-red-600" role="alert">{{ error }}</p>
+      <p v-if="error" class="text-sm text-red-600" role="alert">{{ error }}<ReportErrorButton /></p>
       <div v-if="failures.length" class="rounded-md border border-red-300 bg-red-50 dark:bg-red-950/30 p-3 text-xs" role="alert">
         <div class="font-semibold mb-1">Not deleted</div>
         <ul class="space-y-0.5"><li v-for="f in failures" :key="f.item.kind + f.item.id">{{ f.item.name }}: {{ f.error }}</li></ul>

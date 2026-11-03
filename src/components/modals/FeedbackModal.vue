@@ -18,15 +18,16 @@ import { capturePage, captureDisplay, loadImage, fileToDataUrl, toUploadableData
 
 const FEEDBACK_ENDPOINT = 'https://query-saver-feedback.mathes-btech.workers.dev/feedback'
 
-const props = defineProps({ screen: { type: String, default: 'unknown' } })
+// `prefill` ({ kind, message, details }) comes from Report the error.
+const props = defineProps({ screen: { type: String, default: 'unknown' }, prefill: { type: Object, default: null } })
 const emit = defineEmits(['close'])
 
 const { stack } = useStack()
 const { currentTheme } = useTheme()
 
-const kind = ref('problem')
-const message = ref('')
-const details = ref('')
+const kind = ref(props.prefill?.kind || 'problem')
+const message = ref(props.prefill?.message || '')
+const details = ref(props.prefill?.details || '')
 const name = ref('')
 const email = ref('')
 const includeMeta = ref(false)
@@ -199,6 +200,7 @@ const KINDS = [
             @click="kind = k.id">{{ k.label }}</button>
         </div>
 
+        <p v-if="prefill" class="rounded-md border border-sky-200 bg-sky-50 dark:border-sky-900 dark:bg-sky-950/40 p-2 text-xs">The error is filled in below. Check it for customer data (names, email addresses, record values) and remove anything you do not want to send. Add what you were doing.</p>
         <label class="block">
           <span class="font-medium">{{ kind === 'problem' ? 'What happened?' : kind === 'idea' ? 'Your idea' : 'Your question' }}</span>
           <textarea v-model="message" required rows="3" maxlength="2000" class="mt-1 w-full rounded-md border border-border bg-background p-2"

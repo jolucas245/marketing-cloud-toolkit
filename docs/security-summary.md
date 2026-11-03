@@ -16,7 +16,7 @@ flowchart LR
     UI["Extension pages<br/>(app.html, privacy.html)"]
     SW["Service worker<br/>(background.js)"]
     CS["Content scripts<br/>on SFMC pages"]
-    LS[("chrome.storage.local<br/>queries, settings,<br/>opt-in versions")]
+    LS[("chrome.storage.local<br/>queries, settings,<br/>saved versions")]
     SS[("chrome.storage.session<br/>CSRF token, page headers<br/>(memory only)")]
     IDB[("IndexedDB<br/>Where used scans")]
   end
@@ -32,7 +32,7 @@ flowchart LR
   SW --- SS
   UI --- LS
   UI --- IDB
-  UI -. "opt-in, confirmed: name + SQL" .-> SHARE
+  UI -. "on click, confirmed: name + SQL" .-> SHARE
   UI -. "user-initiated, previewed: message (+ opt-in details, screenshot)" .-> FB
   UI -. "user click: table and column names" .-> DF
 ```
@@ -43,7 +43,7 @@ Solid lines happen as part of normal use. Dotted lines happen only when the user
 
 | Permission | Why it is needed | Code |
 |---|---|---|
-| `storage` | Saved queries, settings and opt-in saved versions in `chrome.storage.local`; CSRF token and Contact Builder headers in `chrome.storage.session` (memory only); admin policy in `chrome.storage.managed`. | throughout; `src/background/csrf.js`, `src/background/pageHeaders.js`, `src/utils/policy.js` |
+| `storage` | Saved queries, settings and saved versions (on by default, can be turned off; admin policy `disableHistory` turns them off) in `chrome.storage.local`; CSRF token and Contact Builder headers in `chrome.storage.session` (memory only); admin policy in `chrome.storage.managed`. | throughout; `src/background/csrf.js`, `src/background/pageHeaders.js`, `src/utils/policy.js` |
 | `cookies` | Reads the names and expiry of SFMC login cookies to tell which SFMC stack (s4, s7, ...) the user is on, and the value of Content Builder's `_csrf` double-submit cookie to send back with changes there (email revert, activity restore). Values are never stored or sent anywhere but SFMC. | `src/background/stack.js` (`scanCookieStacks`), `src/background/csrf.js` (`getAppCsrf`), `src/background/sessions.js` |
 | `webRequest` | SFMC only issues its CSRF token as a header on its own requests; the extension reads it to make the user's own changes (run a query, create a data extension). Also: which stack a tab uses; Contact Builder's headers for the Contacts page (off under the `disableContacts` policy); and, only when the user turns them on, the bodies of Content Builder email saves, Automation Studio activity saves and Query Studio runs, to keep a copy. No blocking, no modification. | `src/background/index.js` (listener registrations), `csrf.js`, `stack.js`, `pageHeaders.js`, `capture.js`, `activityCapture.js` |
 | `notifications` (optional) | Requested only when the user turns on desktop notifications for watched automations; given back when turned off. | `src/background/watches.js`, Settings |
@@ -92,7 +92,7 @@ There is no analytics or telemetry (Google Analytics was removed in 2.0.18).
 
 ## Share flow
 
-1. The user turns on Settings > Share queries (off by default; not possible under `disableShare`).
+1. Settings > Share queries is on by default (feedback #1021, 2026-11-03); the user can turn it off, and `disableShare` hides it.
 2. Share opens a dialog showing exactly the name and SQL to be sent, a warning that anyone with the link can read it for 24 hours, and a note when the SQL contains e-mail addresses or phone-like numbers. Nothing is sent until the user clicks Send.
 3. The share service (`workers/share`) accepts POSTs only from extension origins when a browser sends an `Origin`, limits sizes (SQL 100,000 characters), stores `{ name, queryText }` in Cloudflare KV for 24 hours under a random 128-bit id, and stores nothing about the sender.
 4. The share page has a strict CSP, no inline script, `noindex` and `no-store`. With the extension installed, it offers to import the query on a real click.

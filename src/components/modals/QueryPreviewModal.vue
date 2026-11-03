@@ -41,7 +41,7 @@ async function copySql() {
 // ── Share ─────────────────────────────────────────────────
 // Only when turned on in Settings and allowed by policy; the dialog shows what is sent.
 const shareOpen = ref(false)
-const { value: shareSetting } = useStoredSetting(SHARE_SETTING, false, (v) => v === true)
+const { value: shareSetting } = useStoredSetting(SHARE_SETTING, true, (v) => v !== false)
 const canShare = computed(() => shareAllowed(shareSetting.value) && !!sql.value.trim())
 </script>
 

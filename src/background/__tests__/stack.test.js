@@ -139,7 +139,7 @@ describe('connection status', () => {
 })
 
 describe('Query Studio capture', () => {
-  // Off unless turned on in Settings (security review, 2026-10-28).
+  // On unless turned off in Settings (feedback #1021; Chrome's permission still decides whether requests arrive).
   const loadOn = async (opts) => {
     const sw = await loadSW(opts)
     sw.local._saveQueryStudio = true
@@ -163,8 +163,9 @@ describe('Query Studio capture', () => {
     expect(sw.local.sql_1700000000000.businessUnit).toBeUndefined()
   })
 
-  it('saves nothing while the setting is off (the default)', async () => {
+  it('saves nothing when the setting is turned off', async () => {
     const sw = await loadSW({ tabs: [s10Tab] })
+    sw.local._saveQueryStudio = false
     await sw.captureQuery('SELECT 7', 1700000000005)
     await flush()
     expect(sw.local.sql_1700000000005).toBeUndefined()

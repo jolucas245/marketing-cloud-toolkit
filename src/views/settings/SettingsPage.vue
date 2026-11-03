@@ -1,4 +1,5 @@
 <script setup>
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, onUnmounted, ref } from 'vue'
 import Switch from '@/components/ui/switch/Switch.vue'
 import StorageUsage from '@/components/StorageUsage.vue'
@@ -24,9 +25,9 @@ import { ACTIVITY_SAVER_SETTING, ACTIVITY_MAX_SETTING, DEFAULT_MAX_VERSIONS } fr
 const { currentTheme, themes, setTheme } = useTheme()
 
 // Same keys as SFMC Query Saver, read by the service worker and the run flow.
-const { value: emailSaver } = useStoredSetting('_emailSaverEnabled', false, (v) => v === true)
+const { value: emailSaver } = useStoredSetting('_emailSaverEnabled', true, (v) => v !== false)
 // Query and Script activity versions (feedback #122; background/activityCapture.js).
-const { value: activitySaver } = useStoredSetting(ACTIVITY_SAVER_SETTING, false, (v) => v === true)
+const { value: activitySaver } = useStoredSetting(ACTIVITY_SAVER_SETTING, true, (v) => v !== false)
 const { value: activityMax } = useStoredSetting(ACTIVITY_MAX_SETTING, DEFAULT_MAX_VERSIONS,
   (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Math.floor(Number(v)) : DEFAULT_MAX_VERSIONS))
 function setActivityMax(e) {
@@ -59,13 +60,14 @@ function setDesktopNotify(on) {
 }
 
 const { value: keepHistory } = useStoredSetting(HISTORY_SETTING, true, (v) => v !== false)
-const { value: shareSetting } = useStoredSetting(SHARE_SETTING, false, (v) => v === true)
+const { value: shareSetting } = useStoredSetting(SHARE_SETTING, true, (v) => v !== false)
 
-// Saving Query Studio runs: off by default (security review); on asks Chrome for the
-// optional *.herokuapp.com permission, off gives it back (utils/queryStudio.js).
+// Saving Query Studio runs: on by default (feedback #1021), but it needs the optional
+// *.herokuapp.com permission, which Chrome grants only on a click: the switch shows on
+// only once granted. Off gives the permission back (utils/queryStudio.js).
 const qsCapture = ref(false)
 chrome.storage?.local.get(QUERY_STUDIO_SETTING, (r) => {
-  chrome.permissions?.contains(QUERY_STUDIO_PERMISSION, (has) => { qsCapture.value = !!has && r?.[QUERY_STUDIO_SETTING] === true })
+  chrome.permissions?.contains(QUERY_STUDIO_PERMISSION, (has) => { qsCapture.value = !!has && r?.[QUERY_STUDIO_SETTING] !== false })
 })
 function setQsCapture(on) {
   const done = (ok) => {
@@ -171,7 +173,7 @@ function setDebounce(e) {
       <div class="flex items-start gap-3">
         <div class="flex-1">
           <div class="text-sm font-medium">Save email versions</div>
-          <p class="text-xs text-muted-foreground">Each time you save an email in Content Builder, a copy is kept in this browser so you can compare or revert it (the 10 newest versions per email). Off by default.</p>
+          <p class="text-xs text-muted-foreground">Each time you save an email in Content Builder, a copy is kept in this browser so you can compare or revert it (the 10 newest versions per email). On by default.</p>
         </div>
         <Switch :model-value="emailSaver && !policy.disableHistory" :disabled="policy.disableHistory" aria-label="Save email versions" @update:model-value="emailSaver = $event" />
       </div>
@@ -193,7 +195,7 @@ function setDebounce(e) {
       <div class="flex items-start gap-3">
         <div class="flex-1">
           <div class="text-sm font-medium">Save Query and Script activity versions</div>
-          <p class="text-xs text-muted-foreground">Each time you save a SQL Query or Script activity in Automation Studio, the version from before your edit and the saved one are kept in this browser (Automation > Saved Activities). Off by default.</p>
+          <p class="text-xs text-muted-foreground">Each time you save a SQL Query or Script activity in Automation Studio, the version from before your edit and the saved one are kept in this browser (Automation > Saved Activities). On by default.</p>
         </div>
         <Switch :model-value="activitySaver && !policy.disableHistory" :disabled="policy.disableHistory" aria-label="Save Query and Script activity versions" @update:model-value="activitySaver = $event" />
       </div>
@@ -227,7 +229,7 @@ function setDebounce(e) {
       <div class="flex items-start gap-3">
         <div class="flex-1">
           <div class="text-sm font-medium">Share queries</div>
-          <p class="text-xs text-muted-foreground">Shows Share on queries. Sharing sends a query's name and SQL to the Toolkit's share service, where anyone with the link can read it for 24 hours; each share shows what will be sent and asks first. Off by default.</p>
+          <p class="text-xs text-muted-foreground">Shows Share on queries. Sharing sends a query's name and SQL to the Toolkit's share service, where anyone with the link can read it for 24 hours; each share shows what will be sent and asks first. On by default; nothing is sent until you click Share and confirm.</p>
           <p v-if="policy.disableShare" class="text-xs text-amber-700 dark:text-amber-400">{{ POLICY_NOTE }}</p>
         </div>
         <Switch :model-value="shareSetting && !policy.disableShare" :disabled="policy.disableShare" aria-label="Share queries" @update:model-value="shareSetting = $event" />
@@ -235,7 +237,7 @@ function setDebounce(e) {
       <div class="flex items-start gap-3">
         <div class="flex-1">
           <div class="text-sm font-medium">Save Query Studio runs</div>
-          <p class="text-xs text-muted-foreground">Queries you run in Query Studio and Query Studio 2 are saved in Saved queries, in this browser only. Off by default. Turning it on asks Chrome to let the extension read requests to herokuapp.com, where both Query Studios run; only their "run query" requests are read.</p>
+          <p class="text-xs text-muted-foreground">Queries you run in Query Studio and Query Studio 2 are saved in Saved queries, in this browser only. On by default, but Chrome needs your OK once: turning the switch on asks Chrome to let the extension read requests to herokuapp.com, where both Query Studios run; only their "run query" requests are read.</p>
         </div>
         <Switch :model-value="qsCapture && !policy.disableHistory" :disabled="policy.disableHistory" aria-label="Save Query Studio runs" @update:model-value="setQsCapture" />
       </div>
@@ -332,7 +334,7 @@ function setDebounce(e) {
         <input ref="backupInput" type="file" accept=".json,application/json" class="hidden" @change="importBackup" />
       </div>
       <p v-if="importResult" class="mt-2 text-xs text-emerald-700 dark:text-emerald-400" role="status">{{ importResult }}</p>
-      <p v-if="importError" class="mt-2 text-xs text-red-600" role="alert">{{ importError }}</p>
+      <p v-if="importError" class="mt-2 text-xs text-red-600" role="alert">{{ importError }}<ReportErrorButton /></p>
     </section>
 
     <section class="rounded-lg border border-border bg-card p-4">

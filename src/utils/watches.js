@@ -26,6 +26,9 @@ export function automationStatusName(v) {
 }
 
 // Automation keys stay `stack:id` so watches from 2.0.6 and 2.0.7 keep working.
+/** Whether a watch belongs to the business unit `mid` (watches without a BU yet count everywhere). */
+export const watchHere = (w, mid) => !w?.mid || !mid || String(w.mid) === String(mid)
+
 export const watchKey = (stack, id, type = 'automation') => (type === 'journey' ? `${stack}:journey:${id}` : `${stack}:${id}`)
 const isPausedLike = (s) => /^(paused|stopped)$/i.test(s)
 const isActiveLike = (s) => /^(scheduled|awaiting trigger|running)$/i.test(s)

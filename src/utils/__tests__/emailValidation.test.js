@@ -154,3 +154,14 @@ describe('new DE names', async () => {
     expect(isNameClash(new Error('other'))).toBe(false)
   })
 })
+
+describe('contact addresses skip formulas (feedback #1022)', () => {
+  it('ignores {toLower(@EmailAddress)} and other non-addresses', () => {
+    const c = { values: [
+      { set: 'Primary', name: 'UserNameLC', value: '{toLower(@EmailAddress)}' },
+      { set: 'Primary', name: 'Other', value: '@EmailAddress' },
+      { set: 'Primary', name: 'EmailAddress', value: 'jo@example.com' },
+    ] }
+    expect(contactEmails(c)).toEqual([{ email: 'jo@example.com', attribute: 'Primary > EmailAddress' }])
+  })
+})

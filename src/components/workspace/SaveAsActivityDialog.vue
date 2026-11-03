@@ -2,6 +2,7 @@
 // Save as query activity (feedback #88): name the activity, pick or name its target
 // data extension and both folders, choose how rows are written, check, then create.
 // Nothing is run or scheduled.
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, ref, watch } from 'vue'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'radix-vue'
 import { Loader2, X, Database, ExternalLink, AlertTriangle, Info, XCircle } from 'lucide-vue-next'
@@ -225,7 +226,7 @@ const deUrl = computed(() => result.value && `https://mc.${props.stack}.marketin
             </ul>
           </template>
 
-          <p v-if="error" class="text-red-600" role="alert">{{ error }}</p>
+          <p v-if="error" class="text-red-600" role="alert">{{ error }}<ReportErrorButton /></p>
         </div>
 
         <div class="flex items-center justify-end gap-2 px-4 py-3 border-t border-border shrink-0">

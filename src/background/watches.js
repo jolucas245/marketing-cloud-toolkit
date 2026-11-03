@@ -6,7 +6,7 @@
 import { sfmcFetch } from './fetchProxy.js'
 import { storageGet } from './chromeAsync.js'
 import {
-  WATCHES_KEY, NOTICES_KEY, NOTIFY_KEY, diffAutomation, diffJourney, journeySnapshot, watchType, addNotices, unreadCount, automationStatusName,
+  WATCHES_KEY, NOTICES_KEY, NOTIFY_KEY, watchHere, diffAutomation, diffJourney, journeySnapshot, watchType, addNotices, unreadCount, automationStatusName,
 } from '../utils/watches.js'
 
 const AS = (stack) => `https://mc.${stack}.marketingcloudapps.com/AutomationStudioFuel3/fuelapi`
@@ -14,6 +14,17 @@ const JB = (stack) => `https://jbinteractions.${stack}.marketingcloudapps.com/fu
 const CHECKED_KEY = 'toolkit_watch_checked' // { stack: time }
 const PAGE_INTERVAL = 15 * 60 * 1000
 const running = new Set()
+
+// The business unit SFMC is signed in to on this stack. Watches remember the BU they
+// were first checked in, and other BUs' watches are skipped: the automation and
+// journey calls only see the current BU, so they would answer 404 (feedback #1026).
+async function currentMid(stack) {
+  try {
+    const d = await sfmcFetch({ url: `https://mc.${stack}.exacttarget.com/cloud/fuelapi/platform-internal/v1/accounts/@current` })
+    const mid = d?.accountId ?? d?.id ?? d?.memberId
+    return mid != null ? String(mid) : null
+  } catch { return null }
+}
 
 // By key when known: each journey version has its own ID, and the key call returns
 // the latest version, so a watch follows the journey through new versions.
@@ -57,9 +68,13 @@ export async function checkWatches(stack, { force = false } = {}) {
   if (!mine.length || (!force && Date.now() - (checkedAt[stack] || 0) < PAGE_INTERVAL)) return { checked: 0, notices: 0 }
   running.add(stack)
   try {
+    const mid = await currentMid(stack)
     let notices = store[NOTICES_KEY] || []
     const fresh = []
+    let checked = 0
     for (const [k, w] of mine) {
+      if (!watchHere(w, mid)) continue
+      checked++
       try {
         if (watchType(w) === 'journey') {
           const cur = await journeySnap(stack, w)
@@ -71,7 +86,7 @@ export async function checkWatches(stack, { force = false } = {}) {
             fresh.push(...changes.map((c) => `${cur.name} ${c.text}`))
           }
           // The stored ID stays the one watched, so the watch keeps its key in storage.
-          watches[k] = { ...w, name: cur.name, latestId: cur.id, last: journeySnapshot(cur), checkedAt: Date.now(), error: undefined }
+          watches[k] = { ...w, ...(mid ? { mid } : {}), name: cur.name, latestId: cur.id, last: journeySnapshot(cur), checkedAt: Date.now(), error: undefined, notFound: undefined }
           continue
         }
         const cur = await snapshot(stack, w)
@@ -80,9 +95,12 @@ export async function checkWatches(stack, { force = false } = {}) {
           notices = addNotices(notices, { ...w, name: cur.name }, changes)
           fresh.push(...changes.map((c) => `${cur.name} ${c.text}`))
         }
-        watches[k] = { ...w, name: cur.name, last: { status: cur.status, statusName: automationStatusName(cur.status), lastRunTime: cur.lastRunTime, lastRunStatus: cur.lastRunStatus }, checkedAt: Date.now() }
+        watches[k] = { ...w, name: cur.name, last: { status: cur.status, statusName: automationStatusName(cur.status), lastRunTime: cur.lastRunTime, lastRunStatus: cur.lastRunStatus }, ...(mid ? { mid } : {}), checkedAt: Date.now(), error: undefined, notFound: undefined }
       } catch (e) {
-        watches[k] = { ...w, error: e?.message || String(e), checkedAt: Date.now() }
+        // 404: not in this BU (watched before BUs were recorded, or deleted). Said
+        // plainly instead of the raw API error; the watch stays until unwatched.
+        if (e?.status === 404 || /error 404/.test(e?.message || '')) watches[k] = { ...w, notFound: true, error: undefined, checkedAt: Date.now() }
+        else watches[k] = { ...w, error: e?.message || String(e), notFound: undefined, checkedAt: Date.now() }
       }
     }
     await chrome.storage.local.set({ [WATCHES_KEY]: watches, [NOTICES_KEY]: notices, [CHECKED_KEY]: { ...checkedAt, [stack]: Date.now() } })
@@ -90,7 +108,7 @@ export async function checkWatches(stack, { force = false } = {}) {
     if (fresh.length && store[NOTIFY_KEY] && chrome.notifications?.create) {
       chrome.notifications.create({ type: 'basic', iconUrl: chrome.runtime.getURL('images/icon128x128.png'), title: 'Marketing Cloud Toolkit: watched automations and journeys', message: fresh.slice(0, 3).join('\n') + (fresh.length > 3 ? `\n+${fresh.length - 3} more` : '') })
     }
-    return { checked: mine.length, notices: fresh.length }
+    return { checked, notices: fresh.length }
   } finally {
     running.delete(stack)
   }

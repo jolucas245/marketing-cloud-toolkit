@@ -107,6 +107,9 @@ export function contactEmails(contact) {
   for (const v of contact?.values || []) {
     const val = String(v.value || '').trim()
     if (!/^[^\s@]+@[^\s@]+$/.test(val)) continue
+    // Formulas and AMPscript-style defaults Contact Builder stores as text, such as
+    // UserNameLC = {toLower(@EmailAddress)} (feedback #1022): not an address.
+    if (/[{}()]/.test(val) || /^@|@[^.]*$/.test(val)) continue
     if (seen.has(val.toLowerCase())) continue
     seen.add(val.toLowerCase())
     out.push({ email: val, attribute: [v.set, v.name].filter(Boolean).join(' > ') })

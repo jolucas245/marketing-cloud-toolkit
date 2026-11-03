@@ -58,3 +58,13 @@ describe('watched journeys and bulk watch (feedback #59)', async () => {
     expect(noticeRoute({ automationId: 'A1' })).toBe('/automations/A1')
   })
 })
+
+describe('watches per business unit (feedback #1026)', () => {
+  it('counts a watch here when it has no BU yet or the same BU', async () => {
+    const { watchHere } = await import('../watches.js')
+    expect(watchHere({}, '1')).toBe(true)
+    expect(watchHere({ mid: 1 }, '1')).toBe(true)
+    expect(watchHere({ mid: '2' }, '1')).toBe(false)
+    expect(watchHere({ mid: '2' }, null)).toBe(true)
+  })
+})

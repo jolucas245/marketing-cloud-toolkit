@@ -1,4 +1,5 @@
 <script setup>
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { LayoutGrid, List, Check, Loader2, FileInput, X, Share, CircleHelp, EyeOff, Code2, SlidersHorizontal, ChevronDown, ChevronRight } from 'lucide-vue-next'
 import DEBrowser from './DEBrowser.vue'
@@ -538,7 +539,7 @@ function onCanvasFilter({ alias, field }) {
         <textarea v-if="importSource === 'paste'" v-model="importText" class="w-full h-56 rounded-md border border-border bg-background p-2 font-mono text-xs" spellcheck="false" placeholder="SELECT ... FROM ..." />
         <div v-else class="space-y-2">
           <input v-model="pickFilter" class="w-full h-8 rounded-md border border-border bg-background px-2 text-xs" :placeholder="importSource === 'activity' ? 'Filter Query Activities by name or SQL' : 'Filter saved queries by name or SQL'" />
-          <p v-if="importSource === 'activity' && activitiesError" class="text-xs text-destructive">{{ activitiesError }}</p>
+          <p v-if="importSource === 'activity' && activitiesError" class="text-xs text-destructive">{{ activitiesError }}<ReportErrorButton /></p>
           <div v-else-if="importSource === 'activity' && activities === null" class="flex items-center gap-1 text-xs text-muted-foreground"><Loader2 class="h-3 w-3 animate-spin" /> Reading Query Activities...</div>
           <div class="max-h-56 overflow-y-auto rounded-md border border-border divide-y divide-border">
             <button v-for="x in pickList" :key="x.id" class="w-full text-left px-2 py-1.5 hover:bg-accent text-xs" :title="x.sql.slice(0, 300)" @click="pickSql(x)">
@@ -549,7 +550,7 @@ function onCanvasFilter({ alias, field }) {
           </div>
           <p class="text-[11px] text-muted-foreground">Pick one to load its SQL here, check it, then Draw it.</p>
         </div>
-        <p v-if="importError" class="text-xs text-destructive">{{ importError }}</p>
+        <p v-if="importError" class="text-xs text-destructive">{{ importError }}<ReportErrorButton /></p>
         <div class="flex justify-end gap-2">
           <button class="h-8 px-3 rounded-md border border-border text-xs hover:bg-accent" @click="importOpen = false">Cancel</button>
           <button class="inline-flex items-center gap-1 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50"

@@ -1,6 +1,8 @@
 <script setup>
 // Contacts (feedback #57): how many contacts the account has, and a Contact Key
 // search with the attributes Contact Builder returns.
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
+import CodeView from '@/components/results/CodeView.vue'
 import { ref, computed } from 'vue'
 import { Loader2, RefreshCw, Search, ChevronDown, ChevronRight, Upload, Download } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
@@ -112,7 +114,7 @@ whenStack(loadCount)
         <div class="text-[11px] text-muted-foreground">All contacts in Contact Builder (the whole account, not one business unit).</div>
       </div>
     </section>
-    <p v-if="countError" class="text-red-600 text-xs" role="alert">{{ countError }}</p>
+    <p v-if="countError" class="text-red-600 text-xs" role="alert">{{ countError }}<ReportErrorButton /></p>
 
     <section class="rounded-lg border border-border bg-card p-3 space-y-2">
       <h2 class="font-semibold">Find contacts</h2>
@@ -130,7 +132,7 @@ whenStack(loadCount)
           <span v-if="searchBusy && progress.total > 1" class="text-muted-foreground">{{ progress.done }} of {{ progress.total }}</span>
         </div>
       </form>
-      <p v-if="searchError" class="text-red-600 text-xs" role="alert">{{ searchError }}</p>
+      <p v-if="searchError" class="text-red-600 text-xs" role="alert">{{ searchError }}<ReportErrorButton /></p>
       <template v-if="many">
         <div class="flex items-center gap-2 text-xs">
           <span class="text-muted-foreground">{{ manyFound }} of {{ many.length }} keys found.</span>
@@ -168,9 +170,10 @@ whenStack(loadCount)
                   <div v-if="contactDetailId(c.raw)" class="mb-1">
                     <button class="text-primary hover:underline" @click.stop="loadDetails(c)">Load the contact's details</button>
                     <Loader2 v-if="details[contactDetailId(c.raw)]?.busy" class="inline h-3 w-3 ml-1 animate-spin" />
-                    <p v-if="details[contactDetailId(c.raw)]?.error" class="text-red-600">{{ details[contactDetailId(c.raw)].error }}</p>
-                    <pre v-if="details[contactDetailId(c.raw)]?.data" class="max-h-72 overflow-auto rounded bg-muted p-2 text-[11px]">{{ JSON.stringify(details[contactDetailId(c.raw)].data, null, 2) }}</pre>
+                    <p v-if="details[contactDetailId(c.raw)]?.error" class="text-red-600">{{ details[contactDetailId(c.raw)].error }}<ReportErrorButton /></p>
+                    <CodeView v-if="details[contactDetailId(c.raw)]?.data" :code="JSON.stringify(details[contactDetailId(c.raw)].data, null, 2)" lang="json" max-height="288px" />
                   </div>
+                  <p v-if="c.addresses?.length" class="mb-1">Addresses: <span v-for="(a, j) in c.addresses" :key="j" class="mr-3"><span class="text-muted-foreground">{{ a.type }}</span> {{ a.address || '(empty)' }}</span></p>
                   <p v-if="!c.values.length" class="text-muted-foreground">Contact Builder sent no attribute values for this contact.</p>
                   <dl v-else class="grid grid-cols-[minmax(8rem,auto)_1fr] gap-x-4 gap-y-0.5">
                     <template v-for="(v, j) in c.values" :key="j">
@@ -184,7 +187,7 @@ whenStack(loadCount)
           </tbody>
         </table>
         <button v-if="result.contacts.length" class="text-xs text-primary hover:underline" @click="showRaw = !showRaw">{{ showRaw ? 'Hide' : 'Show' }} the response from Contact Builder</button>
-        <pre v-if="showRaw" class="max-h-96 overflow-auto rounded bg-muted p-2 text-[11px]">{{ JSON.stringify(result.contacts.map((c) => c.raw), null, 2) }}</pre>
+        <CodeView v-if="showRaw" :code="JSON.stringify(result.contacts.flatMap((c) => c.raws || [c.raw]), null, 2)" lang="json" max-height="384px" />
       </template>
     </section>
   </div>

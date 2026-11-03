@@ -2,6 +2,25 @@
 
 All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are published to the Chrome Web Store as updates to the former SFMC Query Saver listing (1.x). Entries before 2.0.18 are the GitHub release notes, unchanged; "Checked headless" notes describe testing at the time.
 
+## Unreleased (next 2.0.19)
+
+**New:**
+- Home page, the new start page: connection and business unit, automations and journeys at a glance, what needs a look, watched automations, quick start links, the pages you use most and your recent saved queries (feedback #1025).
+- Report the error: error messages have a link that opens Feedback with the error, the page and the time filled in, to check and edit before sending.
+- Contact journeys: each entry into a journey (definitionInstanceId) shows as one flow, such as Entry attempted, Entry, Journey started, Email, Left the journey, with times on hover; pick an entry to see its path on the canvas (feedback #1020). Results stay while you visit other pages (#1017). Download menu (Markdown, Word, PDF, HTML, with the canvas and the path) and CSV of every step (#1019).
+- Journey HTML and PDF downloads draw the new journey canvas (shapes, icons, connectors, path labels, join points).
+- Automation overview: Unwatch per watched automation, Unwatch all, Unwatch the ones not found (feedback #1027).
+
+**Changed:**
+- Save email versions, Save Query and Script activity versions, Share queries and Save Query Studio runs are on by default (feedback #1021). Each can be turned off in Settings, admin policies still turn them off, Share still shows what will be sent and asks first, and Query Studio still needs Chrome's permission once. PRIVACY.md and the security summary are updated.
+- Raw JSON on Contact journeys and Contacts shows in the code viewer with Copy (feedback #1018, #1023).
+
+**Fixed:**
+- Watched automations showed "SFMC API error 404" for every automation (feedback #1026): watches now remember their business unit and are checked only there, an old error clears on the next good check, and an automation SFMC does not find says so plainly.
+- Contact journeys could not draw a journey when Journey Builder answered 404 for the id in the history (feedback #1024): it now looks the journey up by key and by name, and says when the drawing is from another version.
+- Contacts listed one contact twice, once per address (email, mobile); they are now one contact with its addresses (feedback #1022/#1023).
+- Email validation by contact checked a Contact Builder formula value such as {toLower(@EmailAddress)} as an address (feedback #1022).
+
 ## 2.0.18 (2026-11-02)
 
 Security and privacy review (October 2026). Details: `docs/security-summary.md`, `PRIVACY.md`, `security/audits/`.

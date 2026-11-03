@@ -1,6 +1,7 @@
 <script setup>
 // Top-bar connection pill and menu. Combines SFMC Query Saver's connection status and
 // stack picker with SFMC Automation Viewer's per-app sessions ("Get Token").
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, ref, watch, onUnmounted } from 'vue'
 import { ChevronDown, RefreshCw, Check, X, Loader2, LogIn } from 'lucide-vue-next'
 import { useConnectionStatus } from '@/composables/useConnectionStatus.js'
@@ -199,7 +200,7 @@ const pickerOptions = computed(() => {
             </li>
             <li v-if="!apps.length && appsLoading" class="text-muted-foreground">Checking…</li>
           </ul>
-          <p v-for="(err, id) in connecting" v-show="typeof err === 'string'" :key="id" class="mt-1 text-red-600">{{ err }}</p>
+          <p v-for="(err, id) in connecting" v-show="typeof err === 'string'" :key="id" class="mt-1 text-red-600">{{ err }}<ReportErrorButton /></p>
         </div>
 
         <div class="mt-3 pt-2 border-t border-border">
@@ -217,7 +218,7 @@ const pickerOptions = computed(() => {
               placeholder="e.g. s10" @keydown.enter="applyOther" />
             <button class="px-2 rounded border border-border hover:bg-accent" @click="applyOther">Use</button>
           </div>
-          <p v-if="stackError" class="mt-1 text-red-600">{{ stackError }}</p>
+          <p v-if="stackError" class="mt-1 text-red-600">{{ stackError }}<ReportErrorButton /></p>
           <p v-else class="mt-1 text-muted-foreground">
             {{ choices.override ? 'Pinned. Pick Automatic to detect it again.' : 'Wrong stack? Pick the one you are logged in to.' }}
           </p>

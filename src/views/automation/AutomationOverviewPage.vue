@@ -2,8 +2,9 @@
 // Automation overview (feedback #50): every automation in the business unit counted
 // by status and last run, what needs a look, watched automations, and run trends
 // from the run log on request.
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { Loader2, RefreshCw, TrendingUp, Eye } from 'lucide-vue-next'
+import { Loader2, RefreshCw, TrendingUp, Eye, EyeOff } from 'lucide-vue-next'
 import StatusBadge from '@/components/results/StatusBadge.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import { isRunningStatus } from '@/utils/runProgress.js'
@@ -11,7 +12,7 @@ import StackedBars from '@/components/results/StackedBars.vue'
 import Button from '@/components/ui/button/Button.vue'
 import { useStack, whenStack } from '@/composables/useStack.js'
 import { listAllAutomations, summarizeAutomations, runTrends } from '@/utils/overview.js'
-import { automationStatusName, WATCHES_KEY, watchType } from '@/utils/watches.js'
+import { automationStatusName, WATCHES_KEY, watchType, watchHere, removeWatches } from '@/utils/watches.js'
 import { formatDateTime } from '@/utils/format.js'
 import { fetchCurrentBU } from '@/utils/sfmcApi.js'
 import { pageCacheKey, readPageCache, writePageCache, pendingPageCache } from '@/utils/pageCache.js'
@@ -24,9 +25,11 @@ const { stack } = useStack()
 let cacheKey = ''
 const savedAt = ref(0)
 const buName = ref('')
+const buId = ref(null)
 async function currentKey() {
   const bu = await fetchCurrentBU(stack.value).catch(() => null)
   buName.value = bu?.name || ''
+  buId.value = bu?.accountId ?? null
   return pageCacheKey('automation-overview', stack.value, bu?.accountId)
 }
 const save = (patch) => { if (cacheKey) savedAt.value = writePageCache(cacheKey, patch).savedAt }
@@ -80,7 +83,12 @@ const SERIES = [{ key: 'ok', label: 'Succeeded', color: '#0ca30c' }, { key: 'fai
 
 // ── Watched automations ─────────────────────────────────
 const watches = ref({})
-const watchedHere = computed(() => Object.values(watches.value).filter((w) => w.stack === stack.value && watchType(w) === 'automation'))
+// This stack and business unit only (feedback #1026); Unwatch here too (#1027).
+const watchedHere = computed(() => Object.values(watches.value).filter((w) => w.stack === stack.value && watchType(w) === 'automation' && watchHere(w, buId.value)))
+const notFoundHere = computed(() => watchedHere.value.filter((w) => w.notFound))
+function unwatch(ids) {
+  chrome.storage.local.set({ [WATCHES_KEY]: removeWatches(watches.value, stack.value, 'automation', ids) })
+}
 const loadWatches = () => chrome.storage.local.get(WATCHES_KEY, (r) => { watches.value = r?.[WATCHES_KEY] || {} })
 const onChange = (c, area) => { if (area === 'local' && WATCHES_KEY in c) watches.value = c[WATCHES_KEY].newValue || {} }
 onMounted(() => { try { loadWatches(); chrome.storage.onChanged.addListener(onChange) } catch { /* not in an extension */ } })
@@ -126,7 +134,7 @@ whenStack(start)
         <Loader2 v-if="loading" class="h-3.5 w-3.5 mr-1 animate-spin" /><RefreshCw v-else class="h-3.5 w-3.5 mr-1" /> Refresh
       </Button>
     </div>
-    <p v-if="error" class="text-red-600 text-xs" role="alert">{{ error }}</p>
+    <p v-if="error" class="text-red-600 text-xs" role="alert">{{ error }}<ReportErrorButton /></p>
 
     <template v-if="summary">
       <section class="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -210,15 +218,21 @@ whenStack(start)
     </template>
 
     <section class="rounded-lg border border-border bg-card p-3">
-      <h2 class="font-semibold mb-2 flex items-center gap-1.5"><Eye class="h-4 w-4" /> Watched here <span class="text-xs font-normal text-muted-foreground">({{ watchedHere.length }})</span></h2>
+      <div class="mb-2 flex items-center gap-2">
+        <h2 class="font-semibold flex items-center gap-1.5"><Eye class="h-4 w-4" /> Watched here <span class="text-xs font-normal text-muted-foreground">({{ watchedHere.length }})</span></h2>
+        <span class="flex-1" />
+        <Button v-if="notFoundHere.length" variant="outline" size="sm" class="h-7 text-xs" :title="'Stop watching the automations SFMC no longer finds in this business unit'" @click="unwatch(notFoundHere.map((w) => w.id))"><EyeOff class="h-3.5 w-3.5 mr-1" /> Unwatch {{ notFoundHere.length }} not found</Button>
+        <Button v-if="watchedHere.length > 1" variant="ghost" size="sm" class="h-7 text-xs" @click="unwatch(watchedHere.map((w) => w.id))"><EyeOff class="h-3.5 w-3.5 mr-1" /> Unwatch all</Button>
+      </div>
       <p v-if="!watchedHere.length" class="text-xs text-muted-foreground">Open an automation and click Watch to be told when it is paused, activated, runs or fails.</p>
       <table v-else class="w-full text-xs">
-        <thead><tr class="text-left text-muted-foreground border-b border-border"><th class="py-1 pr-3">Automation</th><th class="py-1 pr-3">Status</th><th class="py-1 pr-3">Last run</th><th class="py-1 pr-3">Checked</th></tr></thead>
+        <thead><tr class="text-left text-muted-foreground border-b border-border"><th class="py-1 pr-3">Automation</th><th class="py-1 pr-3">Status</th><th class="py-1 pr-3">Last run</th><th class="py-1 pr-3">Checked</th><th class="py-1"><span class="sr-only">Unwatch</span></th></tr></thead>
         <tbody><tr v-for="w in watchedHere" :key="w.id" class="border-b border-border/50">
           <td class="py-1 pr-3"><RouterLink :to="link(w.id)" class="font-medium hover:underline">{{ w.name }}</RouterLink></td>
           <td class="py-1 pr-3"><StatusBadge :status="automationStatusName(w.last?.status)" /></td>
           <td class="py-1 pr-3">{{ formatDateTime(w.last?.lastRunTime) }} {{ w.last?.lastRunStatus || '' }}</td>
-          <td class="py-1 pr-3 text-muted-foreground">{{ w.checkedAt ? formatDateTime(new Date(w.checkedAt).toISOString()) : 'Not yet' }}<span v-if="w.error" class="block text-red-600">{{ w.error }}</span></td>
+          <td class="py-1 pr-3 text-muted-foreground">{{ w.checkedAt ? formatDateTime(new Date(w.checkedAt).toISOString()) : 'Not yet' }}<span v-if="w.notFound" class="block text-amber-700 dark:text-amber-400">Not found in this business unit: it was deleted, or it belongs to another BU. Unwatch it, or open SFMC in its BU.</span><span v-else-if="w.error" class="block text-red-600">{{ w.error }}</span></td>
+          <td class="py-1 text-right"><button class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-muted-foreground hover:bg-accent hover:text-foreground" :title="`Stop watching ${w.name}`" @click="unwatch([w.id])"><EyeOff class="h-3.5 w-3.5" /> Unwatch</button></td>
         </tr></tbody>
       </table>
     </section>

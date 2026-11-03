@@ -30,11 +30,11 @@ const groups = computed(() => (policy.loaded, NAV_GROUPS.map((g) => ({ ...g, ite
     </div>
 
     <div class="flex-1 overflow-y-auto py-2">
-      <div v-for="group in groups" :key="group.label" class="mb-3">
-        <div v-if="!collapsed" class="px-4 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <div v-for="group in groups" :key="group.label || 'start'" class="mb-3">
+        <div v-if="!collapsed && group.label" class="px-4 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           {{ group.label }}
         </div>
-        <div v-else class="mx-3 mb-1 border-t border-border" />
+        <div v-else-if="collapsed && group.label" class="mx-3 mb-1 border-t border-border" />
         <RouterLink
           v-for="item in group.items"
           :key="item.path"

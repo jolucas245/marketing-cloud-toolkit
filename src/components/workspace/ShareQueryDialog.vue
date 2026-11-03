@@ -1,6 +1,7 @@
 <script setup>
 // Share a query (utils/share.js): first shows exactly what leaves the browser and a
 // warning, then sends it only when the user confirms, then shows the link.
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, ref, watch } from 'vue'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'radix-vue'
 import { Share2, X, Copy, Check, ExternalLink, AlertTriangle, Loader2 } from 'lucide-vue-next'
@@ -68,7 +69,7 @@ async function copy() {
               <pre class="max-h-64 overflow-auto rounded-md border border-border bg-muted/40 p-2 font-mono text-[11px] whitespace-pre-wrap break-all">{{ payload.queryText }}</pre>
             </div>
           </template>
-          <p v-else-if="state === 'error'" class="text-red-600 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-md p-3">{{ error }}</p>
+          <p v-else-if="state === 'error'" class="text-red-600 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-md p-3">{{ error }}<ReportErrorButton /></p>
           <template v-else>
             <p class="text-muted-foreground">Anyone with this link can read and copy the SQL for 24 hours.</p>
             <div class="flex items-center gap-2">

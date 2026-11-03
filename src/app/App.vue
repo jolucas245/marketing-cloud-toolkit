@@ -19,11 +19,15 @@ import { useStack } from '@/composables/useStack.js'
 import { sendToBackground } from '@/utils/messaging.js'
 import { useTheme } from '@/composables/useTheme.js'
 import { preloadWhenIdle } from '@/utils/preloadOverviews.js'
+import { errorReport } from '@/composables/useReportError.js'
 
 const route = useRoute()
 const KEEP_ALIVE = ['WorkspacePage', 'BuilderPage', 'DataExtensionsPage', 'WhereUsedPage', 'DEStoragePage', 'AutomationsPage', 'ActivitiesPage', 'JourneysPage', 'JourneyEntryPage', 'CloudPagesPage']
 const paletteOpen = ref(false)
 const showFeedback = ref(false)
+// Report the error (any error message): the form opens with the error filled in.
+watch(errorReport, (r) => { if (r) showFeedback.value = true })
+function closeFeedback() { showFeedback.value = false; errorReport.value = null }
 const isMac = /Mac/i.test(navigator.platform || '')
 const usage = useUsage()
 const usagePercent = computed(() => Math.round(100 * usage.progress()))
@@ -97,6 +101,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
     <ToastHost />
     <WhatsNew />
     <UpdateBanner />
-    <FeedbackModal v-if="showFeedback && !policy.disableFeedback" :screen="route.path" @close="showFeedback = false" />
+    <FeedbackModal v-if="showFeedback && !policy.disableFeedback" :key="errorReport ? errorReport.details : 'feedback'" :screen="route.path" :prefill="errorReport" @close="closeFeedback" />
   </div>
 </template>

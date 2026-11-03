@@ -2,6 +2,7 @@
 // An automation's run history (feedback #41), from the same requests as Automation
 // Studio's run log. Loads when opened; each run can show its raw record, since the
 // response fields are read by their likely names.
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { ref, watch } from 'vue'
 import { ChevronDown, ChevronRight } from 'lucide-vue-next'
 import StatusBadge from '@/components/results/StatusBadge.vue'
@@ -86,7 +87,7 @@ const label = (k) => String(k).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/^
         <ProgressBar v-if="loading" indeterminate size="xs" aria-label="Reading the run history" class="w-24" />
         <span v-for="[k, v] in health || []" :key="k" class="rounded-full border border-border px-2 py-0.5 text-muted-foreground">{{ label(k) }}: <span class="text-foreground">{{ v }}</span></span>
       </div>
-      <p v-if="error" class="text-red-600" role="alert">{{ error }}</p>
+      <p v-if="error" class="text-red-600" role="alert">{{ error }}<ReportErrorButton /></p>
       <div v-if="runs" class="overflow-x-auto">
         <table class="w-full">
           <thead><tr class="text-left text-muted-foreground border-b border-border">

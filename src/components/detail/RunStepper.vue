@@ -1,4 +1,5 @@
 <script setup>
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { ref } from 'vue'
 import { explainRunError } from '@/utils/runErrors.js'
 import { AlertTriangle, Copy, Check, LogIn, RefreshCw } from 'lucide-vue-next'
@@ -153,7 +154,7 @@ function toggleWarnings(idx) {
               </Button>
             </template>
             <template v-else>
-              <span class="text-[10px] text-red-700 dark:text-red-400 leading-snug wrap-break-word">{{ stepErrors[idx] }}</span>
+              <span class="text-[10px] text-red-700 dark:text-red-400 leading-snug wrap-break-word">{{ stepErrors[idx] }}<ReportErrorButton :error="stepErrors[idx]" /></span>
               <div v-if="explainRunError(stepErrors[idx], sql)" class="w-full text-left text-[10px] leading-snug text-foreground bg-card border border-border rounded p-1.5 space-y-0.5">
                 <div><b>Likely cause:</b> {{ explainRunError(stepErrors[idx], sql).cause }}</div>
                 <div v-if="explainRunError(stepErrors[idx], sql).fix"><b>Fix:</b> {{ explainRunError(stepErrors[idx], sql).fix }}</div>

@@ -151,3 +151,14 @@ describe('readable journey step settings (feedback #42)', () => {
     expect(settingsRows({ fooBarCount: 3 }).main).toEqual([['Foo bar count', '3']])
   })
 })
+
+describe('journey SVG with a contact path', () => {
+  it('outlines visited steps, numbers them and dims the rest', () => {
+    const g = journeyGraph(journey)
+    const l = layoutJourney(g)
+    const svg = journeySvg(g, l, 'horizontal', { visited: new Set(['__entry', 'EMAIL-1']), visitedEdges: new Set([0]), steps: new Map([['EMAIL-1', [1]]]) })
+    expect(svg).toContain('stroke="#0176d3" stroke-width="3"')
+    expect(svg).toContain('opacity="0.4"')
+    expect(svg).toMatch(/fill="#ffffff">1<\/text>/)
+  })
+})

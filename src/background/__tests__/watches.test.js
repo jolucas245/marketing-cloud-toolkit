@@ -5,6 +5,9 @@ let status = 6
 let journeyStatus = 'Published'
 vi.mock('../fetchProxy.js', () => ({
   sfmcFetch: async ({ url }) => {
+    // The current BU (feedback #1026) is not counted with the watch checks.
+    if (url.includes('accounts/@current')) return { accountId: 100, name: 'Parent' }
+    if (url.includes('/missing')) throw Object.assign(new Error('SFMC API error 404: {"message":"Not Found"}'), { status: 404 })
     fetched.push(url)
     if (url.includes('jbinteractions')) return { id: 'j2', key: 'k1', name: 'Welcome', status: journeyStatus, version: 2, modifiedDate: '2026-10-19T10:00:00' }
     return { name: 'Daily load', status, lastRunTime: '2026-10-19T10:00:00', lastRunStatus: 'Complete' }
@@ -60,5 +63,27 @@ describe('checkWatches (feedback #50)', () => {
     expect(fetched[0]).toBe('https://jbinteractions.s4.marketingcloudapps.com/fuelapi/interaction/v1/interactions/key:k1')
     expect(data.toolkit_watch_notices[0]).toMatchObject({ type: 'journey', journeyId: 'j2', kind: 'paused' })
     expect(data.toolkit_watches['s4:journey:j1']).toMatchObject({ id: 'j1', latestId: 'j2', last: { status: 'Paused', version: 2 } })
+  })
+})
+
+describe('watches in other business units (feedback #1026)', () => {
+  beforeEach(() => { vi.resetModules(); fetched.length = 0; status = 6 })
+  it('skips other BUs, records the BU, clears an old error and says plainly when not found', async () => {
+    const { data } = fakeChrome()
+    const { WATCHES_KEY } = await import('../../utils/watches.js')
+    data[WATCHES_KEY] = {
+      's4:a1': { stack: 's4', id: 'a1', name: 'Here', on: { paused: true }, error: 'SFMC API error 404: old' },
+      's4:a2': { stack: 's4', id: 'a2', name: 'Other BU', mid: '200', on: { paused: true } },
+      's4:missing': { stack: 's4', id: 'missing', name: 'Gone', on: { paused: true } },
+    }
+    const { checkWatches } = await import('../watches.js')
+    const r = await checkWatches('s4', { force: true })
+    expect(r.checked).toBe(2)
+    const w = data[WATCHES_KEY]
+    expect(w['s4:a1']).toMatchObject({ mid: '100' })
+    expect(w['s4:a1'].error).toBeUndefined()
+    expect(w['s4:a2'].checkedAt).toBeUndefined()
+    expect(w['s4:missing']).toMatchObject({ notFound: true })
+    expect(w['s4:missing'].error).toBeUndefined()
   })
 })

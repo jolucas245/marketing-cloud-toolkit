@@ -1,4 +1,5 @@
 <script setup>
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { ref, computed, watch, nextTick } from 'vue'
 import { Search, Loader2, KeyRound, X, ArrowLeft, ListPlus, GitMerge } from 'lucide-vue-next'
 import { DATA_VIEW_FIELDS } from '@/utils/dataViews.js'
@@ -182,7 +183,7 @@ defineExpose({ focus })
       </div>
       <div class="flex-1 min-h-0 overflow-auto px-1 pb-2">
         <div v-if="loadingFields" class="px-1.5 py-1 text-muted-foreground flex items-center gap-1"><Loader2 class="h-3 w-3 animate-spin" /> Reading fields</div>
-        <p v-else-if="fieldError" class="px-1.5 py-1 text-red-600">{{ fieldError }}</p>
+        <p v-else-if="fieldError" class="px-1.5 py-1 text-red-600">{{ fieldError }}<ReportErrorButton /></p>
         <ul v-else-if="shownFields.length">
           <li v-for="f in shownFields" :key="f.name">
             <button class="w-full text-left px-1.5 py-1 rounded hover:bg-muted flex items-center gap-1" title="Insert at the cursor" @click="insertField(f)">

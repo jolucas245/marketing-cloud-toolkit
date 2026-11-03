@@ -1,8 +1,10 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { loadPolicy, routeBlocked } from '../utils/policy.js'
 import { NAV_ITEMS } from './nav.js'
+import { countVisit } from '../utils/home.js'
 
 const PAGES = {
+  '/home': () => import('../views/home/HomePage.vue'),
   '/queries/saved': () => import('../views/queries/SavedQueriesPage.vue'),
   '/queries/workspace': () => import('../views/queries/WorkspacePage.vue'),
   '/queries/builder': () => import('../views/queries/BuilderPage.vue'),
@@ -27,7 +29,7 @@ const PAGES = {
 }
 
 export const routes = [
-  { path: '/', redirect: '/queries/saved' },
+  { path: '/', redirect: '/home' },
   ...NAV_ITEMS.map((item) => ({
     path: item.path,
     component: PAGES[item.path],
@@ -68,6 +70,7 @@ export function createAppRouter(history = createWebHashHistory()) {
     return routeBlocked(to.path) ? '/' : true
   })
   router.afterEach((to) => {
+    countVisit(to.path) // Home's Most used (feedback #1025)
     document.title = to.meta?.title ? `${to.meta.title} · Marketing Cloud Toolkit` : 'Marketing Cloud Toolkit'
   })
   return router

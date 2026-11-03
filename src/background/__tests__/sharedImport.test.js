@@ -26,8 +26,9 @@ describe('share helpers', () => {
     expect(personalDataHints("WHERE Email = 'jane@example.com' OR Phone = '+1 (604) 555-0199'")).toEqual(['1 e-mail address', '1 phone-like number'])
     expect(personalDataHints('SELECT TOP 100 SubscriberKey FROM _Sent WHERE JobID = 12345')).toEqual([])
   })
-  it('is offered only when turned on and not blocked by policy', () => {
-    expect(shareAllowed(undefined)).toBe(false)
+  it('is offered unless turned off (on by default, feedback #1021) and not blocked by policy', () => {
+    expect(shareAllowed(undefined)).toBe(true)
+    expect(shareAllowed(false)).toBe(false)
     expect(shareAllowed(true)).toBe(true)
     policy.disableShare = true
     expect(shareAllowed(true)).toBe(false)

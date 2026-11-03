@@ -1,10 +1,12 @@
 // Sidebar sections and the routes behind them (pages in router.js). Section order
 // Queries, Data, Automation, Journey, Content (feedback #128).
 import {
-  Bookmark, LayoutGrid, Blocks, Workflow, ListChecks, Database, Route, LogIn, Globe, Mail, Network, Trash2, LayoutTemplate, LayoutDashboard, Users, HardDrive, FilePlus2, History, MailCheck, Footprints,
+  Bookmark, LayoutGrid, Blocks, Workflow, ListChecks, Database, Route, LogIn, Globe, Mail, Network, Trash2, LayoutTemplate, LayoutDashboard, Users, HardDrive, FilePlus2, History, MailCheck, Footprints, House,
 } from 'lucide-vue-next'
 
 export const NAV_GROUPS = [
+  // Home (feedback #1025): the start page, in a group without a heading.
+  { label: '', items: [{ path: '/home', name: 'Home', icon: House }] },
   {
     label: 'Queries',
     items: [

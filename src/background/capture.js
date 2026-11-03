@@ -53,7 +53,7 @@ export async function captureQueryStudio(details) {
   if (details.method !== 'POST' || !details.requestBody?.raw?.[0]?.bytes || !isQueryStudioUrl(details.url)) return
   if ((await getPolicy()).disableHistory) return
   // Off unless the user turned it on (Settings > Running queries).
-  if ((await storageGet('local', [QUERY_STUDIO_SETTING]))[QUERY_STUDIO_SETTING] !== true) return
+  if ((await storageGet('local', [QUERY_STUDIO_SETTING]))[QUERY_STUDIO_SETTING] === false) return
   let queryText
   try {
     queryText = JSON.parse(decoder.decode(new Uint8Array(details.requestBody.raw[0].bytes))).querytext
@@ -77,8 +77,8 @@ export async function captureQueryStudio(details) {
 }
 
 // ── Content Builder email versions ─────────────────────────
-// Saved Emails is off unless the user turns it on (security review, 2026-10-28).
-export const emailSaver = { enabled: false, debounceMs: 5000 }
+// Saved Emails: on unless the user turns it off (feedback #1021: on by default; an admin policy can still turn it off).
+export const emailSaver = { enabled: true, debounceMs: 5000 }
 const lastSavedAt = {}
 
 export async function loadEmailSaverPrefs() {
@@ -87,7 +87,7 @@ export async function loadEmailSaverPrefs() {
 }
 
 export function applyEmailSaverPrefs(prefs) {
-  if ('_emailSaverEnabled' in prefs) emailSaver.enabled = prefs._emailSaverEnabled === true
+  if ('_emailSaverEnabled' in prefs) emailSaver.enabled = prefs._emailSaverEnabled !== false
   if ('_emailSaveDebounce' in prefs) {
     const s = prefs._emailSaveDebounce
     emailSaver.debounceMs = typeof s === 'number' && s >= 0 ? s * 1000 : 5000

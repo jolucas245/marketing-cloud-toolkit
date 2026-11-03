@@ -1,4 +1,5 @@
 <script setup>
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { ref, onMounted, watch } from 'vue'
 import { ChevronRight, ChevronDown, Database, Search, Loader2, Folder } from 'lucide-vue-next'
 import Input from '../ui/input/Input.vue'
@@ -149,7 +150,7 @@ function badgeClass(sourceType) {
           <span class="truncate flex-1">{{ node.name }}</span>
           <span class="text-[9px] px-1 rounded" :class="badgeClass(node.sourceType)">{{ node.sourceType === 'dataview' ? 'Data view' : node.sourceType }}</span>
         </button>
-        <div v-if="!searching && !searchResults.length && searchError" class="p-2 text-red-600" role="alert">Search failed: {{ searchError }}</div>
+        <div v-if="!searching && !searchResults.length && searchError" class="p-2 text-red-600" role="alert">Search failed: {{ searchError }}<ReportErrorButton /></div>
         <div v-else-if="!searching && !searchResults.length" class="p-2 text-muted-foreground italic">No matches</div>
       </div>
 

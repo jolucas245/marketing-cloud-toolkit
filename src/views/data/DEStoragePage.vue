@@ -6,6 +6,7 @@
 // Kept per stack and BU while the tab is open (utils/pageCache.js). The storage
 // calls answer only in the parent (Enterprise) BU (feedback #125): from a known
 // child BU the page says so without calling, with Try anyway.
+import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import { computed, ref } from 'vue'
 import { Loader2, RefreshCw, Download, FileSpreadsheet, Search } from 'lucide-vue-next'
@@ -149,7 +150,7 @@ whenStack(async () => {
             <option :value="30">Last 30 days</option><option :value="90">Last 90 days</option><option :value="365">Last year</option>
           </select>
         </div>
-        <p v-if="historyError" class="text-xs text-red-600">{{ historyError }}</p>
+        <p v-if="historyError" class="text-xs text-red-600">{{ historyError }}<ReportErrorButton /></p>
         <StackedBars v-else-if="history.length" :rows="history" :series="SERIES" :label-of="dayLabel" :title="`Storage used per day, last ${days} days`" />
         <p v-else class="text-xs text-muted-foreground">No storage history.</p>
       </section>

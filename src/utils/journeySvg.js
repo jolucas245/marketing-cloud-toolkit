@@ -14,6 +14,7 @@ const CARD = '#ffffff'
 const TEXT = '#1a1a1a'
 const MUTED = '#64748b'
 const BORDER = '#e2e8f0'
+const PATH = '#0176d3' // a contact's path (the app's primary blue)
 
 const esc = (s) => htmlEscape(String(s ?? ''))
 const num = (n) => Math.round(n * 10) / 10
@@ -80,8 +81,15 @@ function nodeSvg(node) {
   const { shape, color, icon } = d.visual
   // Text sits on the card colour where connectors pass under it (branch exits, Winner).
   const masked = d.branchExit || icon === 'winner'
-  const out = [`<g class="activity" transform="translate(${num(x)},${num(y)})"><title>${esc(`${d.typeLabel} · ${d.name}${d.summary ? ` · ${d.summary}` : ''}`)}</title>`,
+  const out = [`<g class="activity" transform="translate(${num(x)},${num(y)})"${d.visited === false ? ' opacity="0.4"' : ''}><title>${esc(`${d.typeLabel} · ${d.name}${d.summary ? ` · ${d.summary}` : ''}`)}</title>`,
     symbolSvg(shape, color), iconSvg(icon, color, shape === 'diamond' ? 23 : 25)]
+  if (d.visited === true) out.push(shape === 'circle' ? `<circle cx="${CX}" cy="${CY}" r="27" fill="none" stroke="${PATH}" stroke-width="2"/>`
+    : `<rect x="${CX - 27}" y="${CY - 27}" width="54" height="54" rx="9" fill="none" stroke="${PATH}" stroke-width="2"/>`)
+  if (d.steps?.length) {
+    const t = d.steps.join(',')
+    const w = Math.max(20, width10(t) + 8)
+    out.push(`<rect x="${CX + 14}" y="-4" width="${num(w)}" height="20" rx="10" fill="${PATH}"/><text x="${num(CX + 14 + w / 2)}" y="10" text-anchor="middle" font-size="10" font-weight="600" fill="#ffffff">${esc(t)}</text>`)
+  }
   const lines = wrapText(d.name, 24, 2)
   let top = 58
   if (masked && lines.length) {
@@ -124,9 +132,13 @@ function pathPoints(d) {
   return points
 }
 
-/** The journey as an SVG string, drawn like the interactive canvas. */
-export function journeySvg(graph, layout, orientation = 'horizontal') {
-  const { nodes, edges } = journeyCanvasModel(graph, layout, orientation)
+/**
+ * The journey as an SVG string, drawn like the interactive canvas. `path` ({ visited,
+ * visitedEdges, steps } as on the Contact journeys canvas) outlines a contact's path,
+ * numbers its steps and dims the rest.
+ */
+export function journeySvg(graph, layout, orientation = 'horizontal', path = null) {
+  const { nodes, edges } = journeyCanvasModel(graph, layout, orientation, null, path || {})
   const activities = nodes.filter((n) => n.type === 'journeyActivity')
   // Bounds of everything drawn.
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
@@ -142,7 +154,10 @@ export function journeySvg(graph, layout, orientation = 'horizontal') {
   const out = [`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" font-family="'Segoe UI',Arial,sans-serif" role="img" aria-label="Journey diagram">`,
     `<rect width="${w}" height="${h}" fill="${CARD}"/>`,
     `<g transform="translate(${num(PAD - minX)},${num(PAD - minY)})">`]
-  for (const e of edges) out.push(`<path d="${esc(e.data.path)}" fill="none" stroke="${CONNECTOR}" stroke-width="1.7"/>`)
+  for (const e of edges) {
+    const on = e.data.visited === true
+    out.push(`<path d="${esc(e.data.path)}" fill="none" stroke="${on ? PATH : CONNECTOR}" stroke-width="${on ? 3 : 1.7}"${e.data.visited === false ? ' opacity="0.3"' : ''}/>`)
+  }
   for (const n of activities) out.push(nodeSvg(n))
   for (const e of edges) {
     if (e.data.label) out.push(labelSvg(e.data.x, e.data.y, e.data.label))
