@@ -1,4 +1,5 @@
 <script setup>
+import QueryStudioNotice from '@/components/shell/QueryStudioNotice.vue'
 // Home (feedback #1025, like Data Cloud Inspector's Home): where you are connected and
 // the state of this business unit at a glance (automations, journeys, what needs a
 // look, what you watch), the pages you use most and your recent saved queries.
@@ -163,6 +164,8 @@ function openQuery(q) { router.push({ path: q.source === 'builder' ? '/queries/b
           </button>
         </div>
       </section>
+
+      <QueryStudioNotice />
 
       <!-- Describe the query you need (AI, experimental) -->
       <form v-if="ai.shown.value" class="flex flex-wrap items-center gap-2 rounded-[14px] border border-border bg-card px-4 py-3" @submit.prevent="askAi">

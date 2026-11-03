@@ -35,6 +35,8 @@ const whereFieldUsed = (de, field) => usage.start(stack.value, { kind: 'field', 
 // The DE whose rows are open in DERowsViewer (feedback #117).
 const rowsDE = ref(null)
 // The DE whose columns are being reordered (feedback #1013).
+// Turned off for now (feedback #1033: does not work yet); the dialog and code stay.
+const REORDER_ENABLED = false
 const reorderDE = ref(null)
 function afterReorder(de) {
   clearDECaches()
@@ -554,7 +556,7 @@ const columns = [
                     <div class="flex items-center gap-2 mb-1.5">
                       <span class="font-semibold">{{ fields[row.id].list.length }} {{ fields[row.id].list.length === 1 ? 'field' : 'fields' }}</span>
                       <button class="inline-flex items-center gap-1 text-primary hover:underline" @click="rowsDE = row"><Rows3 class="h-3.5 w-3.5" /> Preview data</button>
-                      <button v-if="!row.sourceType" class="inline-flex items-center gap-1 text-primary hover:underline" title="Change the order of this data extension's columns" @click="reorderDE = row"><ArrowUpDown class="h-3.5 w-3.5" /> Reorder columns</button>
+                      <button v-if="REORDER_ENABLED && !row.sourceType" class="inline-flex items-center gap-1 text-primary hover:underline" title="Change the order of this data extension's columns" @click="reorderDE = row"><ArrowUpDown class="h-3.5 w-3.5" /> Reorder columns</button>
                       <button class="text-primary hover:underline" @click="tickAll(row)">
                         {{ fields[row.id].list.length && fields[row.id].list.every((f) => isTicked(row, f.name)) ? 'Untick all' : 'Tick all for a query' }}
                       </button>
@@ -663,7 +665,7 @@ const columns = [
             <div v-else-if="fields[detail.id]?.status === 'ok'" class="flex flex-col gap-2">
               <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span class="font-semibold">{{ fields[detail.id].list.length }} {{ fields[detail.id].list.length === 1 ? 'field' : 'fields' }}</span>
-                <button v-if="!detail.sourceType" class="inline-flex items-center gap-1 text-primary hover:underline" title="Change the order of this data extension's columns" @click="reorderDE = detail"><ArrowUpDown class="h-3.5 w-3.5" /> Reorder columns</button>
+                <button v-if="REORDER_ENABLED && !detail.sourceType" class="inline-flex items-center gap-1 text-primary hover:underline" title="Change the order of this data extension's columns" @click="reorderDE = detail"><ArrowUpDown class="h-3.5 w-3.5" /> Reorder columns</button>
                 <button class="text-primary hover:underline" @click="tickAll(detail)">
                   {{ fields[detail.id].list.length && fields[detail.id].list.every((f) => isTicked(detail, f.name)) ? 'Untick all' : 'Tick all for a query' }}
                 </button>

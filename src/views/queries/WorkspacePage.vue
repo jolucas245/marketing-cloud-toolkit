@@ -1,4 +1,5 @@
 <script setup>
+import QueryStudioNotice from '@/components/shell/QueryStudioNotice.vue'
 // Query Workspace: up to 6 SQL panels, each with its own editor, validate and run
 // (from SFMC Query Saver). The page is kept alive while you visit other sections, so
 // a running query keeps going. `?id=` (a saved query) or `?sql=` adds a panel; `?ai=`
@@ -56,6 +57,7 @@ function openLogin() {
 
 <template>
   <div class="h-full flex flex-col bg-background">
+    <div class="px-5 pt-3 empty:hidden"><QueryStudioNotice /></div>
     <div class="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-border bg-card">
       <span class="text-[13px] text-muted-foreground">Layout</span>
       <div class="inline-flex items-center p-[3px] border border-border rounded-full bg-card" role="group" aria-label="Layout">
