@@ -10,6 +10,7 @@ defineProps({
   title: { type: String, default: 'Experimental: Gemini Nano in Chrome, on this computer' },
   size: { type: String, default: 'md' }, // md | sm | link
   disabled: { type: Boolean, default: false },
+  labelClass: { type: String, default: '' }, // e.g. hidden in narrow Run Query panels
 })
 defineEmits(['click'])
 const { shown } = useAi()
@@ -21,7 +22,7 @@ const { shown } = useAi()
       <Sparkles class="h-3 w-3" /> {{ label }}
     </button>
     <Button v-else variant="outline" size="sm" :class="size === 'sm' ? 'h-6 text-[10px] px-1.5' : 'h-8 text-xs'" :disabled="disabled" :title="title" @click="$emit('click')">
-      <Sparkles :class="size === 'sm' ? 'h-3 w-3 mr-0.5' : 'h-3.5 w-3.5 mr-1'" class="text-primary" /> {{ label }}
+      <Sparkles :class="size === 'sm' ? 'h-3 w-3 mr-0.5' : 'h-3.5 w-3.5 mr-1'" class="text-primary" /><span :class="labelClass">{{ label }}</span>
     </Button>
   </template>
 </template>

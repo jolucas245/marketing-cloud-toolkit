@@ -9,6 +9,8 @@ const props = defineProps({
   // The QueryEditor component instance (insertAllFields, tablesInQuery, searchTables).
   editor:   { type: Object, default: null },
   disabled: { type: Boolean, default: false },
+  // No button of its own: opened from the Run Query Edit menu (feedback #1030).
+  bare:     { type: Boolean, default: false },
 })
 
 const open = ref(false)
@@ -45,6 +47,8 @@ watch(query, (q) => {
   }, 250)
 })
 
+defineExpose({ toggle })
+
 async function pick(name) {
   if (!props.editor || busy.value) return
   busy.value = name
@@ -61,12 +65,12 @@ async function pick(name) {
 
 <template>
   <div class="relative">
-    <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="disabled" title="Insert all fields of a DE or data view" @click="toggle">
+    <Button v-if="!bare" variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="disabled" title="Insert all fields of a DE or data view" @click="toggle">
       <ListPlus class="h-3 w-3" />
     </Button>
     <template v-if="open">
       <div class="fixed inset-0 z-40" @click="open = false" />
-      <div class="absolute right-0 mt-1 w-72 z-50 rounded-md border border-border bg-card shadow-lg p-2 text-[11px]">
+      <div class="absolute mt-1 w-72 z-50 rounded-md border border-border bg-card shadow-lg p-2 text-[11px]" :class="bare ? 'left-0 top-6' : 'right-0'">
         <div class="font-semibold mb-1">Insert all fields</div>
         <p class="text-muted-foreground mb-2">Replaces <code>*</code> or <code>alias.*</code> for that table, or inserts at the cursor. In an empty editor it writes the whole query.</p>
 

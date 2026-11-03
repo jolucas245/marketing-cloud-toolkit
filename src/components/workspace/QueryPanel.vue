@@ -5,10 +5,11 @@ import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } f
 import {
   Pencil, Check, X, Play, ShieldCheck, ChevronDown, LogIn, History,
   FolderOpen, RefreshCw, Search, Share2, Copy, ExternalLink, Maximize2, Minimize2, AlignLeft,
-  Table2, FileOutput, Blocks, Share, Wand2, Users, Eye, Rows3, Eraser, ArchiveRestore, TextSearch,
+  Table2, FileOutput, Blocks, Share, Wand2, Users, Eye, ListPlus, TextCursorInput, Save as SaveIcon, Rows3, Eraser, ArchiveRestore, TextSearch,
 } from 'lucide-vue-next'
 import AiAssistDialog from './AiAssistDialog.vue'
 import AiButton from '../ai/AiButton.vue'
+import ToolbarMenu from './ToolbarMenu.vue'
 import { useAi, pendingAiRequest } from '../../composables/useAi.js'
 import SampleDialog from './SampleDialog.vue'
 import EarlierTextDialog from './EarlierTextDialog.vue'
@@ -238,6 +239,33 @@ function confirmActivity(where) {
   else { showQueryPicker.value = false; openInNewPanel(item.queryText || '') }
 }
 
+// Toolbar menus (feedback #1030): what used to be about 20 icon buttons.
+const insertMenu = ref(null)
+const onEditor = computed(() => activeTab.value === 'editor')
+const hasSql = computed(() => !!queryText.value.trim())
+const editItems = computed(() => [
+  { id: 'format', label: 'Format SQL', shortcut: 'Shift+Alt+F', icon: AlignLeft, disabled: !hasSql.value || !onEditor.value, run: formatQuery },
+  { id: 'fixall', label: 'Fix all', desc: 'Apply every one-click fix the SQL checks offer', icon: Wand2, disabled: !hasSql.value || !onEditor.value, run: fixAllQuery },
+  { id: 'find', label: 'Find and replace', shortcut: `${isMac ? 'Cmd' : 'Ctrl'}+F`, icon: TextSearch, disabled: !onEditor.value, run: () => editorRef.value?.openFind?.() },
+  { id: 'fields', label: 'Insert all fields', desc: 'Every column of a table, in place of * or at the cursor', icon: ListPlus, disabled: !onEditor.value || isRunning.value, run: () => insertMenu.value?.toggle?.() },
+  { id: 'clear', label: 'Clear', desc: 'Undo brings it back; also kept under Earlier text', icon: Eraser, disabled: !hasSql.value || !onEditor.value, run: clearQuery },
+  { id: 'earlier', label: 'Earlier text', desc: 'This panel\'s SQL from the last 24 hours', icon: ArchiveRestore, disabled: !onEditor.value, run: openEarlier },
+])
+const tableItems = computed(() => [
+  { id: 'schema', label: 'Schema search', desc: 'Data extensions and their fields beside the editor', shortcut: `${isMac ? 'Cmd' : 'Ctrl'}+Shift+S`, icon: Table2, checked: showSchema.value, disabled: !onEditor.value, run: () => setSchema(!showSchema.value) },
+  { id: 'sample', label: 'Sample rows', desc: 'The first 10 rows of each table in the query, without running it', icon: Rows3, disabled: !props.canInteract || !hasSql.value || !onEditor.value, run: () => { showSample.value = true } },
+  { id: 'snippets', label: 'Shared snippets', desc: 'SQL your team keeps in this business unit', icon: Users, disabled: !props.canInteract || !onEditor.value, run: openSnippets },
+])
+const openItems = computed(() => [
+  { id: 'activity', label: 'Open a query activity', desc: 'From Automation Studio, into this panel', icon: FolderOpen, disabled: !props.canInteract || isRunning.value, run: openQueryPicker },
+  { id: 'builder', label: 'Open in Query Builder', desc: 'Draw this query as tables and joins', icon: Blocks, disabled: !hasSql.value, run: () => router.push({ path: '/queries/builder', query: { sql: queryText.value } }) },
+  { id: 'diagramforce', label: 'Open in Diagramforce', desc: 'The query\'s lineage as a diagram on diagramforce.com', icon: Share, hidden: policy.disableDiagramforce, disabled: !hasSql.value, run: queryToDiagramforce },
+])
+const saveItems = computed(() => [
+  { id: 'saveas', label: 'Save as query activity', desc: 'A named activity writing to a new or existing data extension', icon: FileOutput, disabled: !props.canInteract || isRunning.value || !hasSql.value, run: () => { showSaveAs.value = true } },
+  { id: 'share', label: 'Share', desc: 'A link anyone can open for 24 hours (you see what is sent first)', icon: Share2, hidden: !canShare.value, disabled: !hasSql.value, run: () => { shareOpen.value = true } },
+])
+
 // Schema search beside the editor (feedback #72), open or closed for every panel.
 const SCHEMA_KEY = 'toolkit_schemaPanel'
 const schemaPanel = ref(null)
@@ -255,39 +283,31 @@ function openSchema() {
 
 <template>
   <div class="query-panel flex flex-col min-h-0 min-w-0 rounded-lg border border-border bg-card overflow-hidden shadow-sm">
-    <div class="flex items-center gap-1.5 px-2 py-1.5 border-b border-border shrink-0">
+    <div class="query-toolbar flex flex-wrap items-center gap-x-1.5 gap-y-1 px-2 py-1.5 border-b border-border shrink-0">
       <span class="text-[10px] font-bold text-muted-foreground">#{{ panelIndex + 1 }}</span>
       <template v-if="!isEditingName">
-        <span class="text-xs font-semibold truncate flex-1" @dblclick="enableNameEditing">{{ panelTitle }}</span>
+        <span class="text-xs font-semibold truncate min-w-[4rem] flex-1" :title="panelTitle" @dblclick="enableNameEditing">{{ panelTitle }}</span>
         <Button variant="ghost" size="icon" class="h-6 w-6" title="Rename panel" @click="enableNameEditing"><Pencil class="h-3 w-3" /></Button>
       </template>
       <template v-else>
-        <Input v-model="editableName" class="h-6 text-xs flex-1" @keyup.enter="saveName" />
+        <Input v-model="editableName" class="h-6 text-xs flex-1 min-w-[6rem]" @keyup.enter="saveName" />
         <Button variant="ghost" size="icon" class="h-6 w-6" title="Save name" @click="saveName"><Check class="h-3 w-3" /></Button>
       </template>
-      <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!canInteract || isRunning" title="Open an existing Query Activity from Automation Studio" @click="openQueryPicker"><FolderOpen class="h-3 w-3" /></Button>
-      <Button v-if="canShare" variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!queryText.trim()" title="Share query: create a link anyone can open for 24 hours (you see what is sent first)" @click="shareOpen = true"><Share2 class="h-3 w-3" /></Button>
-      <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!queryText.trim() || activeTab !== 'editor'" title="Format SQL (Shift+Alt+F)" @click="formatQuery"><AlignLeft class="h-3 w-3" /></Button>
-      <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!canInteract || activeTab !== 'editor'" title="Shared snippets: SQL your team keeps in this business unit" @click="openSnippets"><Users class="h-3 w-3" /></Button>
-      <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!queryText.trim() || activeTab !== 'editor'" title="Fix all: apply every one-click fix the SQL checks offer" @click="fixAllQuery"><Wand2 class="h-3 w-3" /></Button>
-      <AiButton size="sm" label="Ask AI" :disabled="activeTab !== 'editor'" title="Ask AI (experimental): write or fix this query with Gemini Nano in Chrome, on this computer" @click="openAi()" />
-      <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="activeTab !== 'editor'" :title="`Find and replace (${isMac ? 'Cmd' : 'Ctrl'}+F in the editor)`" @click="editorRef?.openFind?.()"><TextSearch class="h-3 w-3" /></Button>
-      <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!queryText.trim() || activeTab !== 'editor'" title="Clear the SQL (Undo brings it back; it is also kept under Earlier text)" @click="clearQuery"><Eraser class="h-3 w-3" /></Button>
-      <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="activeTab !== 'editor'" title="Earlier text: this panel's SQL from the last 24 hours" @click="openEarlier"><ArchiveRestore class="h-3 w-3" /></Button>
-      <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!canInteract || !queryText.trim() || activeTab !== 'editor'" title="Sample: the first 10 rows of each table in the query, without running it" @click="showSample = true"><Rows3 class="h-3 w-3" /></Button>
-      <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!queryText.trim()" title="Open in Query Builder: draw this query as tables and joins" @click="router.push({ path: '/queries/builder', query: { sql: queryText } })"><Blocks class="h-3 w-3" /></Button>
-      <Button v-if="!policy.disableDiagramforce" variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!queryText.trim()" title="Open in Diagramforce: the query's lineage (source fields to output columns) as a diagram on diagramforce.com" @click="queryToDiagramforce"><Share class="h-3 w-3" /></Button>
-      <InsertFieldsMenu :editor="editorRef" :disabled="activeTab !== 'editor' || isRunning" />
-      <Button :variant="showSchema ? 'default' : 'outline'" size="sm" class="h-6 text-[10px] px-1" :disabled="activeTab !== 'editor'" :title="`Schema search: data extensions and their fields (${isMac ? 'Cmd' : 'Ctrl'}+Shift+S)`" :aria-pressed="showSchema" @click="setSchema(!showSchema)"><Table2 class="h-3 w-3" /></Button>
+      <!-- Feedback #1030: the tools grouped into four labelled menus. -->
+      <ToolbarMenu label="Edit" :icon="TextCursorInput" title="Format, fix, find, insert fields, clear, earlier text" :items="editItems" />
+      <InsertFieldsMenu ref="insertMenu" bare :editor="editorRef" :disabled="activeTab !== 'editor' || isRunning" />
+      <ToolbarMenu label="Tables" :icon="Table2" title="Schema search, sample rows, shared snippets" :items="tableItems" />
+      <ToolbarMenu label="Open" :icon="FolderOpen" title="Open a query activity, or this query in Query Builder or Diagramforce" :items="openItems" />
+      <ToolbarMenu label="Save" :icon="SaveIcon" title="Save as query activity, share" :items="saveItems" />
+      <AiButton size="sm" label="Ask AI" label-class="tb-label" :disabled="activeTab !== 'editor'" title="Ask AI (experimental): write or fix this query with Gemini Nano in Chrome, on this computer" @click="openAi()" />
+      <Button variant="outline" size="sm" class="h-6 text-[11px] px-1.5" :disabled="!canInteract || isRunning" title="Validate: check the query with SFMC without running it" @click="runValidation"><ShieldCheck class="h-3 w-3" /><span class="tb-label ml-1">Validate</span></Button>
+      <Button variant="outline" size="sm" class="h-6 text-[11px] px-1.5" :disabled="!canInteract || isRunning || !queryText.trim()" :title="`Preview: run with TOP ${PREVIEW_ROWS} (the selection, or the whole query) to see the first rows quickly`" @click="previewTop"><Eye class="h-3 w-3" /><span class="tb-label ml-1">Preview</span></Button>
+      <Button size="sm" class="h-6 text-[11px] px-1.5 bg-[#0176D3] text-white" :disabled="!canInteract || isRunning" :title="`Run query (${runKey}; with text selected, runs only the selection)`" @click="runQuery(0)"><Play class="h-3 w-3 fill-white" /><span class="tb-label ml-1">Run</span></Button>
+      <Button variant="ghost" size="icon" class="h-6 w-6" :title="activeTab === 'history' ? 'Back to editor' : 'Run history'" @click="activeTab = activeTab === 'history' ? 'editor' : 'history'"><History class="h-3 w-3" /></Button>
       <Button variant="ghost" size="icon" class="h-6 w-6" :title="isExpanded ? 'Minimize panel' : 'Expand panel'" @click="$emit('expand')">
         <Minimize2 v-if="isExpanded" class="h-3 w-3" />
         <Maximize2 v-else class="h-3 w-3" />
       </Button>
-      <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!canInteract || isRunning || !queryText.trim()" title="Save as query activity: a named activity writing to a new or existing data extension" @click="showSaveAs = true"><FileOutput class="h-3 w-3" /></Button>
-      <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!canInteract || isRunning" title="Validate query" @click="runValidation"><ShieldCheck class="h-3 w-3" /></Button>
-      <Button variant="outline" size="sm" class="h-6 text-[10px] px-1" :disabled="!canInteract || isRunning || !queryText.trim()" :title="`Preview: run with TOP ${PREVIEW_ROWS} (the selection, or the whole query) to see the first rows quickly`" @click="previewTop"><Eye class="h-3 w-3" /></Button>
-      <Button size="sm" class="h-6 text-[10px] px-1 bg-[#0176D3] text-white" :disabled="!canInteract || isRunning" :title="`Run query (${runKey}; with text selected, runs only the selection)`" @click="runQuery(0)"><Play class="h-3 w-3 fill-white" /></Button>
-      <Button variant="ghost" size="icon" class="h-6 w-6" :title="activeTab === 'history' ? 'Back to editor' : 'View run history'" @click="activeTab = activeTab === 'history' ? 'editor' : 'history'"><History class="h-3 w-3" /></Button>
       <Button v-if="showClose" variant="ghost" size="icon" class="h-6 w-6" title="Close panel" @click="$emit('close')"><X class="h-3 w-3" /></Button>
     </div>
 
@@ -469,4 +489,10 @@ function openSchema() {
 
 <style scoped>
 .query-panel { height: 100%; }
+</style>
+
+<style>
+/* Feedback #1030: labels on the toolbar, dropped when the panel is narrow. */
+.query-panel { container-type: inline-size; }
+@container (max-width: 760px) { .query-toolbar .tb-label { display: none; } }
 </style>
