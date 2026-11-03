@@ -31,6 +31,7 @@ All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are pub
 - Raw JSON on Contact journeys and Contacts shows in the code viewer with Copy (feedback #1018, #1023).
 
 **Fixed:**
+- Automation details open in Full view again; the canvas is under Overview (feedback #1038).
 - AI Assist on an empty panel shows only the suggested SQL, not a comparison with empty text (feedback #1034).
 - Watched automations showed "SFMC API error 404" for every automation (feedback #1026): watches now remember their business unit and are checked only there, an old error clears on the next good check, and an automation SFMC does not find says so plainly.
 - Contact journeys could not draw a journey when Journey Builder answered 404 for the id in the history (feedback #1024): it now looks the journey up by key and by name, and says when the drawing is from another version.
