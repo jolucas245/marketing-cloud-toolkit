@@ -88,4 +88,26 @@ describe('Journey canvas interactions', () => {
     expect(wrapper.find('[role="status"]').text()).toContain('No activities')
     wrapper.unmount()
   })
+
+  it('updates contact path highlights and step badges without resetting the viewport', async () => {
+    const wrapper = mount(JourneyCanvas, { props: {
+      ...props, visited: new Set(['original-email-key']), visitedEdges: new Set([0]),
+      steps: new Map([['original-email-key', [1, 3]]]),
+    } })
+    flow.initialized[0]()
+    const activity = wrapper.find('[data-activity-key="original-email-key"]')
+    expect(activity.find('.journey-activity-steps').text()).toBe('1,3')
+    expect(activity.attributes('aria-label')).toContain("Step 1, 3 of this contact's path")
+    expect(activity.element.closest('.journey-activity').classList.contains('is-visited')).toBe(true)
+    await wrapper.setProps({ visited: new Set(), visitedEdges: new Set(), steps: new Map() })
+    expect(activity.element.closest('.journey-activity').classList.contains('is-dimmed')).toBe(true)
+    expect(activity.find('.journey-activity-steps').exists()).toBe(false)
+    await activity.trigger('click')
+    expect(wrapper.emitted('select')).toEqual([['original-email-key']])
+    await wrapper.setProps({ visited: null, visitedEdges: null, steps: null })
+    expect(activity.element.closest('.journey-activity').classList.contains('is-dimmed')).toBe(false)
+    expect(activity.attributes('aria-label')).not.toContain('contact')
+    expect(flow.fit).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
 })

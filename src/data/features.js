@@ -13,7 +13,7 @@ export const FEATURE_GROUPS = [
       { title: 'Descriptive file names', since: '2.0.4', detail: 'Downloads are named with the business unit, what they contain, and the date and time.' },
       { title: 'Storage by section', since: '2.0.4', how: 'Settings > Storage', detail: 'What takes the space, by section and business unit. Delete one part, or keep only the newest versions of each email.' },
       { title: 'App sessions started for you', how: 'Automatic (Settings > Connection)', detail: 'When the Toolkit opens and at least one SFMC app already has a session, the apps without one are started in the background, one at a time in a tab that closes itself (at most every 10 minutes). The connection menu shows each app as Ready or Starting, and Start missing does it now.' },
-      { title: 'Sections in the sidebar', detail: 'Queries (Saved queries, Run Query, Query Builder, Delete Toolkit runs), Data (Data Extensions, Create DE, Where used, DE storage, Contacts), Automation (Automation overview, Automations, Activities, Saved Activities, Templates), Journey (Journey overview, Journeys, Journey Entry) and Content (CloudPages, Saved Emails), in that order since 2.0.12. Collapse the sidebar to icons with Collapse.' },
+      { title: 'Sections in the sidebar', detail: 'Queries (Saved queries, Run Query, Query Builder, Delete Toolkit runs), Data (Data Extensions, Create DE, Where used, DE storage, Contacts, Email validation), Automation (Automation overview, Automations, Activities, Saved Activities, Templates), Journey (Journey overview, Journeys, Journey Entry, Contact journeys) and Content (CloudPages, Saved Emails), in that order since 2.0.12. Collapse the sidebar to icons with Collapse.' },
       { title: 'Search everything', how: 'Ctrl+K (Cmd+K on a Mac), or Search in the top bar', detail: 'Jump to a section, open a saved query or a saved email, or start a search for data extensions, automations, activities, CloudPages or journey entry events.' },
       { title: 'Several tabs', detail: 'Each click on the toolbar icon opens a new tab, and Ctrl-click opens a section in a new tab. Two tabs never edit the same workspace or Query Builder query.' },
       { title: 'Results 50 at a time', detail: 'Every SFMC search (data extensions, automations, activities, journeys, journey entry events, CloudPages) shows the first 50 results; Load 50 more shows the next.' },
@@ -242,6 +242,7 @@ export const FEATURE_GROUPS = [
       { title: 'Held and bouncing subscribers', since: '2.0.5', detail: 'Subscribers marked Held or Bounced, and anyone with a recent hard bounce, with bounce count, last bounce date and reason.' },
       { title: 'Automation run log', since: '2.0.5', detail: 'Every automation run and every activity run, with status and error details, copied daily so they are kept beyond six months.' },
       { title: 'Unsubscribes for CRM', since: '2.0.5', detail: 'Email and business unit unsubscribes from the last few days, one row per subscriber, ready to send to Salesforce or another CRM.' },
+      { title: 'Email address validation', since: '2.0.18', detail: 'Keeps every subscriber\'s email address validated with SFMC\'s validation API: new and changed subscribers are added to an Email Validation data extension, each run takes the next batch not yet validated (50,000 by default), and a Script activity checks it with the client ID and secret you put in a settings data extension, writing isValidEmail, invalidReason and APIresponse. Each run stops before SFMC\'s 30-minute limit; the rest is picked up next run. Needs Script activities turned on in the business unit.' },
       { title: 'Data view archive', since: '2.0.3', detail: 'A data extension for each of Sent, Open, Click, Bounce, Unsubscribe, Complaint and Job, and a daily automation that copies the last few days into them, so tracking older than six months is kept.' },
       { title: 'Checked before anything is created', since: '2.0.4', detail: 'SFMC checks each query first, so a missing list or data extension stops the run with nothing created. If a run stops partway, Delete what was created removes it.' },
       { title: 'See before you create', detail: 'Every data extension (fields, keys), Query activity (with its SQL) and automation step is listed before anything is created. If a step fails, the page lists what was already created.' },
@@ -363,12 +364,33 @@ export const FEATURE_GROUPS = [
     ],
   },
   {
+    id: 'contact-journeys',
+    title: 'Contact journeys',
+    intro: 'Journey > Contact journeys. Read-only.',
+    items: [
+      { title: 'One contact across journeys', since: '2.0.18', how: 'Enter a Contact Key, then Find', detail: 'The journeys the contact is in now, and every journey it went through in the last 7, 30 or 90 days, across all journeys or within one you pick.' },
+      { title: 'The path it took', since: '2.0.18', how: 'Open a journey in the results', detail: 'Each step in order with its time, status and any error, and the same path outlined on the journey canvas with step numbers; steps it did not reach are dimmed.' },
+      { title: 'Email sends from the data views', since: '2.0.18', detail: 'Email sends in Run Query opens SQL over _Sent, _JourneyActivity and _Journey for the contact, which looks further back than Journey Builder\'s history (emails only).' },
+    ],
+  },
+  {
     id: 'contacts',
     title: 'Contacts',
     intro: 'Data > Contacts. Reads Contact Builder; changes nothing.',
     items: [
       { title: 'Contact count', since: '2.0.8', detail: 'How many contacts the account has in Contact Builder.' },
       { title: 'Find a contact', since: '2.0.8', how: 'Enter a Contact Key, then Search', detail: 'The contact\'s ID, dates and the attribute values Contact Builder returns.' },
+    ],
+  },
+  {
+    id: 'email-validation',
+    title: 'Email validation',
+    intro: 'Data > Email validation. Uses SFMC\'s email validation API, one call per address; sends nothing to anyone.',
+    items: [
+      { title: 'Checks', since: '2.0.18', detail: 'Syntax, mail server (MX record) and List Detective (SFMC\'s list of known bad, role and spam-trap addresses); pick which to run.' },
+      { title: 'One address or a list', since: '2.0.18', detail: 'Type one address, or paste or load up to 5,000. Results show valid or not, the reason and SFMC\'s answer, with a CSV download.' },
+      { title: 'Contacts', since: '2.0.18', how: 'Contacts tab', detail: 'Enter Contact Keys; every email address Contact Builder has for each contact is checked.' },
+      { title: 'A data extension', since: '2.0.18', how: 'Data extension tab', detail: 'Pick a data extension and its email field (up to 50,000 rows). Results go into three fields you pick in that data extension (isValidEmail, invalidReason, APIresponse; rows matched by primary key), or into a new data extension with the keys, the email and those three fields.' },
     ],
   },
   {

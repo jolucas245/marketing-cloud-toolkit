@@ -16,6 +16,7 @@
 
 import { resolveUrl } from './apps.js'
 import { getCoreCsrf, getAppCsrf, rememberCsrf } from './csrf.js'
+import { jbCsrfFor, captureJbCsrf, dropJbCsrf } from './jbCsrf.js'
 import { getMcaToken, dropMcaToken } from './mcaToken.js'
 import { ensureSession, SfmcAuthError, LOGIN_REQUIRED, SESSION_UNAVAILABLE } from './sessions.js'
 import { forgetStack } from './stack.js'
@@ -25,11 +26,18 @@ import { needsPageHeaders, pageHeadersFor, capturePageHeaders, dropPageHeaders }
  * SFMC's own HTML error pages (IIS "403 Not Authorized") turned into their title,
  * so a message reads "Not Authorized" instead of a page of markup (feedback #67).
  */
+const HTML_ENTITIES = { '&quot;': '"', '&#34;': '"', '&#39;': "'", '&apos;': "'", '&lt;': '<', '&gt;': '>', '&nbsp;': ' ', '&amp;': '&' }
+const decodeEntities = (s) => s.replace(/&(quot|#34|#39|apos|lt|gt|nbsp|amp);/g, (m) => HTML_ENTITIES[m])
+
 export function errorText(text) {
   const t = String(text ?? '')
-  if (!/^\s*(<!DOCTYPE html|<html)/i.test(t)) return t
-  const pick = (tag) => (t.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'i'))?.[1] || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-  return pick('title') || pick('h1') || 'SFMC returned an error page'
+  if (!/^\s*</.test(t)) return t
+  const pick = (tag) => decodeEntities((t.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'i'))?.[1] || '').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim()
+  // Journey Builder sends an HTML fragment (no <html>) with the status in <h1> and SFMC's JSON message in <h3>.
+  const h1 = pick('h1')
+  const detail = pick('h3')
+  if (detail && (!h1 || /^\d{3}$/.test(h1))) return detail
+  return pick('title') || h1 || detail || 'SFMC returned an error page'
 }
 
 export class SfmcApiError extends Error {
@@ -87,7 +95,12 @@ async function authHeaders({ url, stack, family, app, mutating }) {
       const token = await getMcaToken(stack)
       if (token) headers.Authorization = `Bearer ${token}`
     }
-    if (mutating) {
+    if (mutating && app?.id === 'journeyBuilder') {
+      // Journey Builder's page token (jbCsrf.js); its _csrf cookie is not the token.
+      const token = jbCsrfFor(stack) || await captureJbCsrf(stack)
+      if (token) headers['X-CSRF-Token'] = token
+      headers['X-Requested-With'] = 'XMLHttpRequest'
+    } else if (mutating) {
       const csrf = await getAppCsrf(url, app?.csrfCookie || '_csrf')
       if (csrf) headers['X-CSRF-Token'] = csrf
     }
@@ -112,7 +125,12 @@ async function fetchWithSession({ url, method = 'GET', body = null, bootstrap = 
   let headers = await authHeaders(target)
   let res = await send(url, method, body, headers)
 
-  if (res.status === 403 && family === 'mca' && headers['X-CSRF-Token']) {
+  if (app?.id === 'journeyBuilder' && target.mutating && /EBADCSRFTOKEN|invalid csrf token/i.test(res.body || '')) {
+    // The token went stale (Journey Builder reloaded elsewhere): read a fresh one once.
+    dropJbCsrf(stack)
+    headers = await authHeaders(target)
+    res = await send(url, method, body, headers)
+  } else if (res.status === 403 && family === 'mca' && headers['X-CSRF-Token']) {
     // A contacts call: the page's headers may be stale; read them again once.
     if (needsPageHeaders(url) && headers['X-Requested-With']) dropPageHeaders(stack)
     headers = await authHeaders(target)

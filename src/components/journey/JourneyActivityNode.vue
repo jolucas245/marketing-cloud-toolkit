@@ -23,6 +23,7 @@ function iconFailed(event) {
   if (url === iconUrl.value) failedIconUrl.value = url
 }
 const horizontal = computed(() => props.data.orientation !== 'vertical')
+const stepDescription = computed(() => props.data.steps?.length ? `Step ${props.data.steps.join(', ')} of this contact's path` : '')
 const paths = computed(() => JOURNEY_ICON_PATHS[props.data.visual.icon] || JOURNEY_ICON_PATHS.custom)
 const filledIcon = computed(() => ['push', 'line', 'sessionTransfer', 'mobile', 'inbox', 'whatsapp', 'sms', 'contact', 'waitDate', 'waitAttribute', 'waitChat', 'waitEvent', 'waitInApp'].includes(props.data.visual.icon) || props.data.visual.icon.startsWith('salesforce'))
 const anchors = computed(() => journeyNodeAnchors(props.data.orientation))
@@ -34,10 +35,10 @@ const sourceStyle = computed(() => horizontal.value
 </script>
 
 <template>
-  <div class="journey-activity" :class="{ 'has-branch-exit': data.branchExit }" :style="{ '--activity-color': data.visual.color }">
+  <div class="journey-activity" :class="{ 'has-branch-exit': data.branchExit, 'is-visited': data.visited === true, 'is-dimmed': data.visited === false }" :style="{ '--activity-color': data.visual.color }">
     <Handle type="target" :position="horizontal ? Position.Left : Position.Top" :connectable="false" :style="targetStyle" />
     <button type="button" class="journey-activity-button" :class="{ 'is-selected': data.active }"
-      :data-activity-key="data.key" :aria-pressed="data.active" :aria-label="`${data.typeLabel}: ${data.name}${data.summary ? '. ' + data.summary : ''}`"
+      :data-activity-key="data.key" :aria-pressed="data.active" :aria-label="`${data.typeLabel}: ${data.name}${data.summary ? '. ' + data.summary : ''}${stepDescription ? '. ' + stepDescription : ''}`"
       @click="emit('select', $event)" @mouseenter="tooltipVisible = true" @focus="tooltipVisible = true" @keydown.esc="tooltipVisible = false">
       <span class="journey-activity-symbol" :class="`is-${data.visual.shape}`" aria-hidden="true">
         <img v-if="showIconImage" :key="iconUrl" :src="iconUrl" alt="" class="journey-activity-image"
@@ -77,6 +78,7 @@ const sourceStyle = computed(() => horizontal.value
           />
         </svg>
       </span>
+      <span v-if="data.steps?.length" class="journey-activity-steps" aria-hidden="true" :title="stepDescription">{{ data.steps.join(',') }}</span>
       <span class="journey-activity-name" :class="{ 'is-winner': data.visual.icon === 'winner' }">{{ data.name }}</span>
       <span v-if="data.summary" class="journey-activity-summary">{{ data.summary }}</span>
       <span v-if="tooltipVisible" class="journey-activity-tooltip" role="tooltip">{{ data.typeLabel }} · {{ data.name }}<template v-if="data.summary"> · {{ data.summary }}</template></span>
@@ -88,6 +90,9 @@ const sourceStyle = computed(() => horizontal.value
 
 <style scoped>
 .journey-activity { position: relative; width: 156px; height: 112px; }
+.journey-activity.is-dimmed { opacity: .4; }
+.journey-activity.is-visited .journey-activity-symbol { outline: 2px solid hsl(var(--primary)); outline-offset: 4px; }
+.journey-activity-steps { position: absolute; top: -4px; left: calc(50% + 14px); display: flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 4px; border-radius: 10px; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); font-size: 10px; font-weight: 600; white-space: nowrap; }
 .journey-activity-button { position: relative; display: flex; align-items: center; flex-direction: column; width: 100%; height: 100%; padding: 4px 4px 0; border: 0; border-radius: 8px; background: transparent; color: hsl(var(--foreground)); cursor: pointer; }
 .journey-activity-button:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 4px; }
 .journey-activity-symbol { display: grid; flex-shrink: 0; width: 44px; height: 44px; place-items: center; color: white; background: var(--activity-color); border: 1px solid transparent; border-radius: 7px; }

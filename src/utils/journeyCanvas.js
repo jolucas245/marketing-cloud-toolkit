@@ -181,7 +181,7 @@ export function journeyActivityIcon(activity) {
   return null
 }
 
-export function journeyCanvasModel(graph, layout, orientation = 'horizontal', selected = null) {
+export function journeyCanvasModel(graph, layout, orientation = 'horizontal', selected = null, { visited = null, visitedEdges = null, steps = null } = {}) {
   const mergeTargets = new Set(graph.nodes.filter((node) => String(node.type || '').toUpperCase() === 'ABNTESTSTOP').map((node) => node.key))
   const flow = journeyFlowModel(graph, layout, orientation, { mergeTargets })
   const branchExits = new Set(flow.edges.filter((edge) => edge.sourceHandle === 'branch').map((edge) => edge.from))
@@ -205,6 +205,8 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
         summary,
         visual: journeyActivityVisual(displayType, node.raw?.metaData?.isConfigured, Boolean(iconUrl)),
         active: node.key === selected,
+        visited: visited ? visited.has(node.key) : null,
+        steps: steps?.get(node.key) || [],
         branchExit: branchExits.has(node.key),
         orientation,
       },
@@ -229,7 +231,7 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
       id: `journey-edge-${edge.index}`, source: edge.from, target: edge.to, type: 'journeyStep',
       selectable: false, focusable: false, updatable: false,
       ...(edge.sourceHandle ? { sourceHandle: edge.sourceHandle } : {}),
-      data: { path: edge.path, x: edge.x, y: edge.y, label: edge.label, ...(junction ? { junction } : {}) },
+      data: { path: edge.path, x: edge.x, y: edge.y, label: edge.label, visited: visitedEdges ? visitedEdges.has(edge.index) : null, ...(junction ? { junction } : {}) },
     }
   })
   return { nodes, edges }

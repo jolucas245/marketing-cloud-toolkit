@@ -1,7 +1,7 @@
 // Sidebar sections and the routes behind them (pages in router.js). Section order
 // Queries, Data, Automation, Journey, Content (feedback #128).
 import {
-  Bookmark, LayoutGrid, Blocks, Workflow, ListChecks, Database, Route, LogIn, Globe, Mail, Network, Trash2, LayoutTemplate, LayoutDashboard, Users, HardDrive, FilePlus2, History,
+  Bookmark, LayoutGrid, Blocks, Workflow, ListChecks, Database, Route, LogIn, Globe, Mail, Network, Trash2, LayoutTemplate, LayoutDashboard, Users, HardDrive, FilePlus2, History, MailCheck, Footprints,
 } from 'lucide-vue-next'
 
 export const NAV_GROUPS = [
@@ -22,6 +22,7 @@ export const NAV_GROUPS = [
       { path: '/where-used', name: 'Where used', icon: Network },
       { path: '/de-storage', name: 'DE storage', icon: HardDrive },
       { path: '/contacts', name: 'Contacts', icon: Users },
+      { path: '/email-validation', name: 'Email validation', icon: MailCheck },
     ],
   },
   {
@@ -40,6 +41,7 @@ export const NAV_GROUPS = [
       { path: '/journey-overview', name: 'Journey overview', icon: LayoutDashboard },
       { path: '/journeys', name: 'Journeys', icon: Route },
       { path: '/journey-entry', name: 'Journey Entry', icon: LogIn },
+      { path: '/contact-journeys', name: 'Contact journeys', icon: Footprints },
     ],
   },
   {

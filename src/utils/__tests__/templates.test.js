@@ -195,7 +195,7 @@ describe('more templates (user, 2026-10-20)', () => {
   })
   it('every template is listed and plans with its defaults', async () => {
     const { TEMPLATES } = await import('../templates/index.js')
-    expect(TEMPLATES.map((t) => t.id)).toEqual(['orphan-contacts', 'data-view-archive', 'unengaged-subscribers', 'held-bounced', 'automation-run-log', 'crm-unsubscribes'])
+    expect(TEMPLATES.map((t) => t.id)).toEqual(['orphan-contacts', 'data-view-archive', 'unengaged-subscribers', 'held-bounced', 'automation-run-log', 'crm-unsubscribes', 'email-validation'])
     for (const t of TEMPLATES) expect(() => t.plan({ ...t.defaults })).not.toThrow()
   })
 })

@@ -2,7 +2,7 @@
 import { computed, markRaw, nextTick, ref, watch } from 'vue'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
-import { Map, Maximize2, Minus, Plus, Keyboard } from 'lucide-vue-next'
+import { Map as MapIcon, Maximize2, Minus, Plus, Keyboard } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
 import JourneyActivityNode from './JourneyActivityNode.vue'
 import JourneyStepEdge from './JourneyStepEdge.vue'
@@ -15,6 +15,9 @@ const props = defineProps({
   layout: { type: Object, required: true },
   orientation: { type: String, default: 'horizontal' },
   selected: { type: String, default: null },
+  visited: { type: Set, default: null },
+  visitedEdges: { type: Set, default: null },
+  steps: { type: Map, default: null },
 })
 const emit = defineEmits(['select'])
 const root = ref(null)
@@ -23,7 +26,9 @@ const showHelp = ref(false)
 const flowId = `journey-${crypto.randomUUID()}`
 const { viewport, fitView, zoomIn, zoomOut, zoomTo, setViewport, getViewport, onNodesInitialized } = useVueFlow(flowId)
 const edgeTypes = { journeyStep: markRaw(JourneyStepEdge) }
-const model = computed(() => journeyCanvasModel(props.graph, props.layout, props.orientation, props.selected))
+const model = computed(() => journeyCanvasModel(props.graph, props.layout, props.orientation, props.selected, {
+  visited: props.visited, visitedEdges: props.visitedEdges, steps: props.steps,
+}))
 const percent = computed(() => Math.round(viewport.value.zoom * 100))
 let gesture = null
 let initialized = false
@@ -139,7 +144,7 @@ defineExpose({ fit, focusActivity })
         <Button variant="ghost" size="icon" aria-label="Zoom in" title="Zoom in (+)" :disabled="percent >= MAX_JOURNEY_ZOOM * 100" @click="zoomIn()"><Plus class="h-4 w-4" /></Button>
         <span class="journey-toolbar-divider" aria-hidden="true" />
         <Button variant="ghost" size="icon" aria-label="Fit journey to view" title="Fit journey (1)" @click="fit"><Maximize2 class="h-4 w-4" /></Button>
-        <Button variant="ghost" size="icon" aria-label="Toggle minimap" title="Minimap" :aria-pressed="showMap" @click="showMap = !showMap"><Map class="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" aria-label="Toggle minimap" title="Minimap" :aria-pressed="showMap" @click="showMap = !showMap"><MapIcon class="h-4 w-4" /></Button>
         <Button variant="ghost" size="icon" aria-label="Show canvas shortcuts" title="Canvas shortcuts" :aria-expanded="showHelp" @click="showHelp = !showHelp"><Keyboard class="h-4 w-4" /></Button>
       </div>
       <div v-if="showHelp" class="journey-canvas-help nopan nowheel">

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { journeyGraph, layoutJourney } from '../journeys.js'
 import { journeyActivityVisual, journeyCanvasModel, JOURNEY_ICON_PATHS } from '../journeyCanvas.js'
+import { pathOnGraph, stepNumbers } from '../contactJourneys.js'
 
 const journey = {
   triggers: [{ type: 'EmailAudience', name: 'Sample audience' }],
@@ -58,5 +59,37 @@ describe('Journey canvas adapter', () => {
 
   it('supports an empty graph', () => {
     expect(journeyCanvasModel({ nodes: [], edges: [] }, { pos: new Map() })).toEqual({ nodes: [], edges: [] })
+  })
+
+  it.each(['horizontal', 'vertical'])('preserves contact history highlights and repeated step numbers in %s', (orientation) => {
+    const keys = ['email-original-key', 'split', 'email-original-key']
+    const path = pathOnGraph(graph, keys)
+    const before = JSON.stringify(graph)
+    const model = journeyCanvasModel(graph, layout, orientation, 'wait', {
+      visited: path.nodes, visitedEdges: path.edges, steps: stepNumbers(keys),
+    })
+    expect(model.nodes.find((node) => node.id === 'email-original-key').data).toMatchObject({ visited: true, steps: [1, 3], active: false })
+    expect(model.nodes.find((node) => node.id === 'wait').data).toMatchObject({ visited: false, steps: [], active: true })
+    for (const [index, edge] of graph.edges.entries()) {
+      expect(model.edges.find((item) => item.id === `journey-edge-${index}`).data.visited).toBe(path.edges.has(index))
+    }
+    expect(JSON.stringify(graph)).toBe(before)
+  })
+
+  it('uses original edge indexes after filtering unresolved destinations', () => {
+    const withMissing = { ...graph, edges: [{ from: 'split', to: 'missing' }, ...graph.edges] }
+    const model = journeyCanvasModel(withMissing, layout, 'horizontal', null, { visitedEdges: new Set([1]) })
+    expect(model.edges.find((edge) => edge.id === 'journey-edge-1').data.visited).toBe(true)
+    expect(model.edges.filter((edge) => edge.data.visited)).toHaveLength(1)
+    expect(model.edges.some((edge) => edge.id === 'journey-edge-0')).toBe(false)
+  })
+
+  it('distinguishes a contact with no matched history from the regular journey view', () => {
+    const empty = journeyCanvasModel(graph, layout, 'horizontal', null, { visited: new Set(), visitedEdges: new Set() })
+    expect(empty.nodes.filter((node) => node.type === 'journeyActivity').every((node) => node.data.visited === false)).toBe(true)
+    expect(empty.edges.every((edge) => edge.data.visited === false)).toBe(true)
+    const regular = journeyCanvasModel(graph, layout)
+    expect(regular.nodes.filter((node) => node.type === 'journeyActivity').every((node) => node.data.visited === null && !node.data.steps.length)).toBe(true)
+    expect(regular.edges.every((edge) => edge.data.visited === null)).toBe(true)
   })
 })

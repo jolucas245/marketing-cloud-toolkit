@@ -10,6 +10,7 @@
 //   SAVE_RECORDS { records }, RENAME_QUERY { id, name }, IMPORT_SHARED_QUERY { records }
 //   WATCH_CHECK { stack, force }, WATCH_BADGE          watched automations (watches.js)
 //   OPEN_APP { path }                                 open app.html#<path> (Automation Summary tab, dashboard card)
+//   AUTOMATION_SUMMARY { stack, id }                  one automation with each activity described (automationSummary.js, Automation Summary tab)
 //   DASHBOARD_SUMMARY { stack, force }                automations and journeys for the dashboard card (dashboard.js)
 //   OPEN_SFMC_LINK { url }                            open an SFMC deep link and keep it (deepLinks.js)
 //   SFMC_CONTEXT_CAPTURED, MCA_TOKEN_CAPTURED         from content.js
@@ -21,6 +22,8 @@ import {
 } from './stack.js'
 import { restoreCsrfTokens, sniffCsrf, getCoreCsrf } from './csrf.js'
 import { restorePageHeaders, sniffPageHeaders } from './pageHeaders.js'
+import { restoreJbCsrf, sniffJbCsrf } from './jbCsrf.js'
+import { automationSummary } from './automationSummary.js'
 import {
   getMcaToken, isMcaTokenReady, mintBackoff, dropMcaToken, handleCapturedToken, setOnMintFailure,
 } from './mcaToken.js'
@@ -46,6 +49,7 @@ onForgetStack(dropMcaToken)
 setOnMintFailure(forgetStack)
 restoreCsrfTokens()
 restorePageHeaders()
+restoreJbCsrf()
 loadEmailSaverPrefs()
 watchForUpdates()
 watchPolicy()
@@ -83,6 +87,9 @@ chrome.webRequest?.onBeforeSendHeaders.addListener(
 // Contact Builder's own headers for the contacts calls (pageHeaders.js).
 chrome.webRequest?.onBeforeSendHeaders.addListener(
   sniffPageHeaders, { urls: ['https://*.marketingcloudapps.com/contactsmeta/*'] }, ['requestHeaders', 'extraHeaders'])
+// Journey Builder's own CSRF token for its POST calls (jbCsrf.js).
+chrome.webRequest?.onBeforeSendHeaders.addListener(
+  sniffJbCsrf, { urls: ['https://*.marketingcloudapps.com/fuelapi/*'] }, ['requestHeaders', 'extraHeaders'])
 // Query Studio 2's host is an optional permission; Chrome only delivers its
 // requests once the user has granted it (Settings > Running queries).
 chrome.webRequest?.onBeforeRequest.addListener(
@@ -162,6 +169,7 @@ const handlers = {
   WATCH_CHECK: async (m) => ({ result: await checkWatches(m.stack || (await resolveAndPublish()).stack, { force: !!m.force }) }),
   WATCH_BADGE: async () => { await updateBadge(); return { ok: true } },
   // From the Automation Summary tab on Automation Studio pages (public/automationPanel.js).
+  AUTOMATION_SUMMARY: async (m) => ({ summary: await automationSummary(m.stack, m.id) }),
   OPEN_APP: (m, sender) => {
     const path = typeof m.path === 'string' && m.path.startsWith('/') ? m.path : '/'
     createTab(nextTo(sender?.tab, { url: chrome.runtime.getURL(`${APP_PAGE}#${path}`) }))
