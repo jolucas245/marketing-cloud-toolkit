@@ -133,3 +133,38 @@ export async function findUsage(stack, target, { onStage = () => {}, shouldStop 
   for (const s of kind.stages(target)) if (!touched.has(s.id)) onStage(s.id, { state: 'skipped', done: 0, total: 0, note: 'not needed' })
   return { ...result, businessUnit: bu }
 }
+
+/**
+ * Loads one Where used source into the saved data without a scan (feedback #1037,
+ * Load everything in the connection menu), with the same rules as a scan: saved less
+ * than 5 minutes ago is kept, older saved data is brought up to date with refresh(),
+ * nothing saved (or `force`, the menu's Refresh) reads it in full. A source another
+ * one needs (Send Email activities need the automations) comes from the saved data,
+ * else it is loaded first.
+ * @returns {Promise<{ value, cached: boolean, note: string }>}
+ */
+export async function preloadUsageSource(stack, buId, id, { force = false, progress = () => {}, shouldStop = () => false, now = () => Date.now() } = {}) {
+  const src = SOURCES[id]
+  if (!src) throw new Error(`Unknown source: ${id}`)
+  const keyOf = (x) => `${stack}:${String(buId ?? 'unknown')}:${x}`
+  const saved = force ? null : await loadSaved(keyOf(id))
+  if (saved && now() - saved.savedAt < REUSE_FOR) return { value: saved.value, cached: true, note: `saved ${ago(now() - saved.savedAt)}` }
+  const get = async (dep) => (await loadSaved(keyOf(dep)))?.value
+    || (await preloadUsageSource(stack, buId, dep, { shouldStop, now })).value
+  const ctx = { stack, stop: shouldStop, get, progress: (done, total, note = '') => { if (!shouldStop()) progress(done, total, note) } }
+  let value
+  let note = ''
+  if (saved && src.refresh) {
+    const r = await src.refresh(saved.value, ctx)
+    value = r.value
+    note = r.changed == null ? 'read again in full' : r.changed ? `${r.changed} changed` : 'no changes'
+  } else {
+    value = await src.load(ctx)
+  }
+  if (shouldStop()) throw new StoppedError()
+  await save(keyOf(id), value)
+  if (value.errors) note = [note, `${value.errors} could not be read`].filter(Boolean).join(', ')
+  if (value.unavailable) note = 'not available in this account'
+  else if (value.capped) note = [note, 'capped'].filter(Boolean).join(', ')
+  return { value, cached: false, note }
+}

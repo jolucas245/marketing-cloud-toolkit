@@ -12,6 +12,28 @@ const JOBS = [
   { page: 'journey-overview', read: listAllJourneys, patch: (list) => ({ list, sends: null }) },
 ]
 
+/**
+ * Reads one overview (`automation-overview` or `journey-overview`) into the page cache
+ * unless it was read less than `maxAgeMs` ago. Waits for a read already in progress.
+ * Resolves to { list, cached }; throws when SFMC fails (feedback #1037 shows the error).
+ */
+export async function preloadOverviewPage(stack, buId, page, { now = () => Date.now(), maxAgeMs = PRELOAD_MAX_AGE_MS, onProgress } = {}) {
+  const job = JOBS.find((j) => j.page === page)
+  if (!job) throw new Error(`Unknown overview: ${page}`)
+  const key = pageCacheKey(page, stack, buId)
+  const saved = readPageCache(key)
+  if (saved?.list && now() - saved.savedAt < maxAgeMs) return { list: saved.list, cached: true }
+  const pending = pendingPageCache(key)
+  if (pending) {
+    await pending
+    const after = readPageCache(key)
+    if (after?.list) return { list: after.list, cached: false }
+  }
+  const p = setPendingPageCache(key, job.read(stack, onProgress).then((list) => { writePageCache(key, job.patch(list)) }))
+  await p
+  return { list: readPageCache(key)?.list || [], cached: false }
+}
+
 /** One page after the other; resolves to the pages it read. */
 export async function preloadOverviews(stack, { now = () => Date.now(), maxAgeMs = PRELOAD_MAX_AGE_MS } = {}) {
   if (!stack) return []

@@ -2,7 +2,7 @@
 // Queries, Data, Contacts, Automation, Journeys, Content (feedback #128, regrouped in
 // the redesign, #1031). `hidden` pages have a route but no sidebar entry.
 import {
-  Bookmark, LayoutGrid, Blocks, Workflow, ListChecks, Database, Route, LogIn, Globe, Mail, Network, Trash2, LayoutTemplate, LayoutDashboard, Users, HardDrive, FilePlus2, History, MailCheck, Footprints, House, FileDown,
+  Bookmark, LayoutGrid, Blocks, Workflow, ListChecks, Database, Route, LogIn, Globe, Mail, Network, Trash2, LayoutTemplate, LayoutDashboard, Users, HardDrive, FilePlus2, History, MailCheck, Footprints, House,
 } from 'lucide-vue-next'
 
 export const NAV_GROUPS = [
@@ -23,7 +23,6 @@ export const NAV_GROUPS = [
       { path: '/create-de', name: 'Create DE', icon: FilePlus2 },
       { path: '/where-used', name: 'Where used', icon: Network },
       { path: '/de-storage', name: 'DE storage', icon: HardDrive },
-      { path: '/metadata', name: 'Download metadata', icon: FileDown },
     ],
   },
   {

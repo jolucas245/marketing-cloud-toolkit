@@ -20,6 +20,7 @@ import { sendToBackground } from '@/utils/messaging.js'
 import { useTheme } from '@/composables/useTheme.js'
 import { paletteState } from '@/composables/usePalette.js'
 import { preloadWhenIdle } from '@/utils/preloadOverviews.js'
+import { loadEverything } from '@/composables/usePreload.js'
 import { errorReport } from '@/composables/useReportError.js'
 
 const route = useRoute()
@@ -46,6 +47,19 @@ watch(stack, (s) => { if (s) sendToBackground({ type: 'SFMC_WARM_UP', stack: s }
 watch(stack, (s) => { if (s) sendToBackground({ type: 'WATCH_CHECK', stack: s, force: true }).catch(() => undefined) }, { immediate: true })
 // Automation and Journey overview read quietly once the browser is idle (feedback #78).
 watch(stack, (s) => preloadWhenIdle(s), { immediate: true })
+// Load everything when connected (feedback #1037): Settings > Connection, off by default.
+let preloadedFor = null
+function maybeLoadEverything(s) {
+  if (!s || preloadedFor === s) return
+  try {
+    chrome.storage.local.get('_preloadOnConnect', (r) => {
+      if (r?._preloadOnConnect !== true || preloadedFor === s) return
+      preloadedFor = s
+      loadEverything(s).catch(() => undefined)
+    })
+  } catch { /* not in an extension */ }
+}
+watch(stack, maybeLoadEverything, { immediate: true })
 
 function onKey(e) {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {

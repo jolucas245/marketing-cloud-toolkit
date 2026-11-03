@@ -40,6 +40,7 @@ const { value: emailDebounce } = useStoredSetting('_emailSaveDebounce', 5,
   (v) => (typeof v === 'number' && v >= 0 ? v : 5))
 const { value: reuseQueryDE } = useStoredSetting('_reuseQueryDE', false, (v) => v === true)
 const { value: autoStartSessions } = useStoredSetting('_autoStartSessions', true, (v) => v !== false)
+const { value: preloadOnConnect } = useStoredSetting('_preloadOnConnect', false, (v) => v === true)
 const { value: automationPanel } = useStoredSetting('_automationPanel', true, (v) => v !== false)
 const { value: dashboardPanel } = useStoredSetting('_dashboardPanel', false, (v) => v === true)
 const { value: retentionDays } = useStoredSetting('_queryDERetentionDays', DEFAULT_RETENTION_DAYS, parseRetentionDays)
@@ -292,6 +293,13 @@ function setDebounce(e) {
           <p class="text-xs text-muted-foreground">When the Toolkit opens and at least one SFMC app (such as Automation Studio) already has a session, the apps without one (Data Extensions, Content Builder, CloudPages, Journey Builder) are started in the background, one at a time in a tab that closes itself. At most every 10 minutes. With no app session at all, nothing is opened: log in to SFMC first.</p>
         </div>
         <Switch v-model="autoStartSessions" aria-label="Start the other app sessions" />
+      </div>
+      <div class="flex items-start gap-3 mt-4">
+        <div class="flex-1">
+          <div class="text-sm font-medium">Load everything when connected</div>
+          <p class="text-xs text-muted-foreground">When the Toolkit opens and finds a Marketing Cloud session, reads automations, activities, journeys, content and data extension details into the Toolkit's caches, as Load everything in the connection menu does. It makes many requests to Marketing Cloud, so it is off unless you switch it on.</p>
+        </div>
+        <Switch v-model="preloadOnConnect" aria-label="Load everything when connected" />
       </div>
           <div class="flex items-start gap-3 mt-4">
         <div class="flex-1">

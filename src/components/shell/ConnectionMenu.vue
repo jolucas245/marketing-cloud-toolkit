@@ -9,6 +9,8 @@ import { getStackChoices, setStackOverride, onStackChange } from '@/utils/stackD
 import { sendToBackground } from '@/utils/messaging.js'
 import { fetchCurrentBU } from '@/utils/sfmcApi.js'
 import { openTab } from '@/utils/openTab.js'
+import { syncScope } from '@/composables/usePreload.js'
+import LoadedParts from './LoadedParts.vue'
 
 const { status, loading, refresh } = useConnectionStatus()
 
@@ -44,6 +46,8 @@ async function loadApps() {
 async function loadBU() {
   if (!stack.value) { bu.value = null; return }
   try { bu.value = await fetchCurrentBU(stack.value) } catch { bu.value = null }
+  // Load everything keeps its state per stack and business unit (feedback #1037).
+  if (bu.value) syncScope(stack.value, bu.value)
 }
 
 // While apps are being started (by the automatic warm-up or Start missing), check
@@ -91,7 +95,7 @@ function applyOther() {
 
 function toggleOpen() {
   open.value = !open.value
-  if (open.value) { loadChoices(); loadApps(); refresh() }
+  if (open.value) { loadChoices(); loadApps(); refresh(); loadBU() }
 }
 
 function openLogin() {
@@ -141,7 +145,7 @@ const pickerOptions = computed(() => {
 
     <template v-if="open">
       <div class="fixed inset-0 z-40" @click="open = false" />
-      <div class="absolute right-0 mt-1 w-80 z-50 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg p-3 text-xs">
+      <div class="absolute right-0 mt-1 w-96 max-w-[calc(100vw-1rem)] max-h-[calc(100vh-5rem)] overflow-y-auto z-50 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg p-3 text-xs">
         <div class="flex items-center justify-between mb-2">
           <span class="font-semibold">Connection</span>
           <button class="text-muted-foreground hover:text-foreground" title="Check again" @click="refresh(); loadApps()">
@@ -201,6 +205,10 @@ const pickerOptions = computed(() => {
             <li v-if="!apps.length && appsLoading" class="text-muted-foreground">Checking…</li>
           </ul>
           <p v-for="(err, id) in connecting" v-show="typeof err === 'string'" :key="id" class="mt-1 text-red-600">{{ err }}<ReportErrorButton /></p>
+        </div>
+
+        <div v-if="status.connected" class="mt-3 pt-2 border-t border-border">
+          <LoadedParts :stack="stack" />
         </div>
 
         <div class="mt-3 pt-2 border-t border-border">
