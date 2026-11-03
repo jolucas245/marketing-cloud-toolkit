@@ -55,6 +55,7 @@ const TYPE_LABELS = {
   WAITUNTILSPECIFICDATE: 'Wait Until Date',
   WAITUNTILCHATRESPONSE: 'Wait Until Chat Response',
   WAITUNTILPUSHINAPPENGAGEMENT: 'Wait Until In-App Event',
+  WAITUNTILPUSHENGAGEMENT: 'Wait Until Push Event',
   WAITUNTILAPI: 'Wait Until Event', WAITUNTILEVENT: 'Wait Until Event', STOWAIT: 'Einstein STO', MULTICRITERIADECISION: 'Decision split',
   RANDOMSPLIT: 'Random split', ENGAGEMENTSPLIT: 'Engagement split', ENGAGEMENTDECISION: 'Engagement split',
   ABNTEST: 'Path optimizer', ABNTESTSTOP: 'Winner', EINSTEINSPLIT: 'Einstein split', UPDATECONTACTDATA: 'Update contact',
@@ -67,9 +68,11 @@ const TYPE_LABELS = {
 }
 export const nodeTypeLabel = (type) => TYPE_LABELS[String(type || '').toUpperCase()] || (type ? String(type) : 'Activity')
 
+const WAIT_DURATION_TYPES = new Set(['WAIT', 'WAITBYDURATION'])
+const WAIT_DURATION_UNITS = new Set(['SECOND', 'MINUTE', 'HOUR', 'DAY', 'WEEK', 'MONTH', 'YEAR'])
 const WAIT_DATE_TYPES = new Set(['WAITUNTILSPECIFICDATE', 'WAITUNTILDATE'])
 const WAIT_EVENT_TYPES = new Set(['WAITUNTILAPI', 'WAITUNTILEVENT'])
-const WAIT_UI_TYPES = new Set([...WAIT_DATE_TYPES, ...WAIT_EVENT_TYPES, 'WAITBYATTRIBUTE', 'WAITUNTILCHATRESPONSE', 'WAITUNTILPUSHINAPPENGAGEMENT'])
+const WAIT_UI_TYPES = new Set([...WAIT_DATE_TYPES, ...WAIT_EVENT_TYPES, 'WAITBYATTRIBUTE', 'WAITUNTILCHATRESPONSE', 'WAITUNTILPUSHINAPPENGAGEMENT', 'WAITUNTILPUSHENGAGEMENT'])
 const SALESFORCE_EXTENSION_TYPES = new Map([
   ['Salesforce_Activity_Account', 'SALESFORCEACCOUNTACTIVITY'],
   ['Salesforce_Activity_CampaignMember', 'SALESFORCECAMPAIGNMEMBERACTIVITY'],
@@ -105,6 +108,15 @@ export function nodeKind(type) {
 
 const ca = (a) => a?.configurationArguments || {}
 
+function waitDurationLabel(configuration) {
+  const value = configuration?.waitDuration
+  if (!['number', 'string'].includes(typeof value) || String(value).trim() === '') return ''
+  const duration = Number(value)
+  const unit = String(configuration?.waitUnit || '').trim().toUpperCase().replace(/S$/, '')
+  if (!Number.isFinite(duration) || duration < 0 || !WAIT_DURATION_UNITS.has(unit)) return ''
+  return `${duration} ${unit.toLowerCase()}${duration === 1 ? '' : 's'}`
+}
+
 /** One line about what a node does, for the canvas. */
 export function nodeSummary(n) {
   // A canvas node (with `raw`) or the activity itself.
@@ -113,7 +125,7 @@ export function nodeSummary(n) {
   const c = ca(a)
   if (t === 'ENTRY') return a.eventDefinitionKey ? `Event ${a.eventDefinitionKey}` : nodeTypeLabel(a.triggerType)
   if (t === 'EMAILV2' || t === 'EMAIL') return c.triggeredSend?.emailSubject ? `Subject: ${c.triggeredSend.emailSubject}` : ''
-  if (t === 'WAIT' || t === 'WAITBYDURATION') return c.waitDuration != null ? `${c.waitDuration} ${String(c.waitUnit || '').toLowerCase()}` : ''
+  if (WAIT_DURATION_TYPES.has(t)) return waitDurationLabel(c)
   if (WAIT_DATE_TYPES.has(t)) return c.specifiedDateTime ? `Until ${formatDateTime(c.specifiedDateTime)}` : ''
   if (t === 'WAITBYATTRIBUTE') return c.attributeName || c.waitForAttribute || ''
   if (a.outcomes?.length > 1) return `${a.outcomes.length} paths`
@@ -174,14 +186,16 @@ export function journeyGraph(journey) {
     const type = String(a.type || '').toUpperCase()
     const displayType = nodeDisplayType(a)
     const nameKey = String(a.name || '').toUpperCase()
+    const durationName = WAIT_DURATION_TYPES.has(String(displayType).toUpperCase()) && ['', 'WAIT', 'WAITBYDURATION', 'WAIT BY DURATION'].includes(nameKey.trim()) ? waitDurationLabel(ca(a)) : ''
     const automaticName = ['ABNTESTSTOP', 'SENDTOLINESYNC', 'WHATSAPPSESSIONTRANSFERACTIVITY', 'INAPPSYNCACTIVITY', 'PUSHINBOXACTIVITY'].includes(type) && nameKey === type
     const dateName = WAIT_DATE_TYPES.has(String(displayType).toUpperCase()) && (nameKey === 'WAIT' || nameKey === 'WAIT UNTIL DATE' || WAIT_DATE_TYPES.has(nameKey))
     const attributeName = String(displayType).toUpperCase() === 'WAITBYATTRIBUTE' && ['WAIT', 'WAITBYATTRIBUTE', 'WAIT BY ATTRIBUTE'].includes(nameKey)
     const chatName = String(displayType).toUpperCase() === 'WAITUNTILCHATRESPONSE' && ['WAIT', 'WAITUNTILCHATRESPONSE', 'WAIT UNTIL CHAT RESPONSE'].includes(nameKey)
     const eventName = WAIT_EVENT_TYPES.has(String(displayType).toUpperCase()) && (nameKey === 'WAIT' || nameKey === 'WAIT UNTIL EVENT' || WAIT_EVENT_TYPES.has(nameKey))
     const inAppName = String(displayType).toUpperCase() === 'WAITUNTILPUSHINAPPENGAGEMENT' && ['WAIT', 'WAITUNTILPUSHINAPPENGAGEMENT', 'WAIT UNTIL IN-APP EVENT'].includes(nameKey)
+    const pushName = String(displayType).toUpperCase() === 'WAITUNTILPUSHENGAGEMENT' && ['WAIT', 'WAITUNTILPUSHENGAGEMENT', 'WAIT UNTIL PUSH EVENT'].includes(nameKey)
     const salesforceName = SALESFORCE_DISPLAY_TYPES.has(String(displayType).toUpperCase()) && (nameKey === type || nameKey === String(displayType).toUpperCase())
-    const name = automaticName || dateName || attributeName || chatName || eventName || inAppName || salesforceName ? nodeTypeLabel(displayType) : a.name || nodeTypeLabel(displayType)
+    const name = durationName || (automaticName || dateName || attributeName || chatName || eventName || inAppName || pushName || salesforceName ? nodeTypeLabel(displayType) : a.name || nodeTypeLabel(displayType))
     nodes.push({ key: a.key, type: a.type, name, raw: a })
     const outs = a.outcomes || []
     const multi = outs.length > 1
@@ -331,7 +345,8 @@ export function describeJourneyNode(node, nameOf = (k) => k) {
       ['Sender profile', formatValue(ts.senderProfileId)], ['Delivery profile', formatValue(ts.deliveryProfileId)])
     tables.push(kvTable('Send settings', ts, true))
   } else if (/WAIT/.test(t)) {
-    if (c.waitDuration != null) main.push(['Wait', `${c.waitDuration} ${String(c.waitUnit || '').toLowerCase()}`])
+    const duration = waitDurationLabel(c)
+    if (duration) main.push(['Wait', duration])
     if (c.specifiedDateTime) main.push(['Until', formatDateTime(c.specifiedDateTime)])
     if (c.timeZone || c.timezone) main.push(['Time zone', formatValue(c.timeZone || c.timezone)])
     if (c.waitEndDateAttributeExpression || c.attributeName) main.push(['Attribute', formatValue(c.waitEndDateAttributeExpression || c.attributeName)])

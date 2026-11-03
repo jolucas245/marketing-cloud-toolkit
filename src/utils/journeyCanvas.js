@@ -44,6 +44,7 @@ const VISUALS = {
   WAITUNTILAPI: visual('waitEvent', 'diamond', FLOW),
   WAITUNTILEVENT: visual('waitEvent', 'diamond', FLOW),
   WAITUNTILPUSHINAPPENGAGEMENT: visual('waitInApp', 'diamond', FLOW),
+  WAITUNTILPUSHENGAGEMENT: visual('waitEvent', 'diamond', FLOW),
   UPDATECONTACTDATA: visual('contact', 'square', MESSAGE),
   SALESCLOUDACTIVITY: visual('cloud', 'square', '#167bbb'),
   SALESFORCESALESCLOUDACTIVITY: visual('cloud', 'square', '#167bbb'),

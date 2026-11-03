@@ -159,11 +159,14 @@ describe('Wait Until Chat Response icon', () => {
   })
 })
 
-describe('Wait Until Event icon', () => {
-  it('uses a filled local clock and lightning icon while keeping gray activities selectable', async () => {
+describe('Event wait icons', () => {
+  it.each([
+    ['WAITUNTILAPI', 'Wait Until Event'],
+    ['WAITUNTILPUSHENGAGEMENT', 'Wait Until Push Event'],
+  ])('uses a filled local clock and lightning icon for %s while keeping gray activities selectable', async (type, label) => {
     const wrapper = mount(JourneyActivityNode, { props: { data: data({
-      key: 'event-wait-synthetic', name: 'Wait Until Event', typeLabel: 'Wait Until Event',
-      iconUrl: null, visual: journeyActivityVisual('WAITUNTILAPI', false),
+      key: 'event-wait-synthetic', name: label, typeLabel: label,
+      iconUrl: null, visual: journeyActivityVisual(type, false),
     }) } })
     expect(wrapper.find('img').exists()).toBe(false)
     expect(wrapper.get('.journey-activity-symbol').classes()).toContain('is-diamond')
@@ -171,7 +174,7 @@ describe('Wait Until Event icon', () => {
     for (const path of wrapper.findAll('svg path')) {
       expect(path.attributes()).toMatchObject({ fill: 'currentColor', stroke: 'none' })
     }
-    expect(wrapper.get('button').attributes('aria-label')).toBe('Wait Until Event: Wait Until Event')
+    expect(wrapper.get('button').attributes('aria-label')).toBe(`${label}: ${label}`)
     await wrapper.get('button').trigger('click')
     expect(wrapper.emitted('select')).toHaveLength(1)
     wrapper.unmount()
