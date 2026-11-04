@@ -36,7 +36,7 @@ The extension reads these keys from Chrome's managed storage (`chrome.storage.ma
 
 | Key | Effect |
 |---|---|
-| `disableHistory` | Runs are stored without their SQL; no capture of Query Studio runs, Content Builder email versions or Automation Studio activity versions. |
+| `disableHistory` | Runs are stored without their SQL; no capture of Query Studio runs, Content Builder email versions, CloudPage versions or Automation Studio activity versions. |
 | `disableShare` | No Share button; shared links are not imported. No SQL is ever sent to the share service. |
 | `disableFeedback` | No feedback form; nothing is sent to the feedback service. |
 | `disableFeedbackMetadata` | Feedback never offers technical details. |

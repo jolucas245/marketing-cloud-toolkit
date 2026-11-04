@@ -1,7 +1,8 @@
 <script setup>
 // Emails saved in Content Builder, captured with every version (from SFMC Query
-// Saver's Emails tab). Turn capturing on or off in Settings.
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+// Saver's Emails tab), and CloudPages the same way (kind prop, feedback #1045). Turn
+// capturing on or off in Settings.
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, Star, Trash2, X, Settings as SettingsIcon } from 'lucide-vue-next'
 import EmailCard from '@/components/cards/EmailCard.vue'
@@ -9,6 +10,12 @@ import Button from '@/components/ui/button/Button.vue'
 import { groupByDate } from '@/utils/dateGroups.js'
 import { useStoredSetting } from '@/composables/useStoredSetting.js'
 import { showToast } from '@/composables/useToast.js'
+import { SAVED_ASSET_KINDS } from '@/utils/savedAssets.js'
+
+const props = defineProps({ kind: { type: String, default: 'email' } })
+// Reactive: /emails and /cloudpages/saved share this component, and Vue reuses the
+// instance when moving between them.
+const K = computed(() => SAVED_ASSET_KINDS[props.kind] || SAVED_ASSET_KINDS.email)
 
 const router = useRouter()
 const emails = ref([])
@@ -16,13 +23,15 @@ const search = ref('')
 const favouritesOnly = ref(false)
 const deleteMode = ref(false)
 const selectedIds = ref(new Set())
-const { value: saverEnabled } = useStoredSetting('_emailSaverEnabled', true, (v) => v !== false)
+const { value: emailSaverEnabled } = useStoredSetting(SAVED_ASSET_KINDS.email.setting, true, (v) => v !== false)
+const { value: cloudPageSaverEnabled } = useStoredSetting(SAVED_ASSET_KINDS.cloudpage.setting, true, (v) => v !== false)
+const saverEnabled = computed(() => (K.value.kind === 'cloudpage' ? cloudPageSaverEnabled.value : emailSaverEnabled.value))
 
 function loadData() {
   return new Promise((resolve) => {
     chrome.storage.local.get(null, (raw) => {
       emails.value = Object.entries(raw || {})
-        .filter(([k, v]) => k.startsWith('email_') && v?.assetId != null)
+        .filter(([k, v]) => k.startsWith(K.value.prefix) && v?.assetId != null)
         .map(([, v]) => ({
           id: v.id,
           assetId: v.assetId,
@@ -45,11 +54,12 @@ function loadData() {
 
 let reloadTimer = null
 function onStorageChange(changes, area) {
-  if (area !== 'local' || !Object.keys(changes).some((k) => k.startsWith('email_'))) return
+  if (area !== 'local' || !Object.keys(changes).some((k) => k.startsWith(K.value.prefix))) return
   clearTimeout(reloadTimer)
   reloadTimer = setTimeout(loadData, 300)
 }
 onMounted(() => { loadData(); chrome.storage.onChanged.addListener(onStorageChange) })
+watch(() => props.kind, () => { search.value = ''; selectedIds.value = new Set(); deleteMode.value = false; loadData() })
 onUnmounted(() => chrome.storage.onChanged.removeListener(onStorageChange))
 
 const filtered = computed(() => {
@@ -83,7 +93,7 @@ async function deleteSelected() {
   await new Promise((r) => chrome.storage.local.remove(ids, r))
   await loadData()
   toggleDeleteMode()
-  showToast(`Deleted ${ids.length} ${ids.length === 1 ? 'email' : 'emails'} from Marketing Cloud Toolkit.`)
+  showToast(`Deleted ${ids.length} ${ids.length === 1 ? K.value.noun : K.value.nouns} from Marketing Cloud Toolkit.`)
 }
 </script>
 
@@ -105,8 +115,8 @@ async function deleteSelected() {
         <span class="text-xs" :class="saverEnabled ? 'text-muted-foreground' : 'text-amber-700 dark:text-amber-400'">
           {{ saverEnabled ? 'Saving new versions' : 'Saving versions is off' }}
         </span>
-        <Button variant="ghost" size="icon" class="h-8 w-8" title="Email settings" @click="router.push('/settings')"><SettingsIcon class="h-4 w-4" /></Button>
-        <Button variant="ghost" size="icon" class="h-8 w-8 hover:text-red-600" title="Select emails to delete" :disabled="!emails.length" @click="toggleDeleteMode"><Trash2 class="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" class="h-8 w-8" :title="`${K.title} settings`" @click="router.push('/settings')"><SettingsIcon class="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" class="h-8 w-8 hover:text-red-600" :title="`Select ${K.nouns} to delete`" :disabled="!emails.length" @click="toggleDeleteMode"><Trash2 class="h-4 w-4" /></Button>
       </template>
       <template v-else>
         <label class="flex items-center gap-2 text-xs">
@@ -114,7 +124,7 @@ async function deleteSelected() {
             :indeterminate="selectedIds.size > 0 && selectedIds.size < visibleIds.length" @change="toggleSelectAll" />
           Select all shown ({{ visibleIds.length }})
         </label>
-        <span class="text-xs text-muted-foreground">Deletes the saved versions here only, not the emails in Content Builder.</span>
+        <span class="text-xs text-muted-foreground">Deletes the saved versions here only, not the {{ K.nouns }} in {{ K.app }}.</span>
         <div class="flex-1" />
         <Button variant="destructive" size="sm" class="h-8 text-xs" :disabled="!selectedIds.size" @click="deleteSelected"><Trash2 class="h-3.5 w-3.5 mr-1" /> Delete ({{ selectedIds.size }})</Button>
         <Button variant="outline" size="sm" class="h-8 text-xs" @click="toggleDeleteMode"><X class="h-3.5 w-3.5 mr-1" /> Cancel</Button>
@@ -123,9 +133,9 @@ async function deleteSelected() {
 
     <div class="flex-1 min-h-0 overflow-y-auto p-6">
       <div v-if="!emails.length" class="flex flex-col items-center gap-3 py-16 text-center">
-        <p class="text-lg font-semibold">No emails saved yet</p>
+        <p class="text-lg font-semibold">No {{ K.nouns }} saved yet</p>
         <p class="text-sm text-muted-foreground max-w-sm">
-          Save an email in Content Builder and it appears here, with every version you save after that.
+          Save {{ K.kind === 'email' ? 'an email' : 'a CloudPage' }} in {{ K.app }} and it appears here, with every version you save after that.
           <template v-if="!saverEnabled"> Saving versions is turned off in Settings.</template>
         </p>
       </div>
@@ -141,7 +151,7 @@ async function deleteSelected() {
         </div>
         <div class="flex flex-wrap gap-4 items-start">
           <EmailCard v-for="e in group.items" :key="e.id" v-bind="e" :delete-mode="deleteMode" :is-selected="selectedIds.has(e.id)"
-            @toggle-select="toggleSelect" @toggle-favourite="toggleFavourite" @open="router.push(`/emails/${encodeURIComponent($event)}`)" />
+            @toggle-select="toggleSelect" @toggle-favourite="toggleFavourite" @open="router.push(`${K.base}/${encodeURIComponent($event)}`)" />
         </div>
       </section>
     </div>

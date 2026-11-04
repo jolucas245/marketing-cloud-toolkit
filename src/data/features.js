@@ -279,6 +279,7 @@ export const FEATURE_GROUPS = [
       { title: 'Query and Script versions', since: '2.0.12', how: 'Automatic', detail: 'Each time you save a SQL Query or Script activity in Automation Studio, the version from before your edit and the saved one are kept, with the name, target data extension and update type.' },
       { title: 'Compare, copy, run', since: '2.0.12', how: 'Click an activity', detail: 'Pick a version to see its SQL or script, Changes to see it next to the version before, Copy, or Open in Run Query.' },
       { title: 'Restore a version', since: '2.0.12', how: 'Restore this version, then confirm', detail: 'Writes the SQL or script of that version back to the activity in Automation Studio. Nothing is run.' },
+      { title: 'Restore by myself', since: '2.0.20', how: 'Restore by myself on a version', detail: 'The PATCH request that puts the version back (the JSON body, a cURL command and the token call), to send with your own installed package. Also on Saved Emails and Saved CloudPages.' },
       { title: 'Versions on activity cards', since: '2.0.12', detail: 'Query and Script cards in Automations and Activities link to their saved versions.' },
     ],
   },
@@ -401,6 +402,15 @@ export const FEATURE_GROUPS = [
       { title: 'View a CloudPage', since: '2.0.16', how: 'View on a CloudPage', detail: 'Preview (the page with scripts off), Source (its HTML: copy or download) and Raw JSON (the record as SFMC returns it). Code resources show their code instead of a preview.' },
       { title: 'URLs and folders', detail: 'Get each page\'s public URL and folder path, one by one or for every listed page.' },
       { title: 'Excel export', detail: 'Name, key, type, status, asset ID, URL and dates, with folder paths if you want them.' },
+    ],
+  },
+  {
+    id: 'saved-cloudpages',
+    title: 'CloudPage versions',
+    intro: 'Content > Saved CloudPages. Turn saving on or off in Settings > Emails and CloudPages.',
+    items: [
+      { title: 'Every CloudPage save is kept', since: '2.0.20', how: 'Automatic', detail: 'Each save of a landing page, web page or code resource becomes a version, the 10 newest per page, in this browser only. Preview a version (scripts off).' },
+      { title: 'Revert or restore by myself', since: '2.0.20', how: 'An older version', detail: 'Revert puts the version back in CloudPages (publish it again to put it live). Restore by myself gives the request to send with your own API access instead.' },
     ],
   },
   {

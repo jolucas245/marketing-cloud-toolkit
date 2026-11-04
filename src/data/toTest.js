@@ -22,6 +22,18 @@ export const TO_TEST = [
         expect: 'Instructions include only the rules that fit the request (for example date rules for "last 30 days") and the _Open and _Click fields with their join. Under the answer: "found no problems", "the model fixed them", or a list of what the SQL checks still find.',
       },
       {
+        id: '2.0.20-saved-cloudpages', area: 'Content', title: 'Saved CloudPages (version history)', ref: '#1045', live: true,
+        where: 'Content > Saved CloudPages; Settings > Emails and CloudPages',
+        steps: ['In CloudPages, save a test landing page twice with a visible change, and a code resource once.', 'Open Content > Saved CloudPages, then the page.', 'Select the older version: check the preview (scripts off).', 'Revert to it, then reopen the page in CloudPages.', 'Turn Save CloudPage versions off in Settings and save again.'],
+        expect: 'Each save is a new version (the CloudPages editor saving through the same API as Content Builder is a guess: if nothing appears, send a capture of the save request). Revert puts the older content back; publishing is still up to you. With the switch off, no new versions.',
+      },
+      {
+        id: '2.0.20-restore-by-myself', area: 'Saved Emails, CloudPages and Activities', title: 'Restore by myself', ref: '#1045',
+        where: 'An older version in Saved Emails, Saved CloudPages or Saved Activities > Restore by myself',
+        steps: ['Open Restore by myself; Download request body and Download instructions.', 'With an installed package (Saved Content Write and Documents and Images Write, or Automations Write), get a token and send the request with Postman or cURL.', 'Reopen the email, page or activity in SFMC.'],
+        expect: 'The request puts that version back; the files hold no token or secret; Restore still works as before.',
+      },
+      {
         id: '2.0.20-features-page', area: 'Help', title: 'Features page matches the current version',
         where: 'Settings > About > Features, and What\'s New',
         steps: ['Read the sidebar, Clean up, colour and "What is sent where" entries.'],

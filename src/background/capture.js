@@ -10,6 +10,7 @@ import { storageGet, storageSet, delay } from './chromeAsync.js'
 import { resolveStack } from './stack.js'
 import { fetchCurrentBusinessUnit } from './businessUnit.js'
 import { QUERY_STUDIO_SETTING, isQueryStudioUrl } from '../utils/queryStudio.js'
+import { savedAssetKind, savedAssetKey } from '../utils/savedAssets.js'
 
 const decoder = new TextDecoder('utf-8')
 
@@ -79,15 +80,18 @@ export async function captureQueryStudio(details) {
 // ── Content Builder email versions ─────────────────────────
 // Saved Emails: on unless the user turns it off (feedback #1021: on by default; an admin policy can still turn it off).
 export const emailSaver = { enabled: true, debounceMs: 5000 }
+// Saved CloudPages (feedback #1045): same capture, on unless turned off.
+export const cloudPageSaver = { enabled: true }
 const lastSavedAt = {}
 
 export async function loadEmailSaverPrefs() {
-  const prefs = await storageGet('local', ['_emailSaverEnabled', '_emailSaveDebounce'])
+  const prefs = await storageGet('local', ['_emailSaverEnabled', '_emailSaveDebounce', '_cloudPageSaverEnabled'])
   applyEmailSaverPrefs(prefs)
 }
 
 export function applyEmailSaverPrefs(prefs) {
   if ('_emailSaverEnabled' in prefs) emailSaver.enabled = prefs._emailSaverEnabled !== false
+  if ('_cloudPageSaverEnabled' in prefs) cloudPageSaver.enabled = prefs._cloudPageSaverEnabled !== false
   if ('_emailSaveDebounce' in prefs) {
     const s = prefs._emailSaveDebounce
     emailSaver.debounceMs = typeof s === 'number' && s >= 0 ? s * 1000 : 5000
@@ -106,8 +110,10 @@ function pickView(view) {
 }
 
 // webRequest.onBeforeRequest for https://*.marketingcloudapps.com/fuelapi/asset/v1/content/assets/*
+// Emails (Content Builder) and, since feedback #1045, CloudPages assets. The CloudPages
+// editor is assumed to save through the same asset API (not yet seen live).
 export async function captureEmail(details) {
-  if (!emailSaver.enabled || details.method !== 'PUT') return
+  if (details.method !== 'PUT') return
   if ((await getPolicy()).disableHistory) return
   if (!details.requestBody?.raw?.[0]?.bytes) return
   let jsonStr, asset
@@ -117,15 +123,18 @@ export async function captureEmail(details) {
   } catch {
     return
   }
-  if (!(asset.assetType?.name || '').toLowerCase().includes('email')) return
+  const kind = savedAssetKind(asset)
+  if (!kind || (kind === 'email' && !emailSaver.enabled) || (kind === 'cloudpage' && !cloudPageSaver.enabled)) return
 
   const assetId = asset.id || Number(details.url.split('/').pop())
   const now = Date.now()
   if (emailSaver.debounceMs > 0 && now - (lastSavedAt[assetId] || 0) < emailSaver.debounceMs) return
   lastSavedAt[assetId] = now
 
-  const key = `email_${assetId}`
-  const stack = details.url.match(/content-builder\.([^.]+)\.marketingcloudapps\.com/)?.[1] || null
+  const key = savedAssetKey(kind, assetId)
+  const stack = details.url.match(/(?:content-builder|cloud-pages)\.([^.]+)\.marketingcloudapps\.com/)?.[1] || null
+  // Where the editor saved it: Restore puts the version back through the same app.
+  const saveOrigin = (() => { try { return new URL(details.url).origin } catch { return null } })()
   const compileAsset = {
     superContent: asset.superContent || null,
     content: asset.content || null,
@@ -156,6 +165,7 @@ export async function captureEmail(details) {
     compileAsset,
     assetBody,
     stack,
+    saveOrigin,
   }
   await makeRoom(JSON.stringify(version).length)
   const prev = (await storageGet('local', key))[key]
@@ -164,7 +174,8 @@ export async function captureEmail(details) {
       id: key,
       assetId: Number(assetId),
       customerKey: asset.customerKey || '',
-      name: asset.name || `Email ${assetId}`,
+      name: asset.name || `${kind === 'email' ? 'Email' : 'CloudPage'} ${assetId}`,
+      kind,
       assetTypeName: asset.assetType?.name || '',
       assetTypeDisplayName: asset.assetType?.displayName || '',
       status: asset.status?.name || 'Draft',

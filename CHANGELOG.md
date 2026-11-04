@@ -4,6 +4,10 @@ All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are pub
 
 ## Unreleased (next 2.0.20)
 
+**New:**
+- Saved CloudPages (feedback #1045): each time you save a CloudPage (landing page, web page or code resource), the version is kept in this browser like Saved Emails (10 newest per page), with a preview (scripts off) and Revert. Content > Saved CloudPages; Settings > Emails and CloudPages turns it off; admin policy `disableHistory` stops it. The CloudPages editor is assumed to save through the Content Builder asset API, not yet seen live.
+- Restore by myself (feedback #1045): beside Revert and Restore in Saved Emails, Saved CloudPages and Saved Activities. It gives the request that puts the version back (method, REST path, the JSON body to download, the token call and a cURL command, or all of it as a Markdown file) to send with your own installed package. Restore stays.
+
 **Build:** test zips (`npm run package -- --test`, or any zip named `*-test-*`) have a To Test page in the sidebar: what to test in each version, with steps and what should happen, Pass / Fail / Skip kept in the browser, and Fail opening Feedback with the item filled in. Store builds leave the page out, and the package script refuses a store zip that contains it.
 
 **Changed:**

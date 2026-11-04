@@ -5,7 +5,8 @@ import { RESULTS_PAGE_SIZE } from './paging.js'
 import { compile } from './emailCompiler.js'
 
 export const CP_PAGE_SIZE = RESULTS_PAGE_SIZE
-export const CLOUD_PAGE_ASSET_TYPE_IDS = [240, 241, 242, 243, 244, 245, 247, 248, 249]
+import { CLOUD_PAGE_ASSET_TYPE_IDS } from './savedAssets.js'
+export { CLOUD_PAGE_ASSET_TYPE_IDS }
 const FIELDS = ['assetType', 'category', 'createdDate', 'customerKey', 'id', 'modifiedDate', 'name', 'meta', 'status']
 const CB = (stack) => `https://content-builder.${stack}.marketingcloudapps.com/fuelapi`
 const CP = (stack) => `https://cloud-pages.${stack}.marketingcloudapps.com/fuelapi`

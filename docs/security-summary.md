@@ -71,7 +71,7 @@ The service worker accepts from content scripts only the messages those scripts 
 
 | Where | What | Lifetime |
 |---|---|---|
-| `chrome.storage.local` | Saved queries (SQL), run records (the data extension and query activity a run created; the run's SQL only while Keep query history is on), settings, Query Builder drafts, watched automations and journeys. Opt-in: saved email versions (10 per email; the oldest are trimmed past 9 MB), saved Query/Script activity versions, Query Studio runs. | Until the user deletes it (Settings > Storage > Clear all) or removes the extension. |
+| `chrome.storage.local` | Saved queries (SQL), run records (the data extension and query activity a run created; the run's SQL only while Keep query history is on), settings, Query Builder drafts, watched automations and journeys. On by default, each with a Settings switch: saved email and CloudPage versions (10 per email or page; the oldest are trimmed past 9 MB), saved Query/Script activity versions, Query Studio runs. | Until the user deletes it (Settings > Storage > Clear all) or removes the extension. |
 | `chrome.storage.session` | SFMC CSRF token, Contact Builder request headers (30 minutes), which stack each tab uses. | Memory only; cleared when the browser closes. |
 | Service worker memory | Access token for SFMC's apps. | Until the service worker stops. |
 | IndexedDB `toolkit-where-used` | Where used scans: names and SQL of SFMC items per stack and business unit. | Until Clear all, Rescan or removal. |
@@ -113,7 +113,7 @@ Set through Chrome policy for the extension (schema `public/managed_schema.json`
 
 | Key | Effect |
 |---|---|
-| `disableHistory` | No SQL kept with runs; no capture of Query Studio runs, email versions or activity versions, whatever the user's settings. |
+| `disableHistory` | No SQL kept with runs; no capture of Query Studio runs, email or CloudPage versions or activity versions, whatever the user's settings. |
 | `disableShare` | No Share button; share pages are not imported. |
 | `disableFeedback` | No feedback form. |
 | `disableFeedbackMetadata` | Feedback never offers technical details. |

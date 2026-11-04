@@ -75,7 +75,7 @@ chrome.tabs?.onUpdated?.addListener((tabId, info, tab) => {
 chrome.storage?.onChanged?.addListener((changes, area) => {
   if (area !== 'local') return
   const prefs = {}
-  for (const k of ['_emailSaverEnabled', '_emailSaveDebounce']) if (k in changes) prefs[k] = changes[k].newValue
+  for (const k of ['_emailSaverEnabled', '_emailSaveDebounce', '_cloudPageSaverEnabled']) if (k in changes) prefs[k] = changes[k].newValue
   applyEmailSaverPrefs(prefs)
 })
 

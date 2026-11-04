@@ -11,6 +11,9 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   Search, ArrowLeft, Clock, Copy, Play, RotateCcw, Trash2, AlertCircle, Check, Loader2, Settings as SettingsIcon, ExternalLink,
 } from 'lucide-vue-next'
+import { FileDown } from 'lucide-vue-next'
+import SelfRestoreDialog from '@/components/results/SelfRestoreDialog.vue'
+import { selfRestoreRequest } from '@/utils/selfRestore.js'
 import CodeView from '@/components/results/CodeView.vue'
 import DiffView from '@/components/results/DiffView.vue'
 import { useStoredSetting } from '@/composables/useStoredSetting.js'
@@ -104,6 +107,23 @@ async function restore() {
   } catch (e) {
     restoreState.value = { error: e.message }
   }
+}
+
+// Restore by myself (feedback #1045): the PATCH Restore would send, to send yourself.
+// The body is the activity as SFMC has it now (read only) with this version's text;
+// when it cannot be read, only the text and name.
+const selfRestore = ref(null)
+const selfRestoreNote = ref('')
+async function openSelfRestore() {
+  const r = record.value
+  const v = selected.value
+  if (!r || !v) return
+  const stack = v.stack || r.stack
+  let current = null
+  selfRestoreNote.value = ''
+  try { if (stack) current = await sfmcFetch(activityUrl(r.kind, stack, r.activityId), 'GET') } catch { /* read failed: minimal body */ }
+  if (!current) selfRestoreNote.value = 'The activity could not be read from SFMC just now, so the body holds only this version\'s text and name. SFMC may need the other fields; open Restore by myself again once connected for the full body.'
+  selfRestore.value = selfRestoreRequest({ kind: r.kind, id: r.activityId, name: r.name, versionLabel: label(v), savedAt: v.savedAt, body: restoreBody(r.kind, current, v) })
 }
 
 async function deleteVersion(v) {
@@ -228,6 +248,7 @@ const automationStudioUrl = (stack) => `https://mc.${stack}.exacttarget.com/clou
               <button v-if="record.kind === 'query'" class="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border hover:bg-accent" @click="openInRunQuery"><Play class="h-3 w-3" /> Open in Run Query</button>
               <button v-if="restoreState === 'idle' || restoreState === 'done'" class="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-primary/40 text-primary hover:bg-primary/10"
                 @click="restoreState = 'confirm'"><RotateCcw class="h-3 w-3" /> Restore this version</button>
+              <button class="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border hover:bg-accent" title="Get the request that puts this version back, to send yourself with your own API access" data-self-restore-open @click="openSelfRestore"><FileDown class="h-3 w-3" /> Restore by myself</button>
             </div>
 
             <div v-if="restoreState === 'confirm'" class="mx-4 mt-3 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-700 p-3 text-xs text-amber-900 dark:text-amber-200" role="alertdialog">
@@ -258,5 +279,6 @@ const automationStudioUrl = (stack) => `https://mc.${stack}.exacttarget.com/clou
         </div>
       </template>
     </template>
+    <SelfRestoreDialog :open="!!selfRestore" :request="selfRestore" :note="selfRestoreNote" @close="selfRestore = null" />
   </div>
 </template>

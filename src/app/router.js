@@ -26,6 +26,7 @@ const PAGES = {
   '/journeys': () => import('../views/journey/JourneysPage.vue'),
   '/journey-entry': () => import('../views/journey/JourneyEntryPage.vue'),
   '/cloudpages': () => import('../views/content/CloudPagesPage.vue'),
+  '/cloudpages/saved': () => import('../views/emails/EmailsPage.vue'),
 }
 
 export const routes = [
@@ -33,6 +34,7 @@ export const routes = [
   ...NAV_ITEMS.map((item) => ({
     path: item.path,
     component: PAGES[item.path],
+    ...(item.props ? { props: item.props } : {}),
     meta: { title: item.name, group: item.group },
   })),
   {
@@ -49,6 +51,12 @@ export const routes = [
     path: '/saved-activities/:id',
     component: () => import('../views/automation/SavedActivitiesPage.vue'),
     meta: { title: 'Saved Activities', group: 'Automation' },
+  },
+  {
+    path: '/cloudpages/saved/:id',
+    component: () => import('../views/emails/EmailDetailPage.vue'),
+    props: { kind: 'cloudpage' },
+    meta: { title: 'Saved CloudPages', group: 'Content' },
   },
   {
     path: '/emails/:id',

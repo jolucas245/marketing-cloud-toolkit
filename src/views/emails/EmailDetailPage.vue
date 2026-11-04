@@ -1,13 +1,19 @@
 <script setup>
-// One captured email: its saved versions, a preview of each, delete, and revert
-// (puts a version back into Content Builder). From SFMC Query Saver's email page.
+// One captured email or CloudPage (kind prop, feedback #1045): its saved versions, a
+// preview of each (scripts off), delete, Revert (puts a version back) and Restore by
+// myself (the request to send yourself). From SFMC Query Saver's email page.
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, RotateCcw, Check, AlertCircle, Loader2, Clock, FolderOpen, Trash2, ExternalLink } from 'lucide-vue-next'
+import { ArrowLeft, RotateCcw, Check, AlertCircle, Loader2, Clock, FolderOpen, Trash2, ExternalLink, FileDown } from 'lucide-vue-next'
+import SelfRestoreDialog from '@/components/results/SelfRestoreDialog.vue'
+import { selfRestoreRequest } from '@/utils/selfRestore.js'
+import { SAVED_ASSET_KINDS, isSavedAssetKey } from '@/utils/savedAssets.js'
 import { compile } from '@/utils/emailCompiler.js'
 import { sfmcFetch, logInfo } from '@/utils/sfmcApi.js'
 import { showToast } from '@/composables/useToast.js'
 
+const props = defineProps({ kind: { type: String, default: 'email' } })
+const K = computed(() => SAVED_ASSET_KINDS[props.kind] || SAVED_ASSET_KINDS.email)
 const route = useRoute()
 const router = useRouter()
 
@@ -17,8 +23,8 @@ const selectedIdx = ref(0)
 const revertState = ref({}) // versionId → 'confirm' | 'pending' | 'success' | { error }
 const deletingVersionId = ref(null)
 
-// Only a saved email's own key (email_<asset id>), never another storage key from the URL.
-const emailId = computed(() => { const id = String(route.params.id || ''); return /^email_\d+$/.test(id) ? id : '' })
+// Only a saved record's own key (email_<asset id> or cloudpage_<asset id>), never another storage key from the URL.
+const emailId = computed(() => { const id = String(route.params.id || ''); return isSavedAssetKey(K.value.kind, id) ? id : '' })
 
 function load() {
   loading.value = true
@@ -56,25 +62,33 @@ const setState = (v, s) => { revertState.value = { ...revertState.value, [v.vers
 async function revert(version) {
   if (!version.assetBody || !version.stack) return
   setState(version, 'pending')
-  const url = `https://content-builder.${version.stack}.marketingcloudapps.com/fuelapi/asset/v1/content/assets/${record.value.assetId}`
+  // Back through the app that saved it (CloudPages saves go through cloud-pages.<stack>).
+  const origin = version.saveOrigin && /^https:\/\/[a-z0-9-]+\.[a-z0-9]+\.marketingcloudapps\.com$/.test(version.saveOrigin) ? version.saveOrigin : `https://content-builder.${version.stack}.marketingcloudapps.com`
+  const url = `${origin}/fuelapi/asset/v1/content/assets/${record.value.assetId}`
   logInfo(`Reverting "${record.value.name}" to ${label(version)} (saved ${formatDate(version.savedAt)})`)
   try {
     await sfmcFetch(url, 'PUT', version.assetBody)
     setState(version, 'success')
-    showToast(`Reverted to ${label(version)}. Reload the email in Content Builder to see it.`, 6000)
+    showToast(`Reverted to ${label(version)}. ${K.value.reopen}`, 6000)
   } catch (e) {
     setState(version, { error: e.message })
   }
+}
+
+// Restore by myself (feedback #1045): the PUT that puts this version back, to send yourself.
+const selfRestore = ref(null)
+function openSelfRestore(version) {
+  selfRestore.value = selfRestoreRequest({ kind: K.value.kind, id: record.value.assetId, name: record.value.name, versionLabel: label(version), savedAt: version.savedAt, body: version.assetBody })
 }
 
 async function deleteVersion(versionId) {
   if (!record.value) return
   const remaining = versions.value.filter((v) => v.versionId !== versionId)
   if (!remaining.length) {
-    if (!confirm('This is the last version. Delete this email from Marketing Cloud Toolkit? (Nothing changes in Content Builder.)')) return
+    if (!confirm(`This is the last version. Delete this ${K.value.noun} from Marketing Cloud Toolkit? (Nothing changes in ${K.value.app}.)`)) return
     await new Promise((r) => chrome.storage.local.remove(emailId.value, r))
-    showToast('Email deleted.')
-    router.push('/emails')
+    showToast(`${K.value.noun[0].toUpperCase()}${K.value.noun.slice(1)} deleted.`)
+    router.push(K.value.base)
     return
   }
   deletingVersionId.value = versionId
@@ -89,7 +103,7 @@ function formatDate(ts) {
   if (!ts) return '-'
   return new Date(ts).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
-const contentBuilderUrl = (stack) => `https://mc.${stack}.exacttarget.com/cloud/#app/Content%20Builder`
+const contentBuilderUrl = (stack) => `https://mc.${stack}.exacttarget.com/cloud/#app/${K.value.appPath}`
 </script>
 
 <template>
@@ -98,13 +112,13 @@ const contentBuilderUrl = (stack) => `https://mc.${stack}.exacttarget.com/cloud/
 
     <div v-else-if="!record" class="flex-1 flex flex-col items-center justify-center gap-3">
       <AlertCircle class="h-10 w-10 text-muted-foreground/40" />
-      <p class="text-sm text-muted-foreground">This email is not saved in Marketing Cloud Toolkit.</p>
-      <RouterLink to="/emails" class="text-xs text-primary underline">Back to emails</RouterLink>
+      <p class="text-sm text-muted-foreground">This {{ K.noun }} is not saved in Marketing Cloud Toolkit.</p>
+      <RouterLink :to="K.base" class="text-xs text-primary underline">Back to {{ K.nouns }}</RouterLink>
     </div>
 
     <template v-else>
       <div class="flex items-center gap-3 px-4 py-2 border-b border-border bg-card">
-        <RouterLink to="/emails" class="p-1.5 rounded-md text-muted-foreground hover:bg-accent" title="Back to emails"><ArrowLeft class="h-4 w-4" /></RouterLink>
+        <RouterLink :to="K.base" class="p-1.5 rounded-md text-muted-foreground hover:bg-accent" :title="`Back to ${K.nouns}`"><ArrowLeft class="h-4 w-4" /></RouterLink>
         <div class="flex-1 min-w-0">
           <h1 class="text-sm font-semibold truncate">{{ record.name }}</h1>
           <div class="flex items-center gap-2 mt-0.5 flex-wrap text-[11px] text-muted-foreground">
@@ -146,8 +160,10 @@ const contentBuilderUrl = (stack) => `https://mc.${stack}.exacttarget.com/cloud/
                     <button v-if="stateOf(version) === 'idle'"
                       class="flex items-center justify-center gap-1.5 w-full text-[10px] font-semibold px-2.5 py-1 rounded-md border border-primary/40 text-primary hover:bg-primary/10"
                       @click="setState(version, 'confirm')"><RotateCcw class="h-3 w-3" /> Revert to this version</button>
+                    <button v-if="stateOf(version) === 'idle'" class="mt-1 flex items-center justify-center gap-1.5 w-full text-[10px] px-2.5 py-1 rounded-md border border-border text-muted-foreground hover:bg-accent"
+                      title="Get the request that puts this version back, to send yourself with your own API access" data-self-restore-open @click="openSelfRestore(version)"><FileDown class="h-3 w-3" /> Restore by myself</button>
                     <div v-else-if="stateOf(version) === 'confirm'" class="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-700 p-2 text-[10px] text-amber-900 dark:text-amber-200">
-                      <p>Replace the email in Content Builder with {{ label(version) }}? The current content is kept here as the latest version.</p>
+                      <p>Replace the {{ K.noun }} in {{ K.app }} with {{ label(version) }}? The current content is kept here as the latest version.</p>
                       <div class="flex gap-1.5 mt-1.5">
                         <button class="flex-1 rounded bg-primary text-primary-foreground py-1 font-semibold" @click="revert(version)">Revert</button>
                         <button class="flex-1 rounded border border-border bg-background py-1" @click="setState(version, 'idle')">Cancel</button>
@@ -159,7 +175,7 @@ const contentBuilderUrl = (stack) => `https://mc.${stack}.exacttarget.com/cloud/
                       <div class="flex items-start gap-1.5 text-[10px] text-red-700 dark:text-red-400 px-2.5 py-1.5 rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800" role="alert">
                         <AlertCircle class="h-3 w-3 shrink-0 mt-px" />
                         <span v-if="stateOf(version).error.includes('EBADCSRFTOKEN')">
-                          The Content Builder session expired. Open Content Builder once, then try again.
+                          The {{ K.app }} session expired. Open {{ K.app }} once, then try again.
                           <a :href="contentBuilderUrl(version.stack)" target="_blank" class="underline font-semibold inline-flex items-center gap-0.5">Open <ExternalLink class="h-2.5 w-2.5" /></a>
                         </span>
                         <span v-else class="wrap-break-word">{{ stateOf(version).error }}</span>
@@ -180,11 +196,12 @@ const contentBuilderUrl = (stack) => `https://mc.${stack}.exacttarget.com/cloud/
             <span v-if="selectedVersion?.subject" class="text-muted-foreground truncate flex-1 min-w-0">Subject: {{ selectedVersion.subject }}</span>
           </div>
           <div class="flex-1 relative bg-white">
-            <iframe v-if="compiledHtml" :srcdoc="compiledHtml" sandbox class="w-full h-full border-0" title="Email preview" />
+            <iframe v-if="compiledHtml" :srcdoc="compiledHtml" sandbox class="w-full h-full border-0" :title="`${K.noun} preview`" />
             <div v-else class="h-full flex items-center justify-center text-sm text-muted-foreground bg-muted/20">No preview for this version.</div>
           </div>
         </section>
       </div>
     </template>
+    <SelfRestoreDialog :open="!!selfRestore" :request="selfRestore" @close="selfRestore = null" />
   </div>
 </template>

@@ -28,6 +28,7 @@ const { currentTheme, themes, setTheme } = useTheme()
 
 // Same keys as SFMC Query Saver, read by the service worker and the run flow.
 const { value: emailSaver } = useStoredSetting('_emailSaverEnabled', true, (v) => v !== false)
+const { value: cloudPageSaver } = useStoredSetting('_cloudPageSaverEnabled', true, (v) => v !== false) // feedback #1045
 // Query and Script activity versions (feedback #122; background/activityCapture.js).
 const { value: activitySaver } = useStoredSetting(ACTIVITY_SAVER_SETTING, true, (v) => v !== false)
 const { value: activityMax } = useStoredSetting(ACTIVITY_MAX_SETTING, DEFAULT_MAX_VERSIONS,
@@ -175,13 +176,20 @@ function setDebounce(e) {
     </section>
 
     <section class="rounded-lg border border-border bg-card p-4 space-y-4">
-      <h2 class="text-sm font-semibold">Emails</h2>
+      <h2 class="text-sm font-semibold">Emails and CloudPages</h2>
       <div class="flex items-start gap-3">
         <div class="flex-1">
           <div class="text-sm font-medium">Save email versions</div>
           <p class="text-xs text-muted-foreground">Each time you save an email in Content Builder, a copy is kept in this browser so you can compare or revert it (the 10 newest versions per email). On by default.</p>
         </div>
         <Switch :model-value="emailSaver && !policy.disableHistory" :disabled="policy.disableHistory" aria-label="Save email versions" @update:model-value="emailSaver = $event" />
+      </div>
+      <div class="flex items-start gap-3">
+        <div class="flex-1">
+          <div class="text-sm font-medium">Save CloudPage versions</div>
+          <p class="text-xs text-muted-foreground">Each time you save a CloudPage (landing page, web page or code resource), a copy is kept in this browser under Content > Saved CloudPages, to compare, revert or restore yourself (the 10 newest versions per page). On by default.</p>
+        </div>
+        <Switch :model-value="cloudPageSaver && !policy.disableHistory" :disabled="policy.disableHistory" aria-label="Save CloudPage versions" @update:model-value="cloudPageSaver = $event" />
       </div>
       <div class="flex items-center gap-3" :class="{ 'opacity-50': !emailSaver }">
         <label for="email-debounce" class="flex-1">

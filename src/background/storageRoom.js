@@ -20,7 +20,7 @@ const sizeOf = (v) => JSON.stringify(v ?? null).length
 export function trimEmailVersions(all, over) {
   const candidates = []
   for (const [key, rec] of Object.entries(all || {})) {
-    if (!key.startsWith('email_') || !Array.isArray(rec?.versions)) continue
+    if (!(key.startsWith('email_') || key.startsWith('cloudpage_')) || !Array.isArray(rec?.versions)) continue
     rec.versions.slice(1).forEach((v) => candidates.push({ key, v, at: v?.savedAt || 0, bytes: sizeOf(v) }))
   }
   candidates.sort((a, b) => a.at - b.at)
