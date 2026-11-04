@@ -21,7 +21,8 @@ const props = defineProps({
   expanded: { type: Set, default: () => new Set() },
   emptyText: { type: String, default: 'Nothing to show.' },
 })
-const emit = defineEmits(['shown'])
+// shown: rows left by the filters (null when none); ordered: every row as shown, in order.
+const emit = defineEmits(['shown', 'ordered'])
 
 // Columns marked hidden start hidden until the table's Columns menu is used (#1040).
 const hidden = ref(new Set(props.columns.filter((c) => c.hidden).map((c) => c.key)))
@@ -55,7 +56,7 @@ function toggleFilters() {
 }
 
 const shownRows = computed(() => sortRows(filterRows(props.rows, props.columns, filters.value), props.columns, sort.value))
-watch(shownRows, (list) => emit('shown', filtering.value ? list : null), { immediate: true })
+watch(shownRows, (list) => { emit('shown', filtering.value ? list : null); emit('ordered', list) }, { immediate: true })
 
 function toggle(key) {
   const next = new Set(hidden.value)

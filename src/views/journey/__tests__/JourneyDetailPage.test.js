@@ -4,7 +4,7 @@ import { ref, defineComponent } from 'vue'
 
 const api = vi.hoisted(() => ({ fetch: vi.fn(), email: vi.fn(), compile: vi.fn(), focus: vi.fn() }))
 vi.mock('@/composables/useStack.js', () => ({ useStack: () => ({ stack: ref('s13') }) }))
-vi.mock('vue-router', () => ({ useRoute: () => ({ path: '/journeys/example', params: { id: 'example' }, query: {} }) }))
+vi.mock('vue-router', () => ({ useRoute: () => ({ path: '/journeys/example', params: { id: 'example' }, query: {} }), useRouter: () => ({ push: () => {} }) }))
 vi.mock('@/utils/journeys.js', async (original) => ({ ...await original(), fetchJourney: (...args) => api.fetch(...args), fetchJourneyEmailAsset: (...args) => api.email(...args) }))
 vi.mock('@/utils/emailCompiler.js', () => ({ compile: (...args) => api.compile(...args) }))
 

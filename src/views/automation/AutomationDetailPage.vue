@@ -14,6 +14,7 @@ import ActivityIcon from '@/components/results/ActivityIcon.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import DownloadMenu from '@/components/results/DownloadMenu.vue'
 import RunHistory from '@/components/automation/RunHistory.vue'
+import PrevNext from '@/components/shell/PrevNext.vue'
 import WatchButton from '@/components/automation/WatchButton.vue'
 import AutomationCanvas from '@/components/automation/AutomationCanvas.vue'
 import { useStack } from '@/composables/useStack.js'
@@ -129,6 +130,7 @@ const summaryPrompt = (extra) => buildAiTaskPrompt('automation', { text: docText
   <div class="h-full flex flex-col">
     <div class="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-border bg-card">
       <RouterLink to="/automations" class="p-1.5 rounded-md text-muted-foreground hover:bg-accent" title="Back to automations"><ArrowLeft class="h-4 w-4" /></RouterLink>
+      <PrevNext kind="automations" :id="id" base="/automations" noun="automation" />
       <h1 class="text-sm font-semibold truncate">{{ details?.name || 'Automation' }}</h1>
       <StatusBadge v-if="details" :status="details.status ?? details.statusId" automation />
       <span v-if="pending" class="flex items-center gap-1 text-xs text-muted-foreground"><Loader2 class="h-3 w-3 animate-spin" /> Loading {{ pending }} activities</span>

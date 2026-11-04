@@ -5,6 +5,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, Loader2 } from 'lucide-vue-next'
 import DataTable from '@/components/results/DataTable.vue'
+import { setBrowseList } from '@/utils/browseList.js'
 import StatusBadge from '@/components/results/StatusBadge.vue'
 import Button from '@/components/ui/button/Button.vue'
 import WatchButton from '@/components/automation/WatchButton.vue'
@@ -115,7 +116,7 @@ const columns = [
           <p class="text-xs text-muted-foreground flex-1">{{ total.toLocaleString() }} found{{ searched.query ? ` for "${searched.query}"` : '' }}{{ searched.status ? `, status ${searched.status}` : '' }}.</p>
           <WatchButton v-if="items.length" bulk type="journey" :stack="stack" :items="items.filter((j) => picked.has(j.id))" />
         </div>
-        <DataTable :columns="columns" :rows="items" row-key="id" storage-key="journeys" empty-text="No journeys found." @shown="filtered = $event">
+        <DataTable :columns="columns" :rows="items" row-key="id" storage-key="journeys" empty-text="No journeys found." @shown="filtered = $event" @ordered="setBrowseList('journeys', $event.map((j) => ({ id: j.id, name: j.name, query: j.version ? { version: String(j.version) } : null })))">
           <template #head-pick>
             <input type="checkbox" :checked="allPicked" aria-label="Select every journey shown" @change="togglePickAll" />
           </template>

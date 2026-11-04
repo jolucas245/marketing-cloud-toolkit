@@ -5,6 +5,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, Loader2 } from 'lucide-vue-next'
 import DataTable from '@/components/results/DataTable.vue'
+import { setBrowseList } from '@/utils/browseList.js'
 import DownloadMenu from '@/components/results/DownloadMenu.vue'
 import WatchButton from '@/components/automation/WatchButton.vue'
 import StatusBadge from '@/components/results/StatusBadge.vue'
@@ -126,7 +127,7 @@ const columns = [
           <DownloadMenu v-if="entries.length" :get-doc="buildDoc" :file-name="picked.size === 1 ? entries.find((a) => picked.has(a.id))?.name || 'automation' : `automations-${searched || 'all'}`"
             :label="picked.size ? `Download ${picked.size}` : `Download all ${entries.length}`" />
         </div>
-        <DataTable :columns="columns" :rows="entries" row-key="id" storage-key="automations" empty-text="No automations found." @shown="filtered = $event">
+        <DataTable :columns="columns" :rows="entries" row-key="id" storage-key="automations" empty-text="No automations found." @shown="filtered = $event" @ordered="setBrowseList('automations', $event)">
           <template #head-pick>
             <input type="checkbox" :checked="allPicked" aria-label="Select every automation shown" @change="togglePickAll" />
           </template>

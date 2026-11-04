@@ -5,6 +5,7 @@ All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are pub
 ## Unreleased (next 2.0.19)
 
 **New:**
+- Previous and Next on automation and journey pages, with "2 of 40" and the ← → keys: they step through the list you opened the page from, in the order it was shown (search, filters and sort). Hidden when the page was not opened from a list (feedback #1043).
 - Load everything in the connection menu: reads automations, activities, journeys, entry events, file locations, Content Builder items, Shared and Synchronized data extensions and data extension fields and folders into the caches the pages already use (memory for this tab, and Where used's saved data in the browser), one part after another with a count and time for each, so overviews, Data Extensions, Run Query and Where used open without a wait. Refresh reads everything again, Stop ends it. Nothing is saved to a file or downloaded. Settings > Connection can run it when the Toolkit connects (off by default) (feedback #1037).
 - Automation canvas laid out like Automation Studio: the start source, a lane per step with its activities; also in HTML and PDF downloads (feedback #1035).
 - AI Assist in Run Query can keep working in the background: the panel shows when the suggestion is ready (feedback #1032).
