@@ -10,7 +10,8 @@ import Button from '@/components/ui/button/Button.vue'
 import CodeView from '@/components/results/CodeView.vue'
 import DiffView from '@/components/results/DiffView.vue'
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
-import { buildAiPrompt, readAiAnswer, AI_SYSTEM, AVAILABILITY_TEXT, MAX_TABLES } from '@/utils/aiAssist.js'
+import { buildAiPrompt, readAiAnswer, AVAILABILITY_TEXT, MAX_TABLES } from '@/utils/aiAssist.js'
+import { buildSqlSystem, aiSqlProblems, promptForCopy, RULES_SOURCE } from '@/utils/aiSqlGuide.js'
 import { useAiRun } from '@/composables/useAi.js'
 import { DATA_VIEWS } from '@/utils/dataViews.js'
 import { bareTableName } from '@/utils/schemaCatalog.js'
@@ -92,12 +93,36 @@ const prompt = computed(() => buildAiPrompt({
   mode: mode.value, request: request.value, sql: props.sql, tables: tables.value,
   problems: problems.value.split('\n'),
 }))
+// Instructions for this request only: matching rules, data views and examples (#1044).
+const system = computed(() => buildSqlSystem({ request: request.value, sql: props.sql, tables: tables.value }).text)
+const checking = ref(false)
 const canAsk = computed(() => run.canAsk.value && (mode.value === 'fix' ? !!props.sql.trim() : !!request.value.trim()))
 
+// The answer goes through the SQL checks; when they find problems the model gets one
+// round to fix them, and the better of the two answers is shown with what is left (#1044).
 async function ask() {
   answer.value = null
-  const raw = await run.ask(AI_SYSTEM, prompt.value)
-  if (raw != null) answer.value = { ...readAiAnswer(raw), raw }
+  const sys = system.value
+  const raw = await run.ask(sys, prompt.value)
+  if (raw == null) return
+  let best = { ...readAiAnswer(raw), raw, fixed: false }
+  best.problems = best.sql ? aiSqlProblems(best.sql) : []
+  if (best.sql && best.problems.length) {
+    checking.value = true
+    try {
+      const fixPrompt = buildAiPrompt({ mode: 'fix', sql: best.sql, problems: best.problems, tables: tables.value, request: mode.value === 'write' ? `It should still do this: ${request.value.trim()}` : request.value })
+      const raw2 = await run.ask(sys, fixPrompt)
+      if (raw2 != null) {
+        const second = { ...readAiAnswer(raw2), raw: raw2, fixed: true }
+        second.problems = second.sql ? aiSqlProblems(second.sql) : null
+        if (second.sql && second.problems.length < best.problems.length) best = second
+      }
+    } finally { checking.value = false }
+  }
+  answer.value = best
+}
+async function copyPrompt() {
+  try { await navigator.clipboard.writeText(promptForCopy(system.value, prompt.value)); showToast('Prompt copied: paste it into the assistant you use.') } catch { showToast('Could not copy.') }
 }
 function stop() { run.stop() }
 async function copy() {
@@ -163,9 +188,11 @@ async function copy() {
             <button class="inline-flex items-center gap-1 text-primary hover:underline" :aria-expanded="showPrompt" @click="showPrompt = !showPrompt">
               <ChevronDown v-if="showPrompt" class="h-3 w-3" /><ChevronRight v-else class="h-3 w-3" /> What the model gets
             </button>
+            <button class="ml-3 inline-flex items-center gap-1 text-primary hover:underline" title="Copy the instructions and the request, to paste into a larger assistant you are allowed to use. Check it holds nothing private first." data-ai-copy-prompt @click="copyPrompt"><Copy class="h-3 w-3" /> Copy prompt</button>
             <div v-if="showPrompt" class="mt-1 space-y-1">
               <div class="text-muted-foreground">Instructions</div>
-              <CodeView :code="AI_SYSTEM" lang="text" max-height="160px" />
+              <CodeView :code="system" lang="text" max-height="160px" />
+              <p v-if="RULES_SOURCE" class="text-[11px] text-muted-foreground">{{ RULES_SOURCE }}.</p>
               <div class="text-muted-foreground">Request</div>
               <CodeView :code="prompt" lang="text" max-height="240px" />
             </div>
@@ -181,6 +208,7 @@ async function copy() {
             <Button v-if="state === 'asking'" variant="outline" size="sm" class="h-8 text-xs" @click="stop"><Square class="h-3 w-3 mr-1" /> Stop</Button>
             <Button v-if="state === 'asking' && canBackground" variant="outline" size="sm" class="h-8 text-xs" title="Hide this and keep working: the panel shows when the answer is ready" data-ai-keep-working @click="emit('close')"><EyeOff class="h-3 w-3 mr-1" /> Keep working</Button>
             <span v-if="download != null" class="text-muted-foreground">Downloading the model: {{ Math.round(download * 100) }}%</span>
+            <span v-else-if="state === 'asking' && checking" class="text-muted-foreground">The SQL checks found problems: asking the model to fix them.</span>
             <span v-else-if="state === 'asking'" class="text-muted-foreground">Thinking. The first answer can take a while.<template v-if="canBackground"> You can keep working: closing this does not stop it.</template></span>
           </div>
           <p v-if="error" class="text-red-600" role="alert">{{ error }}<ReportErrorButton /></p>
@@ -194,6 +222,12 @@ async function copy() {
                 <DiffView :left="sql" :right="answer.sql" />
               </template>
               <CodeView v-else :code="answer.sql" max-height="320px" data-ai-sql />
+              <p v-if="answer.fixed && !answer.problems.length" class="text-emerald-700 dark:text-emerald-400" data-ai-checked>The SQL checks found problems in the first answer; the model fixed them.</p>
+              <p v-else-if="!answer.problems.length" class="text-emerald-700 dark:text-emerald-400" data-ai-checked>The SQL checks found no problems. Still read it before you run it.</p>
+              <div v-else class="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 p-2" data-ai-problems>
+                <div class="font-medium">The SQL checks still find {{ answer.problems.length === 1 ? 'a problem' : `${answer.problems.length} problems` }}{{ answer.fixed ? ' after one round of fixes' : '' }}:</div>
+                <ul class="mt-1 list-disc pl-4"><li v-for="(p, i) in answer.problems.slice(0, 8)" :key="i">{{ p }}</li></ul>
+              </div>
               <div class="flex flex-wrap gap-2">
                 <Button size="sm" class="h-8 text-xs" :title="applyTitle" @click="emit('apply', answer.sql)">{{ applyLabel }}</Button>
                 <Button variant="outline" size="sm" class="h-8 text-xs" @click="emit('new-panel', answer.sql)">Open in a new panel</Button>

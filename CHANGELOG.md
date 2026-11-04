@@ -4,6 +4,9 @@ All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are pub
 
 ## Unreleased (next 2.0.20)
 
+**Changed:**
+- AI Assist writes better SFMC SQL (feedback #1044): each request gets the rules that apply to it (dates and time zones, joins, data views, deduplication, target data extensions and more, written for the Toolkit from Mateusz Dabrowski's SFMC SQL guides at mateuszdabrowski.pl), the fields and joins of the data views it mentions, and matching worked examples. The answer goes through the Toolkit's SQL checks; if they find problems the model gets one round to fix them, and anything left is listed beside the suggestion. Copy prompt copies the instructions and request to use with a larger assistant.
+
 **Fixed:**
 - The Features page and What's New no longer describe old behaviour: no usage analytics (removed in 2.0.18), Clean up is under Settings, the teal colours, the current sidebar groups, Contact journeys under Contacts, the one-time Chrome OK for saving Query Studio runs, and the removed "Not seeing your saves?" request log.
 

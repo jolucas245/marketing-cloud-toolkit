@@ -1,0 +1,485 @@
+{
+  "source": "Rules written for the Toolkit from Mateusz Dabrowski’s SFMC SQL guides (mateuszdabrowski.pl), in our own words",
+  "articlesRead": [
+    {
+      "title": "MCE SQL Basics",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/sql-basics/"
+    },
+    {
+      "title": "MCE SQL Select",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/sql-select/"
+    },
+    {
+      "title": "MCE SQL From",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/sql-from/"
+    },
+    {
+      "title": "MCE SQL Join",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/sql-join/"
+    },
+    {
+      "title": "MCE SQL Where",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/sql-where/"
+    },
+    {
+      "title": "MCE SQL Case",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/sql-case/"
+    },
+    {
+      "title": "MCE SQL Like",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/sql-like/"
+    },
+    {
+      "title": "MCE SQL String Functions",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/sql-string-functions/"
+    },
+    {
+      "title": "MCE SQL Date Functions",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/sql-date-functions/"
+    },
+    {
+      "title": "MCE SQL Numeric Functions",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/sql-numeric-functions/"
+    },
+    {
+      "title": "MCE SQL Conversion Functions",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/sql-conversion-functions/"
+    },
+    {
+      "title": "MCE SQL Aggregate Functions",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/sql-aggregate-functions/"
+    },
+    {
+      "title": "MCE SQL Window Functions",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/sql-window-functions/"
+    },
+    {
+      "title": "MCE SQL NULL Functions",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/sql-null-functions/"
+    },
+    {
+      "title": "MCE SQL JSON Functions",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/sql-json-functions/"
+    },
+    {
+      "title": "MCE SQL Style Guide",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/sql-style-guide/"
+    },
+    {
+      "title": "MCE SQL Errors",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/sql-errors/"
+    },
+    {
+      "title": "MCE SQL Debugging Email Sends",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/snippets/sql-debugging-email-sends/"
+    },
+    {
+      "title": "MCE SQL Debugging Value Length",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/snippets/sql-debugging-value-length/"
+    },
+    {
+      "title": "MCE SQL Debugging All Contacts",
+      "url": "https://mateuszdabrowski.pl/docs/salesforce/marketing-cloud-engagement/sql/snippets/sql-debugging-all-contacts/"
+    }
+  ],
+  "topics": {
+    "select": {
+      "when": [
+        "rename",
+        "alias",
+        "top",
+        "sort",
+        "order",
+        "limit",
+        "distinct"
+      ],
+      "rules": [
+        "List columns by name; never SELECT *.",
+        "Alias every computed column with AS, named like the target field.",
+        "No LIMIT: use SELECT TOP n. Pair TOP with ORDER BY so the rows kept are predictable.",
+        "DISTINCT compares all selected columns; for one row per key use ROW_NUMBER."
+      ]
+    },
+    "from": {
+      "when": [
+        "shared",
+        "synchronized",
+        "synced",
+        "parent",
+        "child",
+        "enterprise",
+        "ent",
+        "_contact_salesforce"
+      ],
+      "rules": [
+        "From a child BU, read shared, synchronized or parent data views with the Ent. prefix, e.g. Ent.Contact_Salesforce, Ent._Subscribers.",
+        "Do not use Ent. in the parent BU itself, and do not read another BU's DE by MID prefix."
+      ]
+    },
+    "joins": {
+      "when": [
+        "join",
+        "combine",
+        "who did not",
+        "never",
+        "without",
+        "exclude"
+      ],
+      "rules": [
+        "Find non-matches with LEFT JOIN and WHERE joined_key IS NULL, or NOT EXISTS.",
+        "Join _Sent to _Open, _Click, _Bounce, _Unsubscribe on JobID, ListID, BatchID and SubscriberID together.",
+        "Add IsUnique = 1 on engagement joins or one send fans out into many rows.",
+        "Join _Sent to _Job on JobID; join to _Subscribers or a DE on SubscriberKey.",
+        "UNION removes duplicates, UNION ALL keeps them; each part needs the same column count, order and types."
+      ]
+    },
+    "filters": {
+      "when": [
+        "where",
+        "filter",
+        "empty",
+        "blank",
+        "null",
+        "missing",
+        "contains",
+        "starts with",
+        "ends with",
+        "like",
+        "opted"
+      ],
+      "rules": [
+        "Test missing values with IS NULL / IS NOT NULL; = NULL and != NULL never match.",
+        "A comparison like Flag != 'True' drops NULL rows; use ISNULL(Flag, 0) = 0 or add OR Flag IS NULL.",
+        "NOT IN returns nothing if the list or subquery holds a NULL; prefer NOT EXISTS.",
+        "LIKE: % any run, _ one char, [abc] set, [^abc] not in set; literal % is [%].",
+        "Boolean DE fields are BIT: compare with 1 or 0 (text 'True'/'False' also converts).",
+        "_Subscribers.Status is text: 'active', 'unsubscribed', 'held' or 'bounced'."
+      ]
+    },
+    "dates": {
+      "when": [
+        "date",
+        "day",
+        "days",
+        "today",
+        "yesterday",
+        "week",
+        "month",
+        "year",
+        "hour",
+        "ago",
+        "recent",
+        "time zone",
+        "timezone",
+        "birthday",
+        "anniversary",
+        "in the last",
+        "past"
+      ],
+      "rules": [
+        "GETDATE() and data view dates are CST (UTC-6) all year; GETUTCDATE() is UTC.",
+        "Relative ranges: EventDate >= DATEADD(DAY, -7, GETDATE()).",
+        "Whole days: compare with CONVERT(DATE, GETDATE()) using >= start and < next day. Avoid BETWEEN on datetimes.",
+        "To show local time: TODATETIMEOFFSET(d, '-06:00') AT TIME ZONE 'Pacific Standard Time'. Use standard zone names.",
+        "AT TIME ZONE returns DATETIMEOFFSET; CONVERT it back to DATETIME before writing to a Date field.",
+        "Text to date: CONVERT(DATE, txt, 103) for dd/mm/yyyy, 101 for mm/dd/yyyy, 120 for yyyy-mm-dd hh:mi:ss.",
+        "DATEDIFF counts boundaries crossed (Mar 31 to Apr 1 is 1 MONTH). DATEPART returns a number, DATENAME text."
+      ]
+    },
+    "strings": {
+      "when": [
+        "string",
+        "concat",
+        "combine names",
+        "full name",
+        "split",
+        "trim",
+        "upper",
+        "lower",
+        "replace",
+        "email domain"
+      ],
+      "rules": [
+        "CONCAT treats NULL as empty; a + b returns NULL if either side is NULL. Use CONCAT or COALESCE.",
+        "String positions start at 1. CHARINDEX returns 0 when not found, so guard LEFT/SUBSTRING lengths.",
+        "Email domain: SUBSTRING(Email, CHARINDEX('@', Email) + 1, 254) with WHERE Email LIKE '%@%'.",
+        "STRING_SPLIT and OPENJSON fail the syntax check; do not use them.",
+        "Never type an N prefix before text literals and never use double quotes for text; use single quotes."
+      ]
+    },
+    "numbers": {
+      "when": [
+        "number",
+        "average",
+        "avg",
+        "percent",
+        "percentage",
+        "rate",
+        "round",
+        "decimal",
+        "sum",
+        "price",
+        "amount",
+        "ratio"
+      ],
+      "rules": [
+        "INT / INT drops decimals: multiply by 100.0 or CONVERT to DECIMAL(18, 2) before dividing.",
+        "Guard division by zero with NULLIF(denominator, 0).",
+        "DE Number fields are INT and cut decimals; target a Decimal field or ROUND first.",
+        "Give DECIMAL a precision, e.g. DECIMAL(18, 2). Avoid FLOAT and REAL."
+      ]
+    },
+    "conversion": {
+      "when": [
+        "convert",
+        "cast",
+        "as number",
+        "as date",
+        "text to",
+        "bad values"
+      ],
+      "rules": [
+        "Prefer CONVERT(type, value, style) over CAST: only CONVERT accepts a date style code.",
+        "One bad value fails the whole run; use TRY_CONVERT, which returns NULL instead.",
+        "Find bad rows with TRY_CONVERT(type, col) IS NULL AND col IS NOT NULL."
+      ]
+    },
+    "conditional": {
+      "when": [
+        "case",
+        "label",
+        "category",
+        "segment",
+        "group into",
+        "tier",
+        "flag"
+      ],
+      "rules": [
+        "Use searched CASE WHEN condition THEN value ... ELSE value END; always add ELSE.",
+        "CASE returns the first WHEN that matches, so put the most specific conditions first.",
+        "IIF(condition, if_true, if_false) is fine for a single test."
+      ]
+    },
+    "aggregates": {
+      "when": [
+        "count",
+        "how many",
+        "number of",
+        "group",
+        "total",
+        "max",
+        "min",
+        "duplicate",
+        "duplicates",
+        "per email",
+        "per day",
+        "per journey",
+        "group by"
+      ],
+      "rules": [
+        "Every non-aggregated selected column must be in GROUP BY.",
+        "Filter rows with WHERE before grouping; filter groups with HAVING COUNT(*) > 1.",
+        "COUNT(*) counts rows; COUNT(col) and COUNT(DISTINCT col) skip NULLs. AVG and SUM ignore NULLs."
+      ]
+    },
+    "dedupe": {
+      "when": [
+        "latest",
+        "newest",
+        "most recent",
+        "oldest",
+        "one row",
+        "one per",
+        "dedupe",
+        "deduplicate",
+        "rank",
+        "top per",
+        "random",
+        "latest per",
+        "one row per"
+      ],
+      "rules": [
+        "One row per key: ROW_NUMBER() OVER (PARTITION BY key ORDER BY EventDate DESC) AS rn in a subquery, then WHERE rn = 1 outside.",
+        "ROW_NUMBER needs ORDER BY inside OVER. Add a unique tiebreaker column so reruns pick the same row.",
+        "Random groups: NTILE(2) OVER (ORDER BY NEWID()). Results change every run, so store them in a DE.",
+        "COUNT(DISTINCT x) OVER () is not allowed; count in a grouped subquery and join it back."
+      ]
+    },
+    "dataViews": {
+      "when": [
+        "sent",
+        "send",
+        "sends",
+        "open",
+        "opens",
+        "opened",
+        "click",
+        "clicks",
+        "clicked",
+        "bounce",
+        "bounced",
+        "unsubscribe",
+        "unsubscribed",
+        "subscriber",
+        "subscribers",
+        "journey",
+        "email name",
+        "tracking",
+        "data view"
+      ],
+      "rules": [
+        "Email name and subject come from _Job joined on JobID.",
+        "Journey of a send: _Sent.TriggererSendDefinitionObjectID = _JourneyActivity.JourneyActivityObjectID, then _Journey on VersionID.",
+        "_Subscribers in a child BU shows that BU only; use Ent._Subscribers for all."
+      ]
+    },
+    "json": {
+      "when": [
+        "json",
+        "payload",
+        "attribute json",
+        "array",
+        "nested"
+      ],
+      "rules": [
+        "JSON_VALUE(col, '$.key') returns text up to 4,000 characters; use JSON_QUERY for objects or arrays.",
+        "Guard with IIF(ISJSON(col) = 1, JSON_VALUE(col, '$.key'), NULL): broken JSON fails the run."
+      ]
+    },
+    "target": {
+      "when": [
+        "target",
+        "overwrite",
+        "update",
+        "append",
+        "primary key",
+        "truncated"
+      ],
+      "rules": [
+        "Output column names must match target DE fields; unmatched columns are silently dropped.",
+        "Overwrite replaces all rows, Update upserts by primary key, Append adds rows.",
+        "Append fails on any primary key the target already has or the query repeats; dedupe first.",
+        "Fill every required target field and primary key; COALESCE NULLs to a default or exclude the rows.",
+        "Text longer than the target field fails with truncated: cut with LEFT(col, n) to the field length."
+      ]
+    },
+    "performance": {
+      "when": [
+        "slow",
+        "timeout",
+        "millions",
+        "all time",
+        "performance",
+        "faster"
+      ],
+      "rules": [
+        "Filter data views by EventDate inside the subquery or WHERE before joining them.",
+        "Narrow large sources in a subquery first, or split into several query activities writing to staging DEs.",
+        "Avoid functions on join keys and LIKE in ON clauses; they slow joins a lot."
+      ]
+    }
+  },
+  "core": [
+    "Write one T-SQL SELECT statement for SQL Server. SFMC runs only SELECT: no INSERT, UPDATE, DELETE, DECLARE, variables or temp tables.",
+    "Never use WITH (CTEs): write a subquery in FROM with an alias instead.",
+    "No semicolons. No -- comments; if a comment is needed, use /* */ without apostrophes.",
+    "No LIMIT, NOW(), IFNULL() or double-quoted text: use TOP, GETDATE(), ISNULL() and single quotes.",
+    "Do not add ORDER BY unless the query also has TOP or OFFSET.",
+    "Every output column needs a name: alias expressions with AS to match target DE field names.",
+    "Use only the given tables and fields; never invent fields.",
+    "Wrap names with spaces or hyphens in [brackets].",
+    "Data views and GETDATE() are Central Standard Time (UTC-6), no daylight saving.",
+    "Data views keep roughly six months of data.",
+    "Window functions and aliases cannot be used in WHERE; wrap them in a subquery.",
+    "When joining, alias every table and prefix every column.",
+    "Queries over 30 minutes are stopped: filter large data views by date early."
+  ],
+  "examples": [
+    {
+      "topics": [
+        "joins",
+        "dataViews",
+        "dates"
+      ],
+      "request": "Subscribers who opened any email in the last 30 days",
+      "tables": "_Open data view",
+      "sql": "SELECT DISTINCT o.SubscriberKey\nFROM _Open AS o\nWHERE o.EventDate >= DATEADD(DAY, -30, GETDATE())\n    AND o.IsUnique = 1"
+    },
+    {
+      "topics": [
+        "joins",
+        "dataViews",
+        "dates"
+      ],
+      "request": "People sent the email named Spring Sale in the last 7 days who did not open it",
+      "tables": "_Sent, _Job, _Open data views",
+      "sql": "SELECT DISTINCT s.SubscriberKey\nFROM _Sent AS s\nINNER JOIN _Job AS j\n    ON j.JobID = s.JobID\nLEFT JOIN _Open AS o\n    ON o.JobID = s.JobID\n    AND o.ListID = s.ListID\n    AND o.BatchID = s.BatchID\n    AND o.SubscriberID = s.SubscriberID\n    AND o.IsUnique = 1\nWHERE j.EmailName = 'Spring Sale'\n    AND s.EventDate >= DATEADD(DAY, -7, GETDATE())\n    AND o.SubscriberID IS NULL"
+    },
+    {
+      "topics": [
+        "dedupe",
+        "dataViews"
+      ],
+      "request": "The most recent click per subscriber with the URL",
+      "tables": "_Click data view",
+      "sql": "SELECT\n    ranked.SubscriberKey\n    , ranked.URL AS LastClickedUrl\n    , ranked.EventDate AS LastClickDate\nFROM (\n    SELECT\n        c.SubscriberKey\n        , c.URL\n        , c.EventDate\n        , ROW_NUMBER() OVER (PARTITION BY c.SubscriberKey ORDER BY c.EventDate DESC, c.JobID DESC) AS rn\n    FROM _Click AS c\n    WHERE c.EventDate >= DATEADD(DAY, -90, GETDATE())\n) AS ranked\nWHERE ranked.rn = 1"
+    },
+    {
+      "topics": [
+        "aggregates",
+        "numbers",
+        "dataViews"
+      ],
+      "request": "Open rate per email for sends in the last 14 days",
+      "tables": "_Sent, _Open, _Job data views",
+      "sql": "SELECT\n    j.EmailName\n    , COUNT(*) AS SentCount\n    , COUNT(o.SubscriberID) AS OpenCount\n    , CONVERT(DECIMAL(18, 2), COUNT(o.SubscriberID) * 100.0 / NULLIF(COUNT(*), 0)) AS OpenRate\nFROM _Sent AS s\nINNER JOIN _Job AS j\n    ON j.JobID = s.JobID\nLEFT JOIN _Open AS o\n    ON o.JobID = s.JobID\n    AND o.ListID = s.ListID\n    AND o.BatchID = s.BatchID\n    AND o.SubscriberID = s.SubscriberID\n    AND o.IsUnique = 1\nWHERE s.EventDate >= DATEADD(DAY, -14, GETDATE())\nGROUP BY j.EmailName"
+    },
+    {
+      "topics": [
+        "dates",
+        "filters"
+      ],
+      "request": "Rows from the Orders DE placed yesterday",
+      "tables": "Orders DE (OrderId, SubscriberKey, OrderDate, Total)",
+      "sql": "SELECT\n    OrderId\n    , SubscriberKey\n    , OrderDate\n    , Total\nFROM Orders\nWHERE OrderDate >= DATEADD(DAY, -1, CONVERT(DATE, GETDATE()))\n    AND OrderDate < CONVERT(DATE, GETDATE())"
+    },
+    {
+      "topics": [
+        "aggregates",
+        "from"
+      ],
+      "request": "Email addresses used by more than one contact in the shared Members DE, from a child BU",
+      "tables": "Shared DE Members (SubscriberKey, Email)",
+      "sql": "SELECT\n    m.Email\n    , COUNT(*) AS ContactCount\nFROM Ent.Members AS m\nWHERE m.Email IS NOT NULL\nGROUP BY m.Email\nHAVING COUNT(*) > 1"
+    },
+    {
+      "topics": [
+        "strings",
+        "conditional",
+        "filters"
+      ],
+      "request": "Active subscribers with a full name and a label for gmail, outlook or other domain",
+      "tables": "_Subscribers data view, Profile DE (SubscriberKey, FirstName, LastName)",
+      "sql": "SELECT\n    sub.SubscriberKey\n    , sub.EmailAddress\n    , TRIM(CONCAT(p.FirstName, ' ', p.LastName)) AS FullName\n    , CASE\n        WHEN sub.Domain = 'gmail.com' THEN 'Gmail'\n        WHEN sub.Domain IN ('outlook.com', 'hotmail.com') THEN 'Outlook'\n        ELSE 'Other'\n    END AS MailboxProvider\nFROM _Subscribers AS sub\nLEFT JOIN Profile AS p\n    ON p.SubscriberKey = sub.SubscriberKey\nWHERE sub.Status = 'active'"
+    },
+    {
+      "topics": [
+        "dataViews",
+        "joins",
+        "dates"
+      ],
+      "request": "Which journey and email each send came from today",
+      "tables": "_Sent, _Job, _JourneyActivity, _Journey data views",
+      "sql": "SELECT\n    s.SubscriberKey\n    , s.EventDate AS SentDate\n    , jb.EmailName\n    , jr.JourneyName\n    , jr.VersionNumber AS JourneyVersion\nFROM _Sent AS s\nINNER JOIN _Job AS jb\n    ON jb.JobID = s.JobID\nLEFT JOIN _JourneyActivity AS ja\n    ON ja.JourneyActivityObjectID = s.TriggererSendDefinitionObjectID\nLEFT JOIN _Journey AS jr\n    ON jr.VersionID = ja.VersionID\nWHERE s.EventDate >= CONVERT(DATE, GETDATE())"
+    },
+    {
+      "topics": [
+        "conversion",
+        "target"
+      ],
+      "request": "Copy the Import Staging DE into Customers, converting the text birth date (dd/mm/yyyy) and skipping rows without a key",
+      "tables": "Import Staging DE (Id, Email, BirthDateText), target Customers (CustomerId PK, Email 254, BirthDate Date)",
+      "sql": "SELECT\n    st.Id AS CustomerId\n    , LEFT(st.Email, 254) AS Email\n    , TRY_CONVERT(DATE, st.BirthDateText, 103) AS BirthDate\nFROM [Import Staging] AS st\nWHERE st.Id IS NOT NULL"
+    }
+  ]
+}
