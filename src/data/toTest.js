@@ -11,6 +11,12 @@ export const TO_TEST = [
     status: 'Not released: test builds only',
     items: [
       {
+        id: '2.0.20-createde-switches', area: 'Data', title: 'Create DE: Sendable and Testable switch on', ref: '#1052',
+        where: 'Data > Create DE',
+        steps: ['Start with one column, emailAddress (EmailAddress).', 'Turn Sendable on, then Testable.', 'Review and create the DE.'],
+        expect: 'Both switches turn on and off. Turning Sendable on picks emailAddress as the field that relates to Subscriber Key. The created DE is sendable and testable in Contact Builder.',
+      },
+      {
         id: '2.0.20-ai-rules', area: 'Run Query', title: 'AI Assist writes better SFMC SQL', ref: '#1044', live: true,
         where: 'Run Query > Ask AI (Google Chrome on a desktop with the built-in model)',
         steps: [

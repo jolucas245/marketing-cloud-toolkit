@@ -15,6 +15,7 @@ All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are pub
 
 **Fixed:**
 - Run once is no longer offered for File Transfer activities: SFMC has no start request for them (it answered 404, feedback #1050).
+- Create DE: the Sendable and Testable switches did not turn on (feedback #1052). Turning Sendable on now also picks the EmailAddress field (or the first field that fits) as the one related to Subscriber Key.
 
 **Build:** test zips (`npm run package -- --test`, or any zip named `*-test-*`) have a To Test page in the sidebar: what to test in each version, with steps and what should happen, Pass / Fail / Skip kept in the browser, and Fail opening Feedback with the item filled in. Store builds leave the page out, and the package script refuses a store zip that contains it. Send results (test builds) sends every result and an optional note per item as one feedback row of kind `test-results`; the tester sees it first and must add a name.
 

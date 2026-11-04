@@ -287,8 +287,19 @@ function onScroll() {
   if (box.scrollTop + box.clientHeight >= box.scrollHeight - 4) cur = 's3'
   activeSection.value = cur
 }
-const sendable = computed({ get: () => !!settings.value.isSendable, set: (v) => { settings.value.isSendable = v } })
-const testable = computed({ get: () => !!settings.value.isTestable, set: (v) => { settings.value.isTestable = v } })
+// Feedback #1052: these used to be computed refs inside an array in the template, where
+// Vue unwraps them to plain booleans, so a click changed nothing. Toggle by key instead.
+const SWITCHES = [
+  { key: 'isSendable', label: 'Sendable', desc: 'Can be used as an audience for sends' },
+  { key: 'isTestable', label: 'Testable', desc: 'Can be used for test sends' },
+]
+function toggleSetting(key) {
+  settings.value[key] = !settings.value[key]
+  if (key === 'isSendable' && settings.value.isSendable && !settings.value.sendField) {
+    const pick = sendFields.value.find((f) => f.type === 'EmailAddress') || sendFields.value[0]
+    if (pick) settings.value.sendField = pick.name
+  }
+}
 const selectCls = 'h-9 rounded-full border border-border bg-card px-3 text-sm text-foreground'
 const cellInput = 'h-9 rounded-lg text-sm'
 </script>
@@ -482,9 +493,9 @@ const cellInput = 'h-9 rounded-lg text-sm'
                 </div>
               </div>
               <div class="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]">
-                <button v-for="t in [{ m: sendable, label: 'Sendable', desc: 'Can be used as an audience for sends' }, { m: testable, label: 'Testable', desc: 'Can be used for test sends' }]" :key="t.label"
-                  type="button" role="switch" :aria-checked="t.m.value" class="flex items-center gap-3 rounded-xl border border-border bg-card p-3 text-left hover:bg-accent" @click="t.m.value = !t.m.value">
-                  <span class="flex h-6 w-10 shrink-0 rounded-full p-0.5 transition-colors" :class="t.m.value ? 'justify-end bg-primary' : 'justify-start bg-gray-300 dark:bg-gray-600'"><span class="h-5 w-5 rounded-full bg-white shadow" /></span>
+                <button v-for="t in SWITCHES" :key="t.key" :data-switch="t.key"
+                  type="button" role="switch" :aria-checked="!!settings[t.key]" class="flex items-center gap-3 rounded-xl border border-border bg-card p-3 text-left hover:bg-accent" @click="toggleSetting(t.key)">
+                  <span class="flex h-6 w-10 shrink-0 rounded-full p-0.5 transition-colors" :class="settings[t.key] ? 'justify-end bg-primary' : 'justify-start bg-gray-300 dark:bg-gray-600'"><span class="h-5 w-5 rounded-full bg-white shadow" /></span>
                   <span class="flex flex-col gap-0.5"><span class="text-sm font-semibold">{{ t.label }}</span><span class="text-xs text-muted-foreground">{{ t.desc }}</span></span>
                 </button>
               </div>
