@@ -2,12 +2,16 @@
 // One captured email or CloudPage (kind prop, feedback #1045): its saved versions, a
 // preview of each (scripts off), delete, Revert (puts a version back) and Restore by
 // myself (the request to send yourself). From SFMC Query Saver's email page.
+// Feedback #1046: Preview or Code for each version, and Compare with another version
+// (code side by side with changes marked, or both previews next to each other).
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, RotateCcw, Check, AlertCircle, Loader2, Clock, FolderOpen, Trash2, ExternalLink, FileDown } from 'lucide-vue-next'
 import SelfRestoreDialog from '@/components/results/SelfRestoreDialog.vue'
+import CodeView from '@/components/results/CodeView.vue'
+import DiffView from '@/components/results/DiffView.vue'
 import { selfRestoreRequest } from '@/utils/selfRestore.js'
-import { SAVED_ASSET_KINDS, isSavedAssetKey } from '@/utils/savedAssets.js'
+import { SAVED_ASSET_KINDS, isSavedAssetKey, versionSource, lineChanges } from '@/utils/savedAssets.js'
 import { compile } from '@/utils/emailCompiler.js'
 import { sfmcFetch, logInfo } from '@/utils/sfmcApi.js'
 import { showToast } from '@/composables/useToast.js'
@@ -26,9 +30,13 @@ const deletingVersionId = ref(null)
 // Only a saved record's own key (email_<asset id> or cloudpage_<asset id>), never another storage key from the URL.
 const emailId = computed(() => { const id = String(route.params.id || ''); return isSavedAssetKey(K.value.kind, id) ? id : '' })
 
+const view = ref('preview') // preview | code
+const compareId = ref('') // versionId to compare with, '' = none
+
 function load() {
   loading.value = true
   selectedIdx.value = 0
+  compareId.value = ''
   revertState.value = {}
   chrome.storage.local.get(emailId.value, (data) => {
     record.value = data?.[emailId.value] || null
@@ -49,11 +57,30 @@ const versions = computed(() => {
   }]
 })
 const selectedVersion = computed(() => versions.value[selectedIdx.value] || null)
-const compiledHtml = computed(() => {
-  const ca = selectedVersion.value?.compileAsset
-  if (!ca) return null
-  try { return compile(ca, 'html') || null } catch { return null }
+const sourceOf = (v) => (v ? versionSource(v, compile) : '')
+const compiledHtml = computed(() => sourceOf(selectedVersion.value) || null)
+const compareVersion = computed(() => versions.value.find((v) => v.versionId === compareId.value && v !== selectedVersion.value) || null)
+// Older on the left, newer on the right, whichever was picked first.
+const pair = computed(() => {
+  const a = selectedVersion.value
+  const b = compareVersion.value
+  if (!a || !b) return null
+  const older = versions.value.indexOf(a) > versions.value.indexOf(b) ? a : b
+  const newer = older === a ? b : a
+  return { older, newer, left: sourceOf(older), right: sourceOf(newer) }
 })
+const changes = computed(() => (pair.value ? lineChanges(pair.value.left, pair.value.right) : null))
+// A code resource (CSS, JS, JSON, text) has no page to preview: show its code.
+const codeOnly = computed(() => /coderesource/i.test(record.value?.assetTypeName || ''))
+const codeLang = computed(() => (/json/i.test(record.value?.assetTypeName || '') ? 'json' : /javascript|js/i.test(record.value?.assetTypeName || '') ? 'javascript' : 'html'))
+const effectiveView = computed(() => (codeOnly.value ? 'code' : view.value))
+// Picking the version that is being compared against swaps the comparison off.
+watch(selectedIdx, () => { if (compareVersion.value === null) compareId.value = '' })
+function startCompare() {
+  const i = selectedIdx.value
+  const other = versions.value[i + 1] || versions.value[i - 1]
+  compareId.value = other?.versionId || ''
+}
 
 const label = (v) => `v${versions.value.length - versions.value.indexOf(v)}`
 const stateOf = (v) => revertState.value[v.versionId] || 'idle'
@@ -190,15 +217,53 @@ const contentBuilderUrl = (stack) => `https://mc.${stack}.exacttarget.com/cloud/
           </div>
         </aside>
 
-        <section class="flex-1 flex flex-col min-w-0" aria-label="Preview">
-          <div class="flex items-center gap-3 px-5 py-2 border-b border-border bg-card text-xs">
+        <section class="flex-1 flex flex-col min-w-0" aria-label="Preview and code">
+          <div class="flex flex-wrap items-center gap-3 px-5 py-2 border-b border-border bg-card text-xs">
             <span class="font-semibold">{{ selectedVersion ? label(selectedVersion) : '' }} <span class="text-muted-foreground font-normal ml-1">{{ formatDate(selectedVersion?.savedAt) }}</span></span>
-            <span v-if="selectedVersion?.subject" class="text-muted-foreground truncate flex-1 min-w-0">Subject: {{ selectedVersion.subject }}</span>
+            <span v-if="selectedVersion?.subject && !compareVersion" class="text-muted-foreground truncate min-w-0">Subject: {{ selectedVersion.subject }}</span>
+            <div class="flex-1" />
+            <div v-if="!codeOnly" class="flex rounded-full border border-border p-0.5" role="tablist" aria-label="Show">
+              <button v-for="t in [['preview', 'Preview'], ['code', 'Code']]" :key="t[0]" type="button" role="tab" :aria-selected="view === t[0]" :data-view="t[0]"
+                class="h-6 px-3 rounded-full" :class="view === t[0] ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'" @click="view = t[0]">{{ t[1] }}</button>
+            </div>
+            <label v-if="versions.length > 1" class="inline-flex items-center gap-1.5">
+              <span class="text-muted-foreground">Compare with</span>
+              <select v-model="compareId" class="h-7 rounded-md border border-border bg-background px-1.5" data-compare-select>
+                <option value="">None</option>
+                <option v-for="v in versions.filter((x) => x !== selectedVersion)" :key="v.versionId" :value="v.versionId">{{ label(v) }} · {{ formatDate(v.savedAt) }}</option>
+              </select>
+            </label>
+            <button v-if="versions.length > 1 && !compareVersion" type="button" class="h-7 px-2 rounded-md border border-border hover:bg-accent" title="Compare with the version before (or after) this one" @click="startCompare">Compare</button>
           </div>
-          <div class="flex-1 relative bg-white">
+
+          <template v-if="pair">
+            <div class="flex flex-wrap items-center gap-3 px-5 py-1.5 border-b border-border bg-muted/30 text-[11px]" data-compare-bar>
+              <span><span class="font-semibold">{{ label(pair.older) }}</span> <span class="text-muted-foreground">{{ formatDate(pair.older.savedAt) }}</span> on the left, <span class="font-semibold">{{ label(pair.newer) }}</span> <span class="text-muted-foreground">{{ formatDate(pair.newer.savedAt) }}</span> on the right</span>
+              <span v-if="changes && (changes.added || changes.removed)" class="tabular-nums"><span class="text-emerald-700 dark:text-emerald-400">+{{ changes.added }}</span> <span class="text-red-700 dark:text-red-400">-{{ changes.removed }}</span> lines</span>
+              <span v-else class="text-muted-foreground">Same code</span>
+              <span v-if="pair.older.subject !== pair.newer.subject && (pair.older.subject || pair.newer.subject)" class="text-muted-foreground truncate min-w-0">Subject: "{{ pair.older.subject || '' }}" to "{{ pair.newer.subject || '' }}"</span>
+              <button type="button" class="ml-auto text-primary hover:underline" @click="compareId = ''">Stop comparing</button>
+            </div>
+            <div v-if="effectiveView === 'code'" class="flex-1 min-h-0 overflow-auto p-3 bg-muted/10" data-compare-code>
+              <DiffView :key="`${pair.older.versionId}-${pair.newer.versionId}`" :left="pair.left" :right="pair.right" :lang="codeLang" />
+            </div>
+            <div v-else class="flex-1 min-h-0 grid grid-cols-2 gap-px bg-border" data-compare-preview>
+              <div v-for="side in [['older', pair.left], ['newer', pair.right]]" :key="side[0]" class="flex flex-col min-h-0 bg-white">
+                <div class="px-3 py-1 text-[11px] bg-card border-b border-border text-muted-foreground">{{ label(pair[side[0]]) }}</div>
+                <iframe v-if="side[1]" :srcdoc="side[1]" sandbox class="flex-1 w-full border-0" :title="`${K.noun} preview, ${label(pair[side[0]])}`" />
+                <div v-else class="flex-1 flex items-center justify-center text-sm text-muted-foreground bg-muted/20">No preview for this version.</div>
+              </div>
+            </div>
+          </template>
+          <div v-else-if="effectiveView === 'code'" class="flex-1 min-h-0 overflow-auto p-3 bg-muted/10" data-code-view>
+            <CodeView v-if="compiledHtml" :code="compiledHtml" :lang="codeLang" max-height="none" />
+            <div v-else class="h-full flex items-center justify-center text-sm text-muted-foreground">No code saved for this version.</div>
+          </div>
+          <div v-else class="flex-1 relative bg-white">
             <iframe v-if="compiledHtml" :srcdoc="compiledHtml" sandbox class="w-full h-full border-0" :title="`${K.noun} preview`" />
             <div v-else class="h-full flex items-center justify-center text-sm text-muted-foreground bg-muted/20">No preview for this version.</div>
           </div>
+          <p v-if="effectiveView === 'preview' && compiledHtml" class="px-5 py-1 border-t border-border text-[11px] text-muted-foreground bg-card">Scripts and AMPscript do not run here, so a page built by script can look empty: see Code.</p>
         </section>
       </div>
     </template>

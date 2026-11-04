@@ -6,20 +6,21 @@ import { EditorView, lineNumbers } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { sql, MSSQL } from '@codemirror/lang-sql'
 import { javascript } from '@codemirror/lang-javascript'
+import { html } from '@codemirror/lang-html'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { Copy } from 'lucide-vue-next'
 import { showToast } from '@/composables/useToast.js'
 
 const props = defineProps({
   code: { type: String, default: '' },
-  lang: { type: String, default: 'sql' }, // sql | javascript | json | text
+  lang: { type: String, default: 'sql' }, // sql | javascript | json | html | text
   maxHeight: { type: String, default: '420px' },
 })
 const host = ref(null)
 let view = null
 
 function extensions() {
-  const lang = props.lang === 'sql' ? [sql({ dialect: MSSQL })] : ['javascript', 'json'].includes(props.lang) ? [javascript()] : []
+  const lang = props.lang === 'sql' ? [sql({ dialect: MSSQL })] : ['javascript', 'json'].includes(props.lang) ? [javascript()] : props.lang === 'html' ? [html()] : []
   return [lineNumbers(), oneDark, EditorState.readOnly.of(true), EditorView.editable.of(false), EditorView.lineWrapping, ...lang,
     EditorView.theme({ '&': { fontSize: '12px', maxHeight: props.maxHeight }, '.cm-scroller': { overflow: 'auto' } })]
 }

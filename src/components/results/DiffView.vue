@@ -8,18 +8,19 @@ import { EditorState } from '@codemirror/state'
 import { MergeView } from '@codemirror/merge'
 import { sql, MSSQL } from '@codemirror/lang-sql'
 import { javascript } from '@codemirror/lang-javascript'
+import { html } from '@codemirror/lang-html'
 import { oneDark } from '@codemirror/theme-one-dark'
 
 const props = defineProps({
   left: { type: String, default: '' },
   right: { type: String, default: '' },
-  lang: { type: String, default: 'sql' }, // sql | javascript | text
+  lang: { type: String, default: 'sql' }, // sql | javascript | html | text
 })
 const host = ref(null)
 let view = null
 
 function extensions() {
-  const lang = props.lang === 'sql' ? [sql({ dialect: MSSQL })] : props.lang === 'javascript' ? [javascript()] : []
+  const lang = props.lang === 'sql' ? [sql({ dialect: MSSQL })] : props.lang === 'javascript' ? [javascript()] : props.lang === 'html' ? [html()] : []
   return [lineNumbers(), oneDark, EditorState.readOnly.of(true), EditorView.editable.of(false), EditorView.lineWrapping, ...lang,
     EditorView.theme({ '&': { fontSize: '12px' } })]
 }

@@ -410,6 +410,7 @@ export const FEATURE_GROUPS = [
     intro: 'Content > Saved CloudPages. Turn saving on or off in Settings > Emails and CloudPages.',
     items: [
       { title: 'Every CloudPage save is kept', since: '2.0.20', how: 'Automatic', detail: 'Each save of a landing page, web page or code resource becomes a version, the 10 newest per page, in this browser only. Preview a version (scripts off).' },
+      { title: 'Code and compare', since: '2.0.20', how: 'Code, or Compare with', detail: 'See the code of any version, or compare two versions: code side by side with changes marked, or the two previews next to each other. Saved Emails has the same.' },
       { title: 'Revert or restore by myself', since: '2.0.20', how: 'An older version', detail: 'Revert puts the version back in CloudPages (publish it again to put it live). Restore by myself gives the request to send with your own API access instead.' },
     ],
   },

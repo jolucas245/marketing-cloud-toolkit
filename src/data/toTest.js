@@ -28,6 +28,12 @@ export const TO_TEST = [
         expect: 'Each save is a new version (the CloudPages editor saving through the same API as Content Builder is a guess: if nothing appears, send a capture of the save request). Revert puts the older content back; publishing is still up to you. With the switch off, no new versions.',
       },
       {
+        id: '2.0.20-code-compare', area: 'Content', title: 'Code view and Compare (emails and CloudPages)', ref: '#1046',
+        where: 'Saved Emails or Saved CloudPages > a record with 2 or more versions',
+        steps: ['Pick a version and click Code.', 'Click Compare (or pick a version in Compare with).', 'Switch between Preview and Code while comparing.', 'Open a code resource (CSS or JavaScript).'],
+        expect: 'Code shows the HTML with AMPscript as written. Compare puts the older version on the left, marks changed lines and words, and counts added and removed lines; Preview shows both pages next to each other. A code resource opens straight in code.',
+      },
+      {
         id: '2.0.20-restore-by-myself', area: 'Saved Emails, CloudPages and Activities', title: 'Restore by myself', ref: '#1045',
         where: 'An older version in Saved Emails, Saved CloudPages or Saved Activities > Restore by myself',
         steps: ['Open Restore by myself; Download request body and Download instructions.', 'With an installed package (Saved Content Write and Documents and Images Write, or Automations Write), get a token and send the request with Postman or cURL.', 'Reopen the email, page or activity in SFMC.'],

@@ -30,3 +30,30 @@ export function savedAssetKind(asset) {
 
 export const savedAssetKey = (kind, assetId) => `${SAVED_ASSET_KINDS[kind].prefix}${assetId}`
 export const isSavedAssetKey = (kind, key) => new RegExp(`^${SAVED_ASSET_KINDS[kind].prefix}\\d+$`).test(String(key || ''))
+
+/**
+ * The code of a saved version (feedback #1046): the HTML with slots and blocks filled
+ * in, AMPscript and scripts as written (nothing runs). Falls back to the saved body's
+ * own content (code resources) and then its HTML view. '' when there is none.
+ * @param {object} version  a saved version ({ compileAsset, assetBody })
+ * @param {(asset, channel) => string} compile  utils/emailCompiler.js compile
+ */
+export function versionSource(version, compile) {
+  const tryCompile = (a) => { try { return a ? compile(a, 'html') || '' : '' } catch { return '' } }
+  return tryCompile(version?.compileAsset)
+    || (typeof version?.assetBody?.content === 'string' ? version.assetBody.content : '')
+    || tryCompile(version?.assetBody)
+    || ''
+}
+
+/** Lines that differ between two texts, as { added, removed } counts (line multiset). */
+export function lineChanges(before, after) {
+  const count = (t) => { const m = new Map(); for (const l of String(t || '').split('\n')) m.set(l, (m.get(l) || 0) + 1); return m }
+  const a = count(before)
+  const b = count(after)
+  let added = 0
+  let removed = 0
+  for (const [l, n] of b) added += Math.max(0, n - (a.get(l) || 0))
+  for (const [l, n] of a) removed += Math.max(0, n - (b.get(l) || 0))
+  return { added, removed }
+}
