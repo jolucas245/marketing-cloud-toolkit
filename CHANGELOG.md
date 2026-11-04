@@ -4,6 +4,8 @@ All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are pub
 
 ## Unreleased (next 2.0.20)
 
+**Build:** test zips (`npm run package -- --test`, or any zip named `*-test-*`) have a To Test page in the sidebar: what to test in each version, with steps and what should happen, Pass / Fail / Skip kept in the browser, and Fail opening Feedback with the item filled in. Store builds leave the page out, and the package script refuses a store zip that contains it.
+
 **Changed:**
 - AI Assist writes better SFMC SQL (feedback #1044): each request gets the rules that apply to it (dates and time zones, joins, data views, deduplication, target data extensions and more, written for the Toolkit from Mateusz Dabrowski's SFMC SQL guides at mateuszdabrowski.pl), the fields and joins of the data views it mentions, and matching worked examples. The answer goes through the Toolkit's SQL checks; if they find problems the model gets one round to fix them, and anything left is listed beside the suggestion. Copy prompt copies the instructions and request to use with a larger assistant.
 

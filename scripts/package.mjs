@@ -7,6 +7,8 @@
 //           workflow does)
 // --out     where to write the zip (default releases/sfmc-toolkit-<version>.zip)
 // --force   overwrite an existing zip (never done by default: published zips stay)
+// --test    a test build with the To Test page; also on when the zip name has -test-.
+//           A build without it must not contain the page (checked below).
 //
 // Reproducible because: dependencies come from the lockfile, every file gets the
 // commit's timestamp (SOURCE_DATE_EPOCH), files are added in sorted order, and zip
@@ -52,10 +54,18 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 
   if (flag('--ci')) execFileSync('npm', ['ci', '--no-audit', '--no-fund'], { cwd: root, stdio: 'inherit' })
   rmSync(join(root, 'dist'), { recursive: true, force: true })
-  execFileSync('npm', ['run', 'build'], { cwd: root, stdio: 'inherit', env: { ...process.env, SOURCE_DATE_EPOCH: String(epoch) } })
+  const test = flag('--test') || /-test-/.test(out)
+  const buildEnv = { ...process.env, SOURCE_DATE_EPOCH: String(epoch), TOOLKIT_TEST_BUILD: test ? '1' : '0', TOOLKIT_TEST_COMMIT: test ? `${version}-test-${commit}` : '' }
+  execFileSync('npm', ['run', 'build'], { cwd: root, stdio: 'inherit', env: buildEnv })
 
   const dist = join(root, 'dist')
   const files = listFiles(dist)
+  // The To Test page is for test builds only: a store zip with it is refused.
+  const hasToTest = files.some((f) => /\.(js|html)$/.test(f) && readFileSync(join(dist, f), 'utf8').includes('data-to-test-page'))
+  if (hasToTest !== test) {
+    console.error(test ? 'The test build has no To Test page.' : 'This store build contains the To Test page; it must not. Nothing was zipped.')
+    process.exit(1)
+  }
   // Same time and mode on every machine (zip stores both; a umask of 002 gave rw-rw-r-- and another hash).
   for (const f of files) { chmodSync(join(dist, f), 0o644); utimesSync(join(dist, f), epoch, epoch) }
   mkdirSync(dirname(out), { recursive: true })

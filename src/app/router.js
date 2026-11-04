@@ -55,6 +55,8 @@ export const routes = [
     component: () => import('../views/emails/EmailDetailPage.vue'),
     meta: { title: 'Saved Emails', group: 'Content' },
   },
+  // To Test: test builds only; the store build drops this route and its page (#To Test, 2026-11-04).
+  ...(__TEST_BUILD__ ? [{ path: '/to-test', component: () => import('../views/info/ToTestPage.vue'), meta: { title: 'To Test' } }] : []),
   { path: '/features', component: () => import('../views/info/InfoPage.vue'), props: { page: 'features' }, meta: { title: 'Features' } },
   // To do is hidden from users (feedback #77); old links and todo.html land on Features.
   { path: '/todo', redirect: '/features' },

@@ -1,10 +1,13 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-vue-next'
+import { PanelLeftClose, PanelLeftOpen, Settings, FlaskConical } from 'lucide-vue-next'
 import { NAV_GROUPS } from '@/app/nav.js'
 import { policy, routeBlocked } from '@/utils/policy.js'
 import CreatorCredit from './CreatorCredit.vue'
+
+// To Test link: test builds only (__TEST_BUILD__ is false in store builds).
+const testBuild = __TEST_BUILD__
 
 const COLLAPSED_KEY = 'toolkit_sidebar_collapsed'
 const stored = ref(false)
@@ -61,6 +64,18 @@ const groups = computed(() => (policy.loaded, NAV_GROUPS.filter((g) => !g.hidden
     </div>
 
     <div class="border-t border-border py-2">
+      <RouterLink
+        v-if="testBuild"
+        to="/to-test"
+        :title="collapsed ? 'To Test (test build)' : undefined"
+        class="flex items-center gap-2.5 mx-1.5 px-2.5 h-8 rounded-md text-sm text-amber-800 dark:text-amber-300 hover:bg-accent"
+        active-class="bg-amber-100! dark:bg-amber-900/40! font-medium"
+        data-to-test-link
+      >
+        <FlaskConical class="h-4 w-4 shrink-0" />
+        <span v-if="!collapsed">To Test</span>
+        <span v-if="!collapsed" class="ml-auto text-[10px] uppercase tracking-wide">test build</span>
+      </RouterLink>
       <RouterLink
         to="/settings"
         :title="collapsed ? 'Settings' : undefined"
