@@ -398,12 +398,12 @@ const columns = [
   { key: 'pick', label: '', hideable: false, class: 'w-8' },
   // The customer key shows under the name, so the name filter matches either.
   { key: 'name', label: 'Name', hideable: false, filterValue: (r) => `${r.name} ${r.customerKey || ''}` },
-  { key: 'description', label: 'Description' },
+  { key: 'description', label: 'Description', hidden: true }, // #1040: hidden until shown in Columns
   { key: 'path', label: 'Folder', sortValue: (r) => (paths[r.id]?.status === 'ok' ? paths[r.id].path || '(root)' : null) },
   { key: 'rows', label: 'Rows', class: 'text-right whitespace-nowrap', sortValue: (r) => (counts[r.id]?.status === 'ok' ? counts[r.id].count : null) },
-  { key: 'modifiedDate', label: 'Modified', class: 'whitespace-nowrap', type: 'date' },
-  { key: 'createdDate', label: 'Created', class: 'whitespace-nowrap', type: 'date' },
-  { key: 'id', label: 'ID' },
+  { key: 'modifiedDate', label: 'Modified', class: 'whitespace-nowrap', type: 'date', hidden: true },
+  { key: 'createdDate', label: 'Created', class: 'whitespace-nowrap', type: 'date', hidden: true },
+  { key: 'id', label: 'ID', hidden: true },
   { key: 'actions', label: '', hideable: false, class: 'text-right' },
 ]
 </script>
@@ -499,7 +499,7 @@ const columns = [
               <span v-if="picked.size">{{ picked.size }} ticked for download. <button class="text-primary hover:underline" @click="picked = new Set()">Clear</button></span>
             </div>
             <div class="[&>div]:rounded-[14px]">
-              <DataTable :columns="columns" :rows="shown" row-key="id" storage-key="data-extensions" :expanded="expanded" :row-class="(r) => (detail?.id === r.id ? 'bg-primary/5' : '')" empty-text="No data extensions found." @shown="filtered = $event">
+              <DataTable :columns="columns" :rows="shown" row-key="id" storage-key="data-extensions-2" :expanded="expanded" :row-class="(r) => (detail?.id === r.id ? 'bg-primary/5' : '')" empty-text="No data extensions found." @shown="filtered = $event">
                 <template #head-pick>
                   <input type="checkbox" :checked="allPicked" :indeterminate="picked.size > 0 && !allPicked" aria-label="Tick every data extension shown" @change="togglePickAll" />
                 </template>

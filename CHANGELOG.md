@@ -27,10 +27,12 @@ All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are pub
   - Ask before overwriting: opening a query activity into a panel with SQL asks to replace it or open a new panel; Save as query activity into an existing data extension with Overwrite, and Save to data extension with Update, need a tick first.
 
 **Changed:**
+- Data Extensions hides the Description, Modified, Created and ID columns until you turn them on in Columns (feedback #1040).
 - Save email versions, Save Query and Script activity versions, Share queries and Save Query Studio runs are on by default (feedback #1021). Each can be turned off in Settings, admin policies still turn them off, Share still shows what will be sent and asks first, and Query Studio still needs Chrome's permission once. PRIVACY.md and the security summary are updated.
 - Raw JSON on Contact journeys and Contacts shows in the code viewer with Copy (feedback #1018, #1023).
 
 **Fixed:**
+- Where used listed automations by their ID instead of their name, and opening one failed to load its run history ("not a valid identifier"). Results now show the automation name, step and activity, and an automation page opened by that ID switches to the one run history needs (feedback #1041, #1042).
 - Home and Run Query offer once to turn on saving Query Studio runs, since Chrome grants that access only on a click (feedback #1039).
 - Reorder columns on Data Extensions is turned off for now (feedback #1033).
 - Automation details open in Full view again; the canvas is under Overview (feedback #1038).

@@ -39,6 +39,26 @@ export async function fetchAutomation(stack, id) {
   return { details, notifications }
 }
 
+const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+export const isAutomationGuid = (id) => GUID_RE.test(String(id || ''))
+
+/**
+ * The list (legacy) ID of an automation known by its REST GUID, or null. Run history,
+ * notifications and health only take the list ID (feedback #1042). Found by name in the
+ * grid, then picked by key or GUID when several share the name.
+ */
+export async function legacyAutomationId(stack, details) {
+  const name = String(details?.name || '').trim()
+  if (!name) return null
+  const { entries } = await searchAutomations(stack, name, 0, 50)
+  const same = entries.filter((e) => String(e.name || '').toLowerCase() === name.toLowerCase())
+  const lc = (v) => String(v || '').toLowerCase()
+  const hit = same.find((e) => details.key && lc(e.key ?? e.customerKey) === lc(details.key))
+    || same.find((e) => Object.values(e).some((v) => lc(v) === lc(details.id)))
+    || (same.length === 1 ? same[0] : null)
+  return hit?.id && !isAutomationGuid(hit.id) ? String(hit.id) : null
+}
+
 /** Only the automation (no notifications): what the running bar polls (feedback #123). */
 export async function fetchAutomationStatus(stack, id) {
   return sfmcFetch(`${AS(stack)}/automation/v1/automations/${encodeURIComponent(id)}`, 'GET')

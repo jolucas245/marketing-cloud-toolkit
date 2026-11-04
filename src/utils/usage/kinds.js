@@ -266,7 +266,7 @@ async function analyseActivity(target, ctx) {
     return {
       key: `au:${e.automationId}:${e.step}`, kind: 'Automation', title: a.name || e.automationId,
       badges: [{ text: a.status || '', tone: 'status' }],
-      lines: [`Step ${e.step}${e.stepName ? ` (${e.stepName})` : ''}`, a.lastRunTime ? `Last run ${formatDateTime(a.lastRunTime)}` : ''].filter(Boolean),
+      lines: [`Step ${e.step}${e.stepName ? ` (${e.stepName})` : ''}${e.activityName ? `: ${e.activityName}` : ''}`, a.lastRunTime ? `Last run ${formatDateTime(a.lastRunTime)}` : ''].filter(Boolean),
       route: `/automations/${encodeURIComponent(e.automationId)}`,
     }
   })

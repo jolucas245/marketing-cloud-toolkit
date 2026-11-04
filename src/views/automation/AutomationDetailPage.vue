@@ -5,7 +5,7 @@
 // Read-only.
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Loader2, ExternalLink, Mail, ChevronDown, ChevronRight, X, Network } from 'lucide-vue-next'
 import { useUsage } from '@/composables/useUsage.js'
 import ActivityCard from '@/components/results/ActivityCard.vue'
@@ -17,7 +17,7 @@ import RunHistory from '@/components/automation/RunHistory.vue'
 import WatchButton from '@/components/automation/WatchButton.vue'
 import AutomationCanvas from '@/components/automation/AutomationCanvas.vue'
 import { useStack } from '@/composables/useStack.js'
-import { fetchAutomation, fetchActivityDetails, fetchAutomationStatus, fetchLatestRun } from '@/utils/automationApi.js'
+import { fetchAutomation, fetchActivityDetails, fetchAutomationStatus, fetchLatestRun, isAutomationGuid, legacyAutomationId } from '@/utils/automationApi.js'
 import { automationRunState, createPoller } from '@/utils/runProgress.js'
 import { describeActivity, automationUrl } from '@/utils/activityTypes.js'
 import { openInSfmc } from '@/utils/sfmcLinks.js'
@@ -42,6 +42,7 @@ const showAllFields = ref(false)
 const open = reactive({ schedule: true, notifications: false })
 const modal = ref(null) // "si.ai" of the activity shown in the Overview modal
 
+const router = useRouter()
 const id = computed(() => String(route.params.id || ''))
 const key = (si, ai) => `${si}.${ai}`
 // "0.1" (internal key) → "1.2" (as shown to people)
@@ -54,6 +55,12 @@ async function load() {
   for (const k of Object.keys(acts)) delete acts[k]
   try {
     const r = await fetchAutomation(stack.value, id.value)
+    // Opened by REST GUID (older Where used scans, entry events, links): run history and
+    // notifications need the list ID, so switch to it when it can be found (feedback #1042).
+    if (isAutomationGuid(id.value)) {
+      const legacy = await legacyAutomationId(stack.value, { ...r.details, id: id.value }).catch(() => null)
+      if (legacy && legacy !== id.value) { router.replace({ ...route, params: { ...route.params, id: legacy } }); return }
+    }
     details.value = r.details
     notifications.value = r.notifications
     latestRun.value = null

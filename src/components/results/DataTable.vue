@@ -14,7 +14,7 @@ import { sortRows, filterRows, nextSort, isSortable, isFilterable } from '@/util
 const props = defineProps({
   // Extra classes for one row, e.g. the row whose details are open (redesign, #1031).
   rowClass: { type: Function, default: null },
-  columns: { type: Array, required: true }, // [{ key, label, class?, hideable? }]
+  columns: { type: Array, required: true }, // [{ key, label, class?, hideable?, hidden? (hidden until shown) }]
   rows: { type: Array, required: true },
   rowKey: { type: String, default: 'id' },
   storageKey: { type: String, default: '' },
@@ -23,9 +23,10 @@ const props = defineProps({
 })
 const emit = defineEmits(['shown'])
 
-const hidden = ref(new Set())
+// Columns marked hidden start hidden until the table's Columns menu is used (#1040).
+const hidden = ref(new Set(props.columns.filter((c) => c.hidden).map((c) => c.key)))
 try {
-  const saved = props.storageKey && JSON.parse(localStorage.getItem(`toolkit_cols_${props.storageKey}`) || '[]')
+  const saved = props.storageKey && JSON.parse(localStorage.getItem(`toolkit_cols_${props.storageKey}`) || 'null')
   if (Array.isArray(saved)) hidden.value = new Set(saved)
 } catch { /* storage blocked */ }
 

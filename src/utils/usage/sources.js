@@ -129,7 +129,9 @@ function automationValue(list, details, errors) {
     originalIds,
     errors,
     byId: new Map(list.items.map((a) => [a.id, a])),
-    index: buildActivityIndex([...details.values()]),
+    // Keyed by the list (legacy) ID, which the grid, names and run history use. The REST
+    // GUID saved in older scans is ignored here (feedback #1041, #1042).
+    index: buildActivityIndex([...details.entries()].map(([id, d]) => ({ ...d, id }))),
   }
 }
 
@@ -140,7 +142,7 @@ async function readAutomations(stack, list, reuse, { progress, stop }) {
   let errors = 0
   await runInBatches(todo, 10, async (a) => {
     const d = await sfmcFetch(`${AS(stack)}/automation/v1/automations/${encodeURIComponent(a.id)}`, 'GET').catch(() => null)
-    if (d) details.set(a.id, slimSteps({ ...d, id: d.id || a.id })); else errors++
+    if (d) details.set(a.id, slimSteps({ ...d, id: a.id })); else errors++
   }, { shouldStop: stop, onProgress: (d, t) => progress(d, t, todo.length < list.items.length ? `reading ${t} changed` : 'reading steps') })
   if (stop()) throw new StoppedError()
   return { details, errors, read: todo.length }
