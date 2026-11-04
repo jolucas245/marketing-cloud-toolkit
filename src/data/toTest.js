@@ -34,6 +34,12 @@ export const TO_TEST = [
         expect: 'The request puts that version back; the files hold no token or secret; Restore still works as before.',
       },
       {
+        id: '2.0.20-send-results', area: 'To Test (test builds only)', title: 'Send results',
+        where: 'To Test page > Send results',
+        steps: ['Mark a few items Pass, Fail and Skip, and type a note on one.', 'Click Send results, add your name and send.'],
+        expect: 'The Feedback form opens as Test results with a summary (counts) and every item with its result and note; it will not send without a name.',
+      },
+      {
         id: '2.0.20-features-page', area: 'Help', title: 'Features page matches the current version',
         where: 'Settings > About > Features, and What\'s New',
         steps: ['Read the sidebar, Clean up, colour and "What is sent where" entries.'],

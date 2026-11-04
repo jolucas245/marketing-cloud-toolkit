@@ -153,11 +153,14 @@ async function submit() {
   }
 }
 
-const KINDS = [
+// 'test-results' only comes from the To Test page's Send results (test builds).
+const KINDS = computed(() => [
+  ...(props.prefill?.kind === 'test-results' ? [{ id: 'test-results', label: 'Test results' }] : []),
   { id: 'problem', label: 'Something is wrong' },
   { id: 'idea', label: 'Idea' },
   { id: 'question', label: 'Question' },
-]
+])
+const isResults = computed(() => kind.value === 'test-results')
 </script>
 
 <template>
@@ -200,15 +203,15 @@ const KINDS = [
             @click="kind = k.id">{{ k.label }}</button>
         </div>
 
-        <p v-if="prefill" class="rounded-md border border-sky-200 bg-sky-50 dark:border-sky-900 dark:bg-sky-950/40 p-2 text-xs">The error is filled in below. Check it for customer data (names, email addresses, record values) and remove anything you do not want to send. Add what you were doing.</p>
+        <p v-if="prefill" class="rounded-md border border-sky-200 bg-sky-50 dark:border-sky-900 dark:bg-sky-950/40 p-2 text-xs">{{ prefill.notice || 'The error is filled in below. Check it for customer data (names, email addresses, record values) and remove anything you do not want to send. Add what you were doing.' }}</p>
         <label class="block">
-          <span class="font-medium">{{ kind === 'problem' ? 'What happened?' : kind === 'idea' ? 'Your idea' : 'Your question' }}</span>
+          <span class="font-medium">{{ isResults ? 'Summary' : kind === 'problem' ? 'What happened?' : kind === 'idea' ? 'Your idea' : 'Your question' }}</span>
           <textarea v-model="message" required rows="3" maxlength="2000" class="mt-1 w-full rounded-md border border-border bg-background p-2"
             :placeholder="kind === 'problem' ? 'For example: Run stops at Create DE with a 403 error' : ''" />
         </label>
         <label class="block">
           <span class="font-medium">More details</span> <span class="text-xs text-muted-foreground">(optional)</span>
-          <textarea v-model="details" rows="4" maxlength="5000" class="mt-1 w-full rounded-md border border-border bg-background p-2"
+          <textarea v-model="details" :rows="isResults ? 10 : 4" :maxlength="isResults ? 45000 : 5000" class="mt-1 w-full rounded-md border border-border bg-background p-2"
             :placeholder="kind === 'problem' ? 'Steps to get there, what you expected, the exact error text…' : ''" />
         </label>
 
@@ -262,8 +265,8 @@ const KINDS = [
         </section>
 
         <div class="grid grid-cols-2 gap-3">
-          <label class="block"><span class="text-xs text-muted-foreground">Name (optional)</span>
-            <input v-model="name" maxlength="100" class="mt-0.5 w-full h-8 rounded-md border border-border bg-background px-2" /></label>
+          <label class="block"><span class="text-xs text-muted-foreground">Name{{ isResults ? '' : ' (optional)' }}</span>
+            <input v-model="name" maxlength="100" :required="isResults" class="mt-0.5 w-full h-8 rounded-md border border-border bg-background px-2" /></label>
           <label class="block"><span class="text-xs text-muted-foreground">Email, if you'd like a reply (optional)</span>
             <input v-model="email" type="email" maxlength="200" class="mt-0.5 w-full h-8 rounded-md border border-border bg-background px-2" /></label>
         </div>

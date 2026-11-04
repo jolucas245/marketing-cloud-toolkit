@@ -31,4 +31,20 @@ describe('To Test (test builds only)', () => {
     expect(errorReport.value.message).toBe(`[To Test] ${first.title}: failed`)
     expect(errorReport.value.details).toContain('Expected:')
   })
+
+  it('Send results puts every result and note in one Test results report', async () => {
+    const w = mount(ToTestPage)
+    const [a, b] = TO_TEST[0].items
+    const rowA = w.find(`[data-test-item="${a.id}"]`)
+    await rowA.findAll('button').find((x) => x.text().includes('Pass')).trigger('click')
+    await rowA.find('input').setValue('looked fine')
+    await rowA.find('input').trigger('change')
+    expect(w.text()).toContain('1 passed')
+    await w.find('[data-send-results]').trigger('click')
+    expect(errorReport.value.kind).toBe('test-results')
+    expect(errorReport.value.message).toMatch(/1 pass, 0 fail, 0 skip/)
+    expect(errorReport.value.details).toContain(`- PASS: ${a.title}`)
+    expect(errorReport.value.details).toContain('  Note: looked fine')
+    expect(errorReport.value.details).toContain(`- NOT DONE: ${b.title}`)
+  })
 })
