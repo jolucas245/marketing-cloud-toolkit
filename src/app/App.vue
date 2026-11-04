@@ -5,7 +5,8 @@ import { Search, MessageSquare, Network, Loader2 } from 'lucide-vue-next'
 import AppSidebar from '@/components/shell/AppSidebar.vue'
 import ConnectionMenu from '@/components/shell/ConnectionMenu.vue'
 import CommandPalette from '@/components/shell/CommandPalette.vue'
-import ToastHost from '@/components/shell/ToastHost.vue'
+import MessageBar from '@/components/shell/MessageBar.vue'
+import ConfirmHost from '@/components/shell/ConfirmHost.vue'
 import ApiConsole from '@/components/shell/ApiConsole.vue'
 import WhatsNew from '@/components/shell/WhatsNew.vue'
 import UpdateBanner from '@/components/shell/UpdateBanner.vue'
@@ -111,6 +112,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
     <div class="flex flex-1 min-h-0">
     <AppSidebar />
     <div class="flex-1 flex flex-col min-w-0">
+      <MessageBar />
       <main class="flex-1 min-h-0 overflow-auto">
         <!-- These stay alive in the background, so a running query, a half-built join
              or a list of search results survives a visit to another section. -->
@@ -125,7 +127,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
     </div>
     <CommandPalette :open="paletteOpen" :initial-text="paletteState.text" @close="paletteOpen = false" />
     <UsagePanel />
-    <ToastHost />
+    <ConfirmHost />
     <WhatsNew />
     <UpdateBanner />
     <FeedbackModal v-if="showFeedback && !policy.disableFeedback" :key="errorReport ? errorReport.details : 'feedback'" :screen="route.path" :prefill="errorReport" @close="closeFeedback" />

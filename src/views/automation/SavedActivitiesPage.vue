@@ -1,4 +1,5 @@
 <script setup>
+import { askConfirm } from '@/composables/useConfirm.js'
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 // SQL Query and Script activities saved in Automation Studio, with every version the
 // service worker captured (feedback #122; background/activityCapture.js). The list at
@@ -131,7 +132,7 @@ async function deleteVersion(v) {
   if (!r) return
   const remaining = versions.value.filter((x) => x.versionId !== v.versionId)
   if (!remaining.length) {
-    if (!confirm('This is the last version. Delete this activity from Marketing Cloud Toolkit? (Nothing changes in Automation Studio.)')) return
+    if (!(await askConfirm({ title: 'Delete this activity from Marketing Cloud Toolkit?', message: 'This is the last version. Nothing changes in Automation Studio.', confirmLabel: 'Delete', danger: true }))) return
     await new Promise((res) => chrome.storage.local.remove(r.id, res))
     router.push('/saved-activities')
   } else {

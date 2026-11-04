@@ -3,15 +3,16 @@
 // properties, extra properties behind "Show additional details", code, tables.
 // Data extension values link to the Toolkit and Contact Builder; a SQL Query
 // activity can be run in Run Query or started in SFMC.
+import { askConfirm } from '@/composables/useConfirm.js'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ExternalLink, Play, Loader2, History } from 'lucide-vue-next'
+import { ExternalLink, Play, Loader2, History, X, AlertCircle, CheckCircle2, Info } from 'lucide-vue-next'
+import { reportError } from '@/composables/useReportError.js'
 import { openInSfmc } from '@/utils/sfmcLinks.js'
 import CodeView from './CodeView.vue'
 import ActivityIcon from './ActivityIcon.vue'
 import DERowCount from './DERowCount.vue'
 import { useStack } from '@/composables/useStack.js'
-import { showToast } from '@/composables/useToast.js'
 import { contactBuilderDEUrl } from '@/utils/activityTypes.js'
 import { startQueryActivity, getQueryActivityStatus, startActivity } from '@/utils/sfmcApi.js'
 import AiButton from '@/components/ai/AiButton.vue'
@@ -55,6 +56,10 @@ const explainOpen = ref(false)
 
 // ── Run this query (SQL Query activities) ─────────────────
 const runMenu = ref(false)
+// What happened when this activity was run from here, shown in the card until closed
+// (feedback #1050: not as a passing message).
+const result = ref(null) // { kind: 'error'|'success'|'info', text }
+const setResult = (kind, text) => { result.value = { kind, text } }
 const running = ref(false)
 let pollTimer = null
 onUnmounted(() => clearTimeout(pollTimer))
@@ -70,20 +75,22 @@ const MAX_POLL_MS = 30 * 60 * 1000
 async function runInSFMC() {
   runMenu.value = false
   const r = d.value.run
-  const ok = window.confirm(
-    `Run the Query activity "${d.value.title}" in SFMC now?\n\n` +
-    `It writes to ${r.targetName ? `"${r.targetName}"` : 'its target data extension'}${r.updateType ? ` (${r.updateType})` : ''}, ` +
-    'the same as when its automation runs it.'
-  )
+  const ok = await askConfirm({
+    title: `Run the Query activity "${d.value.title}" in SFMC now?`,
+    message: `It writes to ${r.targetName ? `"${r.targetName}"` : 'its target data extension'}${r.updateType ? ` (${r.updateType})` : ''}, ` +
+      'the same as when its automation runs it.',
+    confirmLabel: 'Run now',
+  })
   if (!ok) return
   running.value = true
+  result.value = null
   const started = Date.now()
   try {
     await startQueryActivity(stack.value, r.queryDefinitionId)
-    showToast(`Started "${d.value.title}" in SFMC.`)
+    setResult('info', `Started in SFMC. Waiting for it to finish...`)
   } catch (e) {
     running.value = false
-    showToast(`Could not start the activity: ${e.message}`)
+    setResult('error', `SFMC did not start "${d.value.title}": ${e.message}`)
     return
   }
   const poll = async () => {
@@ -94,12 +101,11 @@ async function runInSFMC() {
         return
       }
       running.value = false
-      showToast(s?.isRunning
-        ? `"${d.value.title}" is still running in SFMC; check Automation Studio.`
-        : `"${d.value.title}" finished in SFMC (${Math.round((Date.now() - started) / 1000)} s).`)
+      if (s?.isRunning) setResult('info', 'Still running in SFMC after 30 minutes; check Automation Studio.')
+      else setResult('success', `Finished in SFMC in ${Math.round((Date.now() - started) / 1000)} s.`)
     } catch (e) {
       running.value = false
-      showToast(`Could not read the activity status: ${e.message}`)
+      setResult('error', `Started, but its status could not be read: ${e.message}`)
     }
   }
   pollTimer = setTimeout(poll, POLL_MS)
@@ -110,18 +116,20 @@ const starting = ref(false)
 async function runOnce() {
   const t = d.value.start
   if (!t) return
-  const ok = window.confirm(
-    `Run the ${t.label} activity "${d.value.title}" in SFMC now?\n\n` +
-    'It runs for real, the same as when its automation runs it.' +
-    (t.tested ? '' : `\n\nRun once for ${t.label} activities has not been checked against SFMC yet; if SFMC refuses, its message is shown.`)
-  )
+  const ok = await askConfirm({
+    title: `Run the ${t.label} activity "${d.value.title}" in SFMC now?`,
+    message: 'It runs for real, the same as when its automation runs it.',
+    note: t.tested ? '' : `Run once for ${t.label} activities has not been checked against SFMC yet; if SFMC refuses, its message is shown here.`,
+    confirmLabel: 'Run now',
+  })
   if (!ok) return
   starting.value = true
+  result.value = null
   try {
     await startActivity(stack.value, t.typeId, t.id)
-    showToast(`Started "${d.value.title}" in SFMC. Check its result in Automation Studio.`)
+    setResult('success', `Started in SFMC at ${new Date().toLocaleTimeString()}. Check its result in Automation Studio.`)
   } catch (e) {
-    showToast(`SFMC did not start "${d.value.title}": ${e.message}`)
+    setResult('error', `SFMC did not start "${d.value.title}": ${e.message}`)
   } finally {
     starting.value = false
   }
@@ -167,6 +175,18 @@ async function runOnce() {
         Open in SFMC <ExternalLink class="h-3 w-3" />
       </a>
     </header>
+    <div v-if="result" class="flex items-start gap-2 px-3 py-2 border-b text-xs" data-run-result :data-kind="result.kind"
+      :class="result.kind === 'error' ? 'border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200'
+        : result.kind === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200'
+        : 'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200'" :role="result.kind === 'error' ? 'alert' : 'status'">
+      <AlertCircle v-if="result.kind === 'error'" class="h-3.5 w-3.5 shrink-0 mt-px" />
+      <CheckCircle2 v-else-if="result.kind === 'success'" class="h-3.5 w-3.5 shrink-0 mt-px" />
+      <Loader2 v-else-if="running" class="h-3.5 w-3.5 shrink-0 mt-px animate-spin" />
+      <Info v-else class="h-3.5 w-3.5 shrink-0 mt-px" />
+      <span class="flex-1 min-w-0 break-words">{{ result.text }}</span>
+      <button v-if="result.kind === 'error'" type="button" class="shrink-0 hover:underline" @click="reportError(result.text, { page: 'Activity card' })">Report</button>
+      <button type="button" class="shrink-0 p-0.5 rounded hover:bg-black/5" aria-label="Close" @click="result = null"><X class="h-3 w-3" /></button>
+    </div>
     <div class="p-3 space-y-3 text-xs">
       <p v-if="d.note" class="text-muted-foreground italic">{{ d.note }}</p>
       <dl class="grid grid-cols-[minmax(8rem,14rem)_1fr] gap-x-4 gap-y-1">

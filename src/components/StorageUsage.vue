@@ -1,4 +1,5 @@
 <script setup>
+import { askConfirm } from '@/composables/useConfirm.js'
 import { ref, computed, onMounted } from 'vue'
 import { Trash2, Loader2, ChevronRight, ChevronDown } from 'lucide-vue-next'
 import { storageReport, trimEmailVersions, formatBytes as fmt } from '@/utils/storageReport.js'
@@ -50,7 +51,7 @@ function loadReport() {
 }
 async function removeKeys(keys, what) {
   if (!keys.length) return
-  if (!window.confirm(`Delete ${what}? This cannot be undone. Nothing in SFMC changes.`)) return
+  if (!(await askConfirm({ title: `Delete ${what}?`, message: 'This cannot be undone. Nothing in SFMC changes.', confirmLabel: 'Delete', danger: true }))) return
   busy.value = true
   try {
     // A plain array: chrome.storage does not accept Vue's reactive proxy.
@@ -68,7 +69,7 @@ async function trimVersions() {
   const items = await new Promise((resolve) => chrome.storage.local.get(null, resolve))
   const t = trimEmailVersions(items, keep)
   if (!t.removedVersions) { showToast(`Every email already has ${keep} version(s) or fewer.`); return }
-  if (!window.confirm(`Keep the newest ${keep} version(s) of each email and delete ${t.removedVersions} older one(s) (about ${fmt(t.savedBytes)})?`)) return
+  if (!(await askConfirm({ title: 'Delete older email versions?', message: `Keep the newest ${keep} version(s) of each email and delete ${t.removedVersions} older one(s) (about ${fmt(t.savedBytes)}).`, confirmLabel: 'Delete', danger: true }))) return
   busy.value = true
   try {
     await new Promise((resolve) => chrome.storage.local.set(t.updates, resolve))
@@ -79,7 +80,7 @@ async function trimVersions() {
   }
 }
 async function clearWhereUsed() {
-  if (!window.confirm('Delete the saved Where used scans? The next scan reads SFMC again in full.')) return
+  if (!(await askConfirm({ title: 'Delete the saved Where used scans?', message: 'The next scan reads SFMC again in full.', confirmLabel: 'Delete', danger: true }))) return
   await forgetWhereUsed('')
   showToast('Where used scans deleted.')
 }
@@ -99,11 +100,12 @@ function refresh() {
 }
 
 async function clearAll() {
-  const ok = window.confirm(
-    'Clear ALL extension data?\n\n' +
-    'This permanently deletes every saved query and its history, saved email and activity ' +
-    'versions, Query Builder drafts, Where used scans and all settings. This cannot be undone.'
-  )
+  const ok = await askConfirm({
+    title: 'Clear ALL extension data?',
+    message: 'This permanently deletes every saved query and its history, saved email and activity ' +
+      'versions, Query Builder drafts, Where used scans and all settings. This cannot be undone.',
+    confirmLabel: 'Clear everything', danger: true,
+  })
   if (!ok) return
   clearing.value = true
   try {

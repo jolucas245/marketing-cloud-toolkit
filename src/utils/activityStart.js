@@ -3,6 +3,8 @@
 // AutomationStudioFuel3/fuelapi/automation/v1/dataextracts/<id>/actions/start with
 // {"dataExtractDefinitionId": "<id>"}. Imports, file transfers and scripts follow the
 // same pattern, with the body named after each record's ID field; not checked live.
+// File Transfer is left out: SFMC answered 404 to filetransfers/<id>/actions/start
+// (feedback #1050, s10), so that start request does not exist.
 // SQL Query activities keep their own run menu (startQueryActivity in sfmcApi.js).
 
 const AS_BASE = (stack) => `https://mc.${stack}.marketingcloudapps.com/AutomationStudioFuel3/fuelapi`
@@ -10,7 +12,6 @@ const AS_BASE = (stack) => `https://mc.${stack}.marketingcloudapps.com/Automatio
 export const START_TYPES = {
   73: { path: 'dataextracts', idField: 'dataExtractDefinitionId', label: 'Data Extract', tested: true },
   43: { path: 'imports', idField: 'importDefinitionId', label: 'Import File', tested: false },
-  53: { path: 'filetransfers', idField: 'id', label: 'File Transfer', tested: false },
   423: { path: 'scripts', idField: 'ssjsActivityId', label: 'Script', tested: false },
 }
 

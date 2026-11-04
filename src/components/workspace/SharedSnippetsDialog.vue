@@ -2,6 +2,7 @@
 // Shared snippets: SQL the team keeps in the Toolkit_Shared_Snippets data extension of
 // this business unit. Insert one at the cursor, share the selection (or the whole
 // query), and delete your own.
+import { askConfirm } from '@/composables/useConfirm.js'
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, ref, watch } from 'vue'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'radix-vue'
@@ -87,7 +88,7 @@ async function share() {
 }
 
 async function remove(s) {
-  if (!confirm(`Delete the shared snippet "${s.name}" for everyone in this business unit?`)) return
+  if (!(await askConfirm({ title: `Delete the shared snippet "${s.name}"?`, message: 'It is deleted for everyone in this business unit.', confirmLabel: 'Delete', danger: true }))) return
   try {
     await deleteSnippet(props.stack, de.value, s)
     snippets.value = snippets.value.filter((x) => x.id !== s.id)

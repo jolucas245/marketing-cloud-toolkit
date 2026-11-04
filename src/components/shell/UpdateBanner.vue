@@ -1,6 +1,7 @@
 <script setup>
 // Shown when Chrome has downloaded a newer Marketing Cloud Toolkit that waits for the
 // extension to restart (see background/updates.js, feedback #48).
+import { askConfirm } from '@/composables/useConfirm.js'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { RefreshCw } from 'lucide-vue-next'
 
@@ -26,8 +27,8 @@ onMounted(() => {
 })
 onUnmounted(() => { try { chrome.storage.onChanged.removeListener(onChange) } catch { /* ignore */ } })
 
-function restart() {
-  if (!window.confirm(`Restart Marketing Cloud Toolkit to update to ${waiting.value}?\n\nMarketing Cloud Toolkit tabs close; open it again from the toolbar. A query already running keeps running in SFMC.`)) return
+async function restart() {
+  if (!(await askConfirm({ title: `Restart to update to ${waiting.value}?`, message: 'Marketing Cloud Toolkit tabs close; open it again from the toolbar. A query already running keeps running in SFMC.', confirmLabel: 'Restart' }))) return
   chrome.runtime.reload()
 }
 </script>

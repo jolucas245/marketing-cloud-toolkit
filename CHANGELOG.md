@@ -9,6 +9,13 @@ All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are pub
 - Code and Compare on Saved Emails and Saved CloudPages (feedback #1046): each version has Preview and Code (the HTML with slots and blocks filled in, AMPscript as written; code resources open as code), and Compare with shows two versions side by side, as code with the changed lines and words marked or as two previews.
 - Restore by myself (feedback #1045): beside Revert and Restore in Saved Emails, Saved CloudPages and Saved Activities. It gives the request that puts the version back (method, REST path, the JSON body to download, the token call and a cURL command, or all of it as a Markdown file) to send with your own installed package. Restore stays.
 
+**Changed:**
+- No browser alert or confirm boxes (feedback #1050): every question (Run once, Run this query, deletes, Clear all data, Restart to update) is an in-app dialog.
+- Messages show in a bar at the top of the page instead of a passing toast (feedback #1050): errors stay until closed, with Copy and Report; others close by themselves. Run once and Run this query show their result in the activity card until closed.
+
+**Fixed:**
+- Run once is no longer offered for File Transfer activities: SFMC has no start request for them (it answered 404, feedback #1050).
+
 **Build:** test zips (`npm run package -- --test`, or any zip named `*-test-*`) have a To Test page in the sidebar: what to test in each version, with steps and what should happen, Pass / Fail / Skip kept in the browser, and Fail opening Feedback with the item filled in. Store builds leave the page out, and the package script refuses a store zip that contains it. Send results (test builds) sends every result and an optional note per item as one feedback row of kind `test-results`; the tester sees it first and must add a name.
 
 **Changed:**

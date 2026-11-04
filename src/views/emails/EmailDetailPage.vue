@@ -4,6 +4,7 @@
 // myself (the request to send yourself). From SFMC Query Saver's email page.
 // Feedback #1046: Preview or Code for each version, and Compare with another version
 // (code side by side with changes marked, or both previews next to each other).
+import { askConfirm } from '@/composables/useConfirm.js'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, RotateCcw, Check, AlertCircle, Loader2, Clock, FolderOpen, Trash2, ExternalLink, FileDown } from 'lucide-vue-next'
@@ -112,7 +113,7 @@ async function deleteVersion(versionId) {
   if (!record.value) return
   const remaining = versions.value.filter((v) => v.versionId !== versionId)
   if (!remaining.length) {
-    if (!confirm(`This is the last version. Delete this ${K.value.noun} from Marketing Cloud Toolkit? (Nothing changes in ${K.value.app}.)`)) return
+    if (!(await askConfirm({ title: `Delete this ${K.value.noun} from Marketing Cloud Toolkit?`, message: `This is the last version. Nothing changes in ${K.value.app}.`, confirmLabel: 'Delete', danger: true }))) return
     await new Promise((r) => chrome.storage.local.remove(emailId.value, r))
     showToast(`${K.value.noun[0].toUpperCase()}${K.value.noun.slice(1)} deleted.`)
     router.push(K.value.base)

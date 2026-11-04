@@ -12,7 +12,7 @@ describe('Run once (feedback #135, #136)', () => {
   it('uses each type\'s id field, and refuses other types', () => {
     expect(startRequest('s13', 43, 'i1')).toMatchObject({ url: expect.stringContaining('/automation/v1/imports/i1/actions/start'), body: { importDefinitionId: 'i1' } })
     expect(startRequest('s13', 423, 'x').body).toEqual({ ssjsActivityId: 'x' })
-    expect(startRequest('s13', 53, 'f').url).toContain('/filetransfers/f/actions/start')
+    expect(() => startRequest('s13', 53, 'f')).toThrow() // File Transfer: SFMC has no such start (#1050)
     expect(() => startRequest('s13', 300, 'q')).toThrow()
     expect(START_TYPES[73].tested).toBe(true)
     expect(START_TYPES[43].tested).toBe(false)
