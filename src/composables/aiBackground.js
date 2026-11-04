@@ -22,7 +22,7 @@ export const AI_STATUS_TEXT = {
 }
 
 export const AI_STATUS_TITLE = {
-  writing: 'The built-in model is still working on your request. Click to open AI Assist.',
+  writing: 'The built-in model is still working on your request. Click to open AI Assist and watch it.',
   ready: 'Click to see the suggestion and apply it.',
   failed: 'Click to see what went wrong.',
 }

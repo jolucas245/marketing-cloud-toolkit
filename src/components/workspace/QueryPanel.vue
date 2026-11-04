@@ -335,12 +335,13 @@ function openSchema() {
           class="tb-btn h-8 inline-flex items-center gap-1.5 px-3 rounded-full border text-[12px] font-medium shrink-0"
           :class="aiStatus === 'failed' ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300'
             : aiStatus === 'ready' ? 'border-primary/40 bg-primary/10 text-primary'
-            : 'border-border bg-muted text-muted-foreground'"
+            : 'border-primary/40 bg-card text-primary hover:bg-primary/10 shadow-sm'"
           @click="showAi = true">
           <Loader2 v-if="aiStatus === 'writing'" class="h-3.5 w-3.5 animate-spin" />
           <AlertCircle v-else-if="aiStatus === 'failed'" class="h-3.5 w-3.5" />
           <Sparkles v-else class="h-3.5 w-3.5" />
           <span>{{ AI_STATUS_TEXT[aiStatus] }}</span>
+          <span class="underline underline-offset-2">Open</span>
         </button>
         <AiButton label="Ask AI" label-class="tb-label" class="tb-btn h-8 px-2.5 rounded-full bg-card border-border text-[13px] font-medium" :disabled="activeTab !== 'editor'" title="Ask AI (experimental): write or fix this query with Gemini Nano in Chrome, on this computer" @click="openAi()" />
         <button type="button" :class="pill" :disabled="!canInteract || isRunning" title="Validate: check the query with SFMC without running it" @click="runValidation"><ShieldCheck class="h-3.5 w-3.5" /><span class="tb-label">Validate</span></button>
