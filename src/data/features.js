@@ -13,7 +13,7 @@ export const FEATURE_GROUPS = [
       { title: 'Descriptive file names', since: '2.0.4', detail: 'Downloads are named with the business unit, what they contain, and the date and time.' },
       { title: 'Storage by section', since: '2.0.4', how: 'Settings > Storage', detail: 'What takes the space, by section and business unit. Delete one part, or keep only the newest versions of each email.' },
       { title: 'App sessions started for you', how: 'Automatic (Settings > Connection)', detail: 'When the Toolkit opens and at least one SFMC app already has a session, the apps without one are started in the background, one at a time in a tab that closes itself (at most every 10 minutes). The connection menu shows each app as Ready or Starting, and Start missing does it now.' },
-      { title: 'Sections in the sidebar', detail: 'Queries (Saved queries, Run Query, Query Builder, Delete Toolkit runs), Data (Data Extensions, Create DE, Where used, DE storage, Contacts, Email validation), Automation (Automation overview, Automations, Activities, Saved Activities, Templates), Journey (Journey overview, Journeys, Journey Entry, Contact journeys) and Content (CloudPages, Saved Emails), in that order since 2.0.12. Collapse the sidebar to icons with Collapse.' },
+      { title: 'Sections in the sidebar', detail: 'Home, then Queries (Run Query, Query Builder, Saved queries), Data (Data Extensions, Create DE, Where used, DE storage), Contacts (Contacts, Contact journeys, Email validation), Automation (Automation overview, Automations, Activities, Saved Activities, Templates), Journeys (Journey overview, Journeys, Journey Entry) and Content (CloudPages, Saved Emails), since 2.0.19. Settings is at the bottom. Collapse the sidebar to icons with Collapse; in a narrow window it shows icons only.' },
       { title: 'Search everything', how: 'Ctrl+K (Cmd+K on a Mac), or Search in the top bar', detail: 'Jump to a section, open a saved query or a saved email, or start a search for data extensions, automations, activities, CloudPages or journey entry events.' },
       { title: 'Several tabs', detail: 'Each click on the toolbar icon opens a new tab, and Ctrl-click opens a section in a new tab. Two tabs never edit the same workspace or Query Builder query.' },
       { title: 'Results 50 at a time', detail: 'Every SFMC search (data extensions, automations, activities, journeys, journey entry events, CloudPages) shows the first 50 results; Load 50 more shows the next.' },
@@ -35,7 +35,7 @@ export const FEATURE_GROUPS = [
     intro: 'Queries > Saved queries.',
     items: [
       { title: 'Your business unit first', since: '2.0.6', detail: 'Shows the queries of the business unit you are logged in to; Show all business units (remembered) lists every one.' },
-      { title: 'Query Studio 2 runs', since: '2.0.3', how: 'Settings > Running queries > Save Query Studio 2 runs', detail: 'Queries run in the new Query Studio 2 are saved like Query Studio runs. On by default since 2.0.10; turn it off in Settings.' },
+      { title: 'Query Studio 2 runs', since: '2.0.3', how: 'Settings > Running queries > Save Query Studio runs', detail: 'Queries run in the new Query Studio 2 are saved like Query Studio runs. On by default; Chrome asks for your OK once (Home and Run Query offer it), and Settings turns it off.' },
       { title: 'Automatic capture from Query Studio', how: 'Automatic', detail: 'Every query you run in Query Studio is saved, named with the date and time, with the business unit you were in. New captures appear without a reload.' },
       { title: 'Search and filters', detail: 'Search names, SQL and business unit names; bu:<name or MID> filters by business unit. Browse by Today, Yesterday, This Week and so on in the sidebar, filter by business unit, or show only favourites.' },
       { title: 'Quick preview', how: 'Click a card', detail: 'See the full SQL, copy it, share it (a link valid for 24 hours), or open it in Run Query or the Query Builder.' },
@@ -60,7 +60,7 @@ export const FEATURE_GROUPS = [
       { title: 'Where the results went', since: '2.0.12', detail: 'After a run, the results data extension and the Query Activity are named under the summary, with links to SFMC and to Data Extensions.' },
       { title: 'Schema search', since: '2.0.11', how: 'The table button in a panel, or Cmd/Ctrl+Shift+S in the editor', detail: 'Search data extensions (this business unit, Shared and Synchronized) and data views by name, pick one and see its fields with type, length, primary key and required. Click a field to write it at the cursor (with the query\'s alias for that table), or insert the table name (ENT. for Shared) or all fields.' },
       { title: 'Run with the keyboard', since: '2.0.11', how: 'Cmd+Enter (Mac) or Ctrl+Enter in the editor', detail: 'Runs the query, or only the selected text when something is selected.' },
-      { title: 'Delete Toolkit runs', since: '2.0.3', how: 'Queries > Delete Toolkit runs (called Clean up SFMC before 2.0.16)', detail: 'Lists the data extensions and Query activities Run Query created (names starting SFMCQS_) and deletes the ones you tick, after asking. Nothing else is ever listed.' },
+      { title: 'Clean up Toolkit runs', since: '2.0.3', how: 'Settings > Clean up (Queries > Delete Toolkit runs before 2.0.19, Clean up SFMC before 2.0.16)', detail: 'Lists the data extensions and Query activities Run Query created (names starting SFMCQS_) and deletes the ones you tick, after asking. Nothing else is ever listed.' },
       { title: 'Data retention on new data extensions', since: '2.0.3', how: 'Settings > Running queries', detail: 'Off by default. Switched on, SFMC deletes each row of a new Run Query data extension after the number of days you set.' },
       { title: 'Export with no rows', since: '2.0.3', detail: 'When a query returns nothing, Copy for AI and MD still give the SQL and the columns, and CSV gives the header.' },
       {
@@ -268,7 +268,7 @@ export const FEATURE_GROUPS = [
       { title: 'Icons', since: '2.0.12', detail: 'Statuses (running, scheduled, paused, stopped, error, complete) and activity types (Query, Script, Import, Extract, File Transfer, Send Email, Verification, Filter, Wait) have icons.' },
       { title: 'Progress bars', since: '2.0.12', detail: 'Long loads show a bar instead of text: Load all rows, row counts and folders, Where used steps, storage, overviews, Create DE, templates.' },
       { title: 'Sort and filter tables', since: '2.0.12', how: 'Click a column header; Filters above the table', detail: 'Automations, Journeys, Data Extensions and CloudPages: click a header to sort ascending, again for descending, a third time to go back (remembered per table). Dates sort as dates, numbers as numbers. Filters adds a box per column; the table says how many of the loaded rows are shown, and Select all ticks only those. Both work on the rows loaded so far.' },
-      { title: 'Salesforce blue', since: '2.0.12', detail: 'Buttons, links and highlights use Salesforce blue, rgb(0, 112, 210), with a lighter blue in dark mode.' },
+      { title: 'Teal and grey', since: '2.0.19', detail: 'Buttons, links and highlights use a teal accent with grey neutrals, rounder cards and pill buttons, in light and dark mode.' },
     ],
   },
   {
@@ -276,7 +276,6 @@ export const FEATURE_GROUPS = [
     title: 'Saved Activities',
     intro: 'Automation > Saved Activities. Turn saving on or off, and set how many versions to keep, in Settings.',
     items: [
-      { title: 'Not seeing your saves?', since: '2.0.12', how: 'Below the list on Saved Activities', detail: 'The last 25 requests that write from Automation Studio in this browser session, with method, URL (query values removed), status, whether it was recognised as a save and the names of the body fields (never their values). Copy them and send them with Feedback if a save was missed. Path words such as validate are no longer taken for an activity, and records made that way are removed.' },
       { title: 'Query and Script versions', since: '2.0.12', how: 'Automatic', detail: 'Each time you save a SQL Query or Script activity in Automation Studio, the version from before your edit and the saved one are kept, with the name, target data extension and update type.' },
       { title: 'Compare, copy, run', since: '2.0.12', how: 'Click an activity', detail: 'Pick a version to see its SQL or script, Changes to see it next to the version before, Copy, or Open in Run Query.' },
       { title: 'Restore a version', since: '2.0.12', how: 'Restore this version, then confirm', detail: 'Writes the SQL or script of that version back to the activity in Automation Studio. Nothing is run.' },
@@ -366,7 +365,7 @@ export const FEATURE_GROUPS = [
   {
     id: 'contact-journeys',
     title: 'Contact journeys',
-    intro: 'Journey > Contact journeys. Read-only.',
+    intro: 'Contacts > Contact journeys. Read-only.',
     items: [
       { title: 'One contact across journeys', since: '2.0.18', how: 'Enter a Contact Key, then Find', detail: 'The journeys the contact is in now, and every journey it went through in the last 7, 30 or 90 days, across all journeys or within one you pick.' },
       { title: 'The path it took', since: '2.0.18', how: 'Open a journey in the results', detail: 'Each step in order with its time, status and any error, and the same path outlined on the journey canvas with step numbers; steps it did not reach are dimmed.' },
@@ -421,7 +420,7 @@ export const FEATURE_GROUPS = [
       { title: 'Connection menu', how: 'The stack pill in the top bar', detail: 'Shows your stack, business unit and whether the app token is ready. App sessions lists Automation Studio, Data Extensions, Content Builder, CloudPages and Journey Builder; sessions start automatically when needed, and Connect starts one now. Pin a stack if the wrong one is picked.' },
       { title: 'Backup', how: 'Settings > Backup', detail: 'Export everything (queries with run history, email versions, workspaces, settings) as one file, or import one from Marketing Cloud Toolkit or SFMC Query Saver. Import never overwrites what is already here.' },
       { title: 'API console', how: 'Settings > Troubleshooting', detail: 'Shows every SFMC call and its response at the bottom of the window, to download or send with feedback when something fails.' },
-      { title: 'What is sent where', detail: 'Queries and emails are stored in your browser only. SFMC calls go straight from the extension to your SFMC account using your login; nothing is stored about your credentials. Shared links and feedback go to the extension\'s own Cloudflare workers, and anonymous usage events (such as a query run) go to Google Analytics.' },
+      { title: 'What is sent where', detail: 'Queries and emails are stored in your browser only. SFMC calls go straight from the extension to your SFMC account using your login; nothing is stored about your credentials. Shared links and feedback go to the extension\'s own Cloudflare workers, only when you send them and after showing what will be sent. There are no usage analytics.' },
     ],
   },
 ]

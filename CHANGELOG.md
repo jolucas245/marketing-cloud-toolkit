@@ -2,6 +2,11 @@
 
 All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are published to the Chrome Web Store as updates to the former SFMC Query Saver listing (1.x). Entries before 2.0.18 are the GitHub release notes, unchanged; "Checked headless" notes describe testing at the time.
 
+## Unreleased (next 2.0.20)
+
+**Fixed:**
+- The Features page and What's New no longer describe old behaviour: no usage analytics (removed in 2.0.18), Clean up is under Settings, the teal colours, the current sidebar groups, Contact journeys under Contacts, the one-time Chrome OK for saving Query Studio runs, and the removed "Not seeing your saves?" request log.
+
 ## 2.0.19 (2026-11-03)
 
 **New:**
