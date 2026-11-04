@@ -5,7 +5,7 @@
 import { ref } from 'vue'
 import { X } from 'lucide-vue-next'
 
-const VERSION = '2.0.18'
+const VERSION = '2.0.19'
 const open = ref(false)
 const fromQuerySaver = ref(false)
 
@@ -35,12 +35,18 @@ function close() {
       </div>
       <h2 id="whatsnew-title" class="px-5 mt-3 text-lg font-bold">{{ fromQuerySaver ? 'SFMC Query Saver is now Marketing Cloud Toolkit' : 'What\'s new in Marketing Cloud Toolkit' }}</h2>
       <ul v-if="!fromQuerySaver" class="px-5 mt-3 mb-5 space-y-3 text-sm">
+        <li><strong class="block">A new look and a Home page</strong><span class="text-muted-foreground">Teal and grey, the header across the top, a regrouped sidebar, and Home as the start page: your connection, automations and journeys at a glance, what needs a look, and the pages and queries you use most.</span></li>
+        <li><strong class="block">AI Assist (experimental, Chrome only)</strong><span class="text-muted-foreground">Write, fix and explain queries, and summarize automations and journeys, with Chrome's built-in model. It runs on your computer: nothing is sent over the network. Settings > Experimental turns it off.</span></li>
+        <li><strong class="block">Run Query toolbar and tools</strong><span class="text-muted-foreground">Edit, Tables, Open and Save menus; Preview the first 10 rows, Sample a data extension, Find and replace, Clear with Undo, and Earlier text from the last 24 hours.</span></li>
+        <li><strong class="block">Load everything</strong><span class="text-muted-foreground">The connection menu can read automations, journeys, activities, Content Builder items and data extensions up front, so overviews, Data Extensions, Run Query and Where used open without a wait.</span></li>
+        <li><strong class="block">Automation canvas and Previous / Next</strong><span class="text-muted-foreground">Automations under Overview are drawn like Automation Studio, also in downloads. Automation and journey pages step through the list you opened them from (buttons or the arrow keys).</span></li>
+        <li><strong class="block">Contact journeys, step by step</strong><span class="text-muted-foreground">Each entry into a journey shows as one flow with times, its path on the canvas, and Download or CSV.</span></li>
+        <li><strong class="block">Report the error</strong><span class="text-muted-foreground">Error messages have a link that opens Feedback with the error and page filled in, for you to check before sending.</span></li>
+        <li><strong class="block">Saving on by default</strong><span class="text-muted-foreground">Email versions, Query and Script versions, Share and Query Studio runs are on unless you turn them off in Settings. Query Studio still needs your OK in Chrome once.</span></li>
         <li><strong class="block">Email validation</strong><span class="text-muted-foreground">Data > Email validation checks addresses with SFMC's validation API: one, a list, contacts by Contact Key, or a data extension column, with the results written back to that data extension or a new one.</span></li>
         <li><strong class="block">Contact journeys</strong><span class="text-muted-foreground">Journey > Contact journeys shows the journeys a contact is in and the path it took through each, step by step and outlined on the journey canvas.</span></li>
         <li><strong class="block">Email address validation template</strong><span class="text-muted-foreground">Automation > Templates builds an automation that validates every subscriber's address a batch at a time (needs Script activities in your business unit).</span></li>
         <li><strong class="block">Automation Summary with step details</strong><span class="text-muted-foreground">The Automation Summary tab in Automation Studio shows what each step's activities do (targets, SQL, scripts, waits).</span></li>
-        <li><strong class="block">Reorder columns</strong><span class="text-muted-foreground">Data Extensions > Fields > Reorder columns, and Saved Activities shows changes in the code editor's diff view.</span></li>
-        <li><strong class="block">Privacy: you choose what is saved and sent</strong><span class="text-muted-foreground">Saved Emails, Saved Activities, saving Query Studio runs and Share are off until you turn them on in Settings. Usage analytics are gone. Feedback shows exactly what it sends.</span></li>
         <li><strong class="block">Column values and duplicates</strong><span class="text-muted-foreground">The chart icon by a column name in Preview data and Run Query results lists its distinct values with counts; tick values to filter, or keep only duplicates.</span></li>
         <li><strong class="block">View a CloudPage</strong><span class="text-muted-foreground">CloudPages: View shows the page itself (scripts off), its code (landing pages included), and the raw record; for code resources, their code.</span></li>
         <li><strong class="block">The journey diagram in downloads</strong><span class="text-muted-foreground">HTML and PDF downloads of a journey include its canvas.</span></li>

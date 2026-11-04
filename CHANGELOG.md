@@ -2,7 +2,7 @@
 
 All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are published to the Chrome Web Store as updates to the former SFMC Query Saver listing (1.x). Entries before 2.0.18 are the GitHub release notes, unchanged; "Checked headless" notes describe testing at the time.
 
-## Unreleased (next 2.0.19)
+## 2.0.19 (2026-11-03)
 
 **New:**
 - Previous and Next on automation and journey pages, with "2 of 40" and the ← → keys: they step through the list you opened the page from, in the order it was shown (search, filters and sort). Hidden when the page was not opened from a list (feedback #1043).
