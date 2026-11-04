@@ -67,6 +67,13 @@ The store text, single-purpose statement, permission justifications and data-use
 
 Use **Send feedback** in the app, or email mathes.btech@gmail.com.
 
+## Contributors
+
+- Matheswaran Kanagarajan (Ateko): author and maintainer.
+- João Lucas ([@jolucas245](https://github.com/jolucas245)): the interactive Journey Builder-style journey canvas (pull request #3, in 2.0.19).
+
+Contributions are welcome: open an issue or a pull request.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
