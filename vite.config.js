@@ -25,5 +25,9 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     exclude: ['**/node_modules/**', 'legacy/**'],
+    // Node 25 turns on its own Web Storage by default, and its localStorage (no
+    // clear(), no data without --localstorage-file) shadows jsdom's, so tests that
+    // use localStorage fail there. Turn Node's off; Node 22 (CI) accepts the flag too.
+    execArgv: ['--no-experimental-webstorage'],
   },
 })
