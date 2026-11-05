@@ -6,7 +6,7 @@
 // `#answer` gets { text } for extra actions (Create DE's Apply).
 import { computed, ref, watch } from 'vue'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'radix-vue'
-import { X, Loader2, Sparkles, Download, Square, Copy, ChevronDown, ChevronRight } from 'lucide-vue-next'
+import { X, Loader2, Sparkles, Download, Square, Copy, ChevronDown, ChevronRight, Minus } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
 import CodeView from '@/components/results/CodeView.vue'
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
@@ -42,7 +42,11 @@ async function ask() {
   if (raw != null) answer.value = raw.trim()
 }
 
+// Minimize (feedback #1074): the dialog hides and the request keeps going; a small
+// card in the corner shows its state and opens it again. Close still stops it.
+const minimized = ref(false)
 watch(() => props.open, async (on) => {
+  minimized.value = false
   if (!on) { run.stop(); return }
   extra.value = ''
   answer.value = ''
@@ -58,16 +62,27 @@ async function copy() {
 </script>
 
 <template>
-  <DialogRoot :open="open">
+  <Teleport to="body">
+    <div v-if="open && minimized" class="fixed bottom-4 right-4 z-[240] flex items-center gap-2 rounded-full border border-primary/40 bg-card px-3 py-2 text-xs shadow-lg" role="status" data-ai-minimized>
+      <Loader2 v-if="state === 'asking' || download != null" class="h-3.5 w-3.5 animate-spin text-primary" />
+      <Sparkles v-else class="h-3.5 w-3.5 text-primary" />
+      <span class="font-medium">{{ title }}:</span>
+      <span class="text-muted-foreground">{{ download != null ? `downloading the model ${Math.round(download * 100)}%` : state === 'asking' ? 'writing...' : error ? 'failed' : answer ? 'ready' : 'waiting' }}</span>
+      <button type="button" class="underline text-primary" data-ai-restore @click="minimized = false">Open</button>
+      <button type="button" class="p-0.5 rounded hover:bg-accent" title="Close and stop" aria-label="Close and stop" @click="emit('close')"><X class="h-3.5 w-3.5" /></button>
+    </div>
+  </Teleport>
+  <DialogRoot :open="open && !minimized">
     <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-9999 bg-black/45" @click="emit('close')" />
+      <DialogOverlay class="fixed inset-0 z-9999 bg-black/45" @click="minimized = true" />
       <DialogContent class="fixed left-1/2 top-1/2 z-9999 -translate-x-1/2 -translate-y-1/2 w-[760px] max-w-[95vw] max-h-[88vh] rounded-xl bg-card border border-border shadow-2xl overflow-hidden flex flex-col text-xs focus:outline-none" @click.stop @escape-key-down="emit('close')">
         <div class="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
           <Sparkles class="h-4 w-4 text-primary" />
           <DialogTitle class="text-sm font-bold">{{ title }}</DialogTitle>
           <span class="rounded bg-amber-200 text-amber-900 px-1.5 py-0.5 text-[10px] font-medium">Experimental</span>
           <span class="text-muted-foreground">Gemini Nano in Chrome, on this computer</span>
-          <Button variant="ghost" size="icon" class="h-6 w-6 ml-auto" title="Close" @click="emit('close')"><X class="h-3.5 w-3.5" /></Button>
+          <Button variant="ghost" size="icon" class="h-6 w-6 ml-auto" title="Minimize: keep it working in the corner" aria-label="Minimize" data-ai-minimize @click="minimized = true"><Minus class="h-3.5 w-3.5" /></Button>
+          <Button variant="ghost" size="icon" class="h-6 w-6" title="Close" @click="emit('close')"><X class="h-3.5 w-3.5" /></Button>
         </div>
 
         <div class="flex-1 overflow-y-auto p-4 space-y-3">

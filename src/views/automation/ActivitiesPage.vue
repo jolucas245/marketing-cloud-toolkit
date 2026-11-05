@@ -3,7 +3,7 @@
 // Import, Data Extract, File Transfer, Filter. Search by name, list all, or fetch
 // every one (50 a request, up to 2,000), with each activity's details.
 import { computed, ref } from 'vue'
-import { Search, Loader2, ListChecks, Network } from 'lucide-vue-next'
+import { Search, Loader2, Network } from 'lucide-vue-next'
 import ActivityCard from '@/components/results/ActivityCard.vue'
 import DownloadMenu from '@/components/results/DownloadMenu.vue'
 import Button from '@/components/ui/button/Button.vue'
@@ -144,10 +144,7 @@ function getDoc() {
         </div>
         <Button size="sm" class="h-8 text-xs" type="submit" :disabled="loading"><Loader2 v-if="loading" class="h-3.5 w-3.5 mr-1 animate-spin" /> Search</Button>
       </form>
-      <Button variant="outline" size="sm" class="h-8 text-xs" :disabled="!!fetchProgress" @click="fetchAll">
-        <Loader2 v-if="fetchProgress" class="h-3.5 w-3.5 mr-1 animate-spin" /><ListChecks v-else class="h-3.5 w-3.5 mr-1" />
-        {{ fetchProgress ? `Fetching ${fetchProgress.done}${fetchProgress.total ? ` of ${fetchProgress.total}` : ''}` : 'Fetch all' }}
-      </Button>
+      <!-- Fetch all removed (feedback #1073): Search with an empty box lists them all. -->
       <div class="flex-1" />
       <template v-if="searched && items.length">
         <label class="flex items-center gap-1.5 text-xs text-muted-foreground"><input v-model="showAllFields" type="checkbox" /> All fields</label>
@@ -158,7 +155,7 @@ function getDoc() {
     <div class="flex-1 min-h-0 overflow-y-auto p-4">
       <SfmcErrorNotice :error="error" :retrying="loading || !!fetchProgress" @retry="searched?.all ? fetchAll() : search()" />
       <div v-if="!searched && !loading" class="max-w-md mx-auto mt-12 text-center text-sm text-muted-foreground">
-        Pick a type, then search by name, search with an empty box to list all (newest first), or use Fetch all to load every one.
+        Pick a type, then search by name, or search with an empty box to list all (newest first).
       </div>
       <template v-else-if="searched">
         <p class="mb-2 text-xs text-muted-foreground">

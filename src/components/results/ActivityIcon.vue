@@ -8,6 +8,8 @@ import { activityIconKind } from '@/utils/activityIcons.js'
 const props = defineProps({
   type: { type: [Number, String], default: null },
   size: { type: String, default: 'h-3.5 w-3.5' },
+  // On a coloured tile (the canvas, feedback #1072): no colour of its own.
+  plain: { type: Boolean, default: false },
 })
 
 const ICONS = {
@@ -31,5 +33,5 @@ const icon = computed(() => ICONS[activityIconKind(props.type)] || ICONS.other)
 </script>
 
 <template>
-  <component :is="icon[0]" class="shrink-0" :class="[size, icon[1]]" aria-hidden="true" />
+  <component :is="icon[0]" class="shrink-0" :class="[size, plain ? '' : icon[1]]" aria-hidden="true" />
 </template>
