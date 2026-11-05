@@ -2,7 +2,7 @@
 
 All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are published to the Chrome Web Store as updates to the former SFMC Query Saver listing (1.x). Entries before 2.0.18 are the GitHub release notes, unchanged; "Checked headless" notes describe testing at the time.
 
-## Unreleased (next 2.0.20)
+## 2.0.20 (2026-11-04)
 
 **New:**
 - Saved CloudPages (feedback #1045): each time you save a CloudPage (landing page, web page or code resource), the version is kept in this browser like Saved Emails (10 newest per page), with a preview (scripts off) and Revert. Content > Saved CloudPages; Settings > Emails and CloudPages turns it off; admin policy `disableHistory` stops it. The CloudPages editor is assumed to save through the Content Builder asset API, not yet seen live.

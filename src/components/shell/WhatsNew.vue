@@ -5,7 +5,7 @@
 import { ref } from 'vue'
 import { X } from 'lucide-vue-next'
 
-const VERSION = '2.0.19'
+const VERSION = '2.0.20'
 const open = ref(false)
 const fromQuerySaver = ref(false)
 
@@ -35,6 +35,12 @@ function close() {
       </div>
       <h2 id="whatsnew-title" class="px-5 mt-3 text-lg font-bold">{{ fromQuerySaver ? 'SFMC Query Saver is now Marketing Cloud Toolkit' : 'What\'s new in Marketing Cloud Toolkit' }}</h2>
       <ul v-if="!fromQuerySaver" class="px-5 mt-3 mb-5 space-y-3 text-sm">
+        <li><strong class="block">Emails and CloudPages, browsed</strong><span class="text-muted-foreground">Content Builder folders, a preview of any email with data from a data extension row or values you type, and the code of each version. Every CloudPage save is kept like email versions, with Code and Compare.</span></li>
+        <li><strong class="block">Folders and Concepts</strong><span class="text-muted-foreground">Automations, Journeys and Data Extensions list by folder. The book icon in the top bar explains the terms of the section you are on.</span></li>
+        <li><strong class="block">Faster, with fewer calls to SFMC</strong><span class="text-muted-foreground">Folders, lists and automation details are kept in this browser for 30 days and only the changes are read again. Settings can forget them.</span></li>
+        <li><strong class="block">Automations like Automation Studio</strong><span class="text-muted-foreground">The canvas has a Starting source column and one column per step with numbered cards. AI dialogs can be minimized while they work.</span></li>
+        <li><strong class="block">Restore by myself</strong><span class="text-muted-foreground">Saved versions give you the request that puts a version back, to send with your own installed package.</span></li>
+        <li><strong class="block">Query Studio saving without a prompt</strong><span class="text-muted-foreground">Chrome asked you once to allow herokuapp.com for this update, so Query Studio runs are saved without another prompt.</span></li>
         <li><strong class="block">A new look and a Home page</strong><span class="text-muted-foreground">Teal and grey, the header across the top, a regrouped sidebar, and Home as the start page: your connection, automations and journeys at a glance, what needs a look, and the pages and queries you use most.</span></li>
         <li><strong class="block">AI Assist (experimental, Chrome only)</strong><span class="text-muted-foreground">Write, fix and explain queries, and summarize automations and journeys, with Chrome's built-in model. It runs on your computer: nothing is sent over the network. Settings > Experimental turns it off.</span></li>
         <li><strong class="block">Run Query toolbar and tools</strong><span class="text-muted-foreground">Edit, Tables, Open and Save menus; Preview the first 10 rows, Sample a data extension, Find and replace, Clear with Undo, and Earlier text from the last 24 hours.</span></li>
