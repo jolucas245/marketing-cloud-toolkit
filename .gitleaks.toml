@@ -8,3 +8,10 @@ paths = ['''src/utils/__tests__/journeysCloudPages\.test\.js''']
 regexes = ['''DEAudience-123''']
 condition = "AND"
 regexTarget = "match"
+
+[[allowlists]]
+description = "Restore by myself: the example cURL command uses a placeholder, not a token"
+paths = ['''src/utils/selfRestore\.js''']
+regexes = ['''YOUR_ACCESS_TOKEN''']
+condition = "AND"
+regexTarget = "line"
