@@ -2,6 +2,11 @@
 
 All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are published to the Chrome Web Store as updates to the former SFMC Query Saver listing (1.x). Entries before 2.0.18 are the GitHub release notes, unchanged; "Checked headless" notes describe testing at the time.
 
+## Unreleased (next 2.0.21)
+
+**Fixed:**
+- Emails > Preview with data no longer lets you pick a data extension that is not sendable (feedback #1075): SFMC refuses to preview with one (error 10005), so the picker says so before reading its rows. Type values still works without a data extension.
+
 ## 2.0.20 (2026-11-04)
 
 **New:**

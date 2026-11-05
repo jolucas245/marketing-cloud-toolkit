@@ -398,7 +398,7 @@ whenStack(() => runSearch('open'))
             <div v-if="dataError" class="text-xs text-amber-800 dark:text-amber-300 flex flex-wrap items-center gap-2">{{ dataError }} <ReportErrorButton :error="dataError" /></div>
           </div>
           <DEPickerDialog v-if="schemaPicker" :stack="stack" title="Use the fields of a data extension" @pick="onSchemaPicked" @close="schemaPicker = false" />
-          <DEPickerDialog v-if="pickerOpen" :stack="stack" with-row title="Choose a data extension and a row" @pick="onPicked" @close="pickerOpen = false" />
+          <DEPickerDialog v-if="pickerOpen" :stack="stack" with-row require-sendable title="Choose a data extension and a row" @pick="onPicked" @close="pickerOpen = false" />
 
           <div v-if="assetLoading" class="p-6 text-muted-foreground"><Loader2 class="h-4 w-4 animate-spin inline" /> Reading the email</div>
           <div v-else-if="assetError" class="p-4 text-red-700 dark:text-red-300 flex items-center gap-2">{{ assetError }} <ReportErrorButton :error="assetError" /></div>

@@ -2,7 +2,9 @@
 // Pick a data extension from its folders (and optionally one of its rows) in a dialog
 // (feedback #1055 for Content > Emails, #1060 for Email validation). The folder tree
 // and search are the Query Builder's (DEBrowser), without data views. With `withRow`,
-// the right side shows the DE's first rows; clicking one picks it.
+// the right side shows the DE's first rows; clicking one picks it. With `requireSendable`,
+// a DE that SFMC says is not sendable is refused before its rows are read (feedback #1075:
+// email previews with data need a sendable DE, error 10005).
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { X, Loader2, Database } from 'lucide-vue-next'
 import DEBrowser from '@/components/builder/DEBrowser.vue'
@@ -15,6 +17,7 @@ const props = defineProps({
   stack: { type: String, default: null },
   title: { type: String, default: 'Choose a data extension' },
   withRow: { type: Boolean, default: false },
+  requireSendable: { type: Boolean, default: false },
 })
 const emit = defineEmits(['pick', 'close'])
 
@@ -34,9 +37,14 @@ async function chooseDE(node) {
   filter.value = ''
   loading.value = true
   try {
-    if (!de.value.key) {
+    if (!de.value.key || props.requireSendable) {
       const d = await fetchDEDetail(props.stack, node.id)
-      de.value.key = d?.customerKey || d?.key || ''
+      if (!de.value.key) de.value.key = d?.customerKey || d?.key || ''
+      // Unknown (no isSendable in the response) is let through; SFMC then says so itself.
+      if (props.requireSendable && d && d.isSendable === false) {
+        error.value = `${node.name} is not sendable. SFMC previews an email with data only from a sendable data extension: pick a sendable one, or use Type values.`
+        return
+      }
     }
     if (!de.value.key) throw new Error('SFMC sent no customer key for this data extension')
     if (!props.withRow) { emit('pick', { de: de.value }); return }
