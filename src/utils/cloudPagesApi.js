@@ -169,6 +169,73 @@ export function codeFromResource(r) {
  * The asset comes from the CloudPages host, else Content Builder's; a landing page's
  * HTML from the Web Page asset it points to (`contentAsset`).
  */
+// ── Landing page contents (feedback #1063) ──
+// CloudPages' own editor reads a landing page's HTML from
+// internal/v2/cloudpages/landing-pages/<landing page id>/states/<state id>/contents/,
+// in entities.html (user's capture). The landing page ID is not the asset ID, and how
+// the editor finds it and the state is not known yet: the asset, the sites list and a
+// lookup by asset ID are tried, and every step is reported when none works.
+const LP = (stack) => `${CP(stack)}/internal/v2/cloudpages/landing-pages`
+const idOf = (v) => (v != null && v !== '' && typeof v !== 'object' ? String(v) : null)
+const listOf = (d) => (Array.isArray(d) ? d : Array.isArray(d?.entities) ? d.entities : Array.isArray(d?.items) ? d.items : d?.entities && typeof d.entities === 'object' ? [d.entities] : [])
+
+/** Landing page IDs named in the asset or the sites list (most likely first). */
+export function landingPageIdsFrom(asset, sites = []) {
+  const cp = asset?.meta?.cloudPages || {}
+  const ids = [cp.landingPageId, cp.landingPage?.id, cp.pageId, asset?.landingPageId, cp.id]
+  const aid = String(asset?.id ?? '')
+  for (const s of sites || []) {
+    const hit = [s.assetId, s.contentAssetId, s.landingPageAssetId, s.defaultPageId].some((v) => v != null && String(v) === aid) || (asset?.customerKey && s.key === asset.customerKey)
+    if (hit) ids.push(s.landingPageId, s.pageId, s.id)
+  }
+  return [...new Set(ids.map(idOf).filter(Boolean))]
+}
+
+/** The state to read: a current, published or latest state ID in a landing page record or states list. */
+export function stateIdFrom(d) {
+  const direct = idOf(d?.stateId ?? d?.currentStateId ?? d?.publishedStateId ?? d?.draftStateId ?? d?.entities?.stateId ?? d?.entities?.currentStateId)
+  if (direct) return direct
+  const states = [...listOf(d?.states ?? d), ...listOf(d?.entities?.states)]
+  const pick = states.find((x) => x?.isCurrent || x?.current || /current|published|live/i.test(String(x?.status ?? x?.state ?? ''))) ||
+    [...states].sort((a, b) => Number(b?.id ?? b?.stateId ?? 0) - Number(a?.id ?? a?.stateId ?? 0))[0]
+  return idOf(pick?.id ?? pick?.stateId)
+}
+
+/** The HTML in a contents answer: entities.html (user's capture), or close variants. */
+export function htmlFromContents(d) {
+  const e = d?.entities
+  const v = (e && !Array.isArray(e) ? e.html : null) ?? (Array.isArray(e) ? e.find((x) => typeof x?.html === 'string')?.html : null) ?? d?.html ?? d?.entity?.html
+  return typeof v === 'string' ? v : ''
+}
+
+export async function fetchLandingPageHtml(stack, asset, fetch = sfmcFetch, sites = null) {
+  const steps = []
+  const tryGet = async (url, what) => {
+    try { const d = await fetch(url, 'GET'); steps.push(`${what}: read`); return d } catch (e) { steps.push(`${what}: ${e.message}`); return null }
+  }
+  let siteList = sites
+  if (!siteList) { try { siteList = await fetchSites(stack) } catch (e) { siteList = []; steps.push(`Sites list: ${e.message}`) } }
+  let ids = landingPageIdsFrom(asset, siteList)
+  if (!ids.length) {
+    for (const q of [`?$filter=assetId%20eq%20${encodeURIComponent(asset.id)}`, `?assetId=${encodeURIComponent(asset.id)}`]) {
+      const d = await tryGet(`${LP(stack)}${q}`, `Landing page by asset ID (${q.slice(1, 12)}...)`)
+      const hit = listOf(d).find((x) => String(x?.assetId ?? x?.asset?.id ?? '') === String(asset.id)) || (listOf(d).length === 1 ? listOf(d)[0] : null)
+      if (hit && idOf(hit.id ?? hit.landingPageId)) { ids = [idOf(hit.id ?? hit.landingPageId)]; break }
+    }
+  }
+  if (!ids.length) steps.push('No landing page ID found for this asset.')
+  for (const lp of ids) {
+    let state = stateIdFrom(await tryGet(`${LP(stack)}/${encodeURIComponent(lp)}`, `Landing page ${lp}`))
+    if (!state) state = stateIdFrom(await tryGet(`${LP(stack)}/${encodeURIComponent(lp)}/states`, `States of landing page ${lp}`))
+    if (!state) { steps.push(`No state found for landing page ${lp}.`); continue }
+    const d = await tryGet(`${LP(stack)}/${encodeURIComponent(lp)}/states/${encodeURIComponent(state)}/contents/`, `Contents of ${lp}, state ${state}`)
+    const html = htmlFromContents(d)
+    if (html) return { html, landingPageId: lp, stateId: state, contents: d, steps }
+    steps.push(`Contents of ${lp}, state ${state}: no entities.html`)
+  }
+  return { html: '', steps }
+}
+
 export async function fetchCloudPageSource(stack, page, fetch = sfmcFetch) {
   const errors = []
   let asset = null
@@ -188,6 +255,14 @@ export async function fetchCloudPageSource(stack, page, fetch = sfmcFetch) {
       } catch (e) { if (base === CB(stack)) out.errors.push(`Page content (asset ${ref}): ${e.message}`) }
     }
     out.html = htmlFromAsset(out.contentAsset)
+  }
+  // Feedback #1063: a landing page with no HTML in its asset (or its Web Page asset):
+  // CloudPages' own landing-pages/<id>/states/<state>/contents/ call.
+  if (!out.html && !isCodeResource(asset) && /landing/i.test(`${asset.assetType?.name || ''} ${asset.assetType?.displayName || ''}`)) {
+    const lp = await fetchLandingPageHtml(stack, asset, fetch)
+    out.html = lp.html
+    out.landingPage = lp.html ? { id: lp.landingPageId, stateId: lp.stateId, contents: lp.contents } : null
+    if (!lp.html) out.errors.push(`Could not find this landing page's HTML. Steps: ${lp.steps.join('; ')}`)
   }
   if (isCodeResource(asset)) {
     out.language = codeLanguage(asset)

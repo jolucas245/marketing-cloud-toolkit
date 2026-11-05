@@ -5,6 +5,7 @@ import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, ref, watch } from 'vue'
 import { X, Loader2, Copy, Download } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
+import CodeView from '@/components/results/CodeView.vue'
 import { fetchCloudPageSource } from '@/utils/cloudPagesApi.js'
 import { saveTextFile } from '@/utils/download.js'
 import { showToast } from '@/composables/useToast.js'
@@ -27,6 +28,7 @@ const raw = computed(() => {
   const v = src.value
   if (v?.codeResource) return JSON.stringify({ asset: v.asset, codeResource: v.codeResource }, null, 2)
   if (v?.contentAsset) return JSON.stringify({ asset: v.asset, contentAsset: v.contentAsset }, null, 2)
+  if (v?.landingPage) return JSON.stringify({ asset: v.asset, landingPage: v.landingPage }, null, 2)
   return JSON.stringify(v?.asset ?? null, null, 2)
 })
 const tabs = computed(() => [...(isCode.value ? [] : [['preview', 'Preview']]), ['source', isCode.value ? 'Code' : 'Source'], ['raw', 'Raw JSON']])
@@ -49,6 +51,7 @@ watch(() => props.page, async (p) => {
 async function copy(value) {
   try { await navigator.clipboard.writeText(value); showToast('Copied.') } catch { showToast('The browser did not allow copying.') }
 }
+const CODE_LANG = { html: 'html', js: 'javascript', json: 'json', css: 'text', xml: 'html', txt: 'text' }
 const MIME = { html: 'text/html', js: 'text/javascript', css: 'text/css', json: 'application/json', xml: 'application/xml', txt: 'text/plain' }
 function download() {
   const name = `${String(props.page?.name || 'cloudpage').replace(/[^\w.-]+/g, '_')}.${ext.value}`
@@ -72,7 +75,7 @@ function download() {
         <div v-if="loading" class="m-auto flex items-center gap-2 text-muted-foreground text-xs"><Loader2 class="h-4 w-4 animate-spin" /> Reading the page…</div>
         <p v-else-if="error" class="m-4 text-xs text-red-600">{{ error }}<ReportErrorButton /></p>
         <template v-else-if="src">
-          <p v-for="(e, i) in src.errors" :key="i" class="mx-4 mt-2 text-xs text-amber-700">{{ e }}</p>
+          <p v-for="(e, i) in src.errors" :key="i" class="mx-4 mt-2 text-xs text-amber-700">{{ e }} <ReportErrorButton :error="e" /></p>
           <template v-if="tab === 'preview'">
             <iframe v-if="text" :srcdoc="text" sandbox class="flex-1 w-full border-0 bg-white rounded-b-lg" :title="`Preview of ${page.name}`" />
             <p v-else class="m-4 text-xs text-muted-foreground">No HTML found in this page's asset. Raw JSON shows what SFMC returned.</p>
@@ -83,7 +86,9 @@ function download() {
               <Button variant="outline" size="sm" class="h-7 text-xs" :disabled="tab !== 'raw' && !text" @click="copy(tab === 'raw' ? raw : text)"><Copy class="h-3.5 w-3.5 mr-1" /> Copy</Button>
               <Button v-if="tab !== 'raw'" variant="outline" size="sm" class="h-7 text-xs" :disabled="!text" @click="download"><Download class="h-3.5 w-3.5 mr-1" /> .{{ ext }}</Button>
             </div>
-            <pre class="flex-1 min-h-0 overflow-auto m-0 p-4 text-xs font-mono whitespace-pre-wrap break-all select-text">{{ tab === 'raw' ? raw : (text || 'No source found in this asset.') }}</pre>
+            <!-- Source in a code editor (feedback #1063), read only. -->
+            <div v-if="tab === 'source' && text" class="flex-1 min-h-0 overflow-hidden p-2" data-cp-source><CodeView :code="text" :lang="CODE_LANG[ext] || 'text'" max-height="68vh" /></div>
+            <pre v-else class="flex-1 min-h-0 overflow-auto m-0 p-4 text-xs font-mono whitespace-pre-wrap break-all select-text">{{ tab === 'raw' ? raw : (text || 'No source found in this asset.') }}</pre>
           </template>
         </template>
       </div>

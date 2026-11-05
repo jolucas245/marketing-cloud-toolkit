@@ -10,6 +10,8 @@ All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are pub
 - Restore by myself (feedback #1045): beside Revert and Restore in Saved Emails, Saved CloudPages and Saved Activities. It gives the request that puts the version back (method, REST path, the JSON body to download, the token call and a cURL command, or all of it as a Markdown file) to send with your own installed package. Restore stays.
 
 - Emails, Preview with data (feedback #1055 to #1058): the data extension and row are chosen in a dialog with folders and search; the preview runs as soon as a row is picked (the button is now Preview); the subject line and preheader follow the row (filled in here when SFMC does not send them); Type values lists the attributes the email uses and fills them in as you type.
+- Emails: while previewing with data, the folders and email list fold away (Show emails brings them back; feedback #1061). When SFMC's HTML preview has no subject line or preheader, the Toolkit asks SFMC for them separately (feedback #1062).
+- CloudPages View shows a landing page's source from CloudPages' own landing-pages contents call (entities.html) when its asset has none, in a code editor (feedback #1063). How the landing page and state IDs are found is not yet checked live.
 - CloudPages has a folder tree (feedback #1059); Email validation picks its data extension in the same folder dialog (feedback #1060).
 - Content > Emails (feedback #1054): Content Builder folders, email search by name, subject line or key, and each email's preview, text version and code. Preview with data picks a data extension row: SFMC renders the email for it (guide/v1 email preview, not yet checked live), or the Toolkit fills in the %%Field%% strings itself.
 

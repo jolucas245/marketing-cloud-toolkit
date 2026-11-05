@@ -103,6 +103,11 @@ async function pick(row) {
 // From a data extension row (picked in a dialog, #1055; previews straight away, #1056)
 // or from values typed in (#1058). Subject and preheader change too (#1057).
 const dataOpen = ref(false)
+// Feedback #1061: while previewing with data, the folders and the email list fold away
+// to give the preview the room; Show emails brings them back.
+const listShown = ref(false)
+const focus = computed(() => dataOpen.value && !!picked.value && !listShown.value)
+watch(dataOpen, (o) => { if (o) listShown.value = false })
 const dataMode = ref('de') // de | values
 const pickerOpen = ref(false)
 const de = ref(null) // { id, name, key }
@@ -150,7 +155,7 @@ async function previewRow() {
     if (seq !== previewSeq) return
     // What SFMC did not send is filled in here from the row (feedback #1057).
     const filledHere = [r.subject == null && parts.value.subject ? 'subject line' : null, r.preheader == null && parts.value.preheader ? 'preheader' : null].filter(Boolean)
-    dataPreview.value = { html: r.html, subject: r.subject ?? local.subject, preheader: r.preheader ?? local.preheader, how: 'sfmc', filledHere, shape: r.shape }
+    dataPreview.value = { html: r.html, subject: r.subject ?? local.subject, preheader: r.preheader ?? local.preheader, how: 'sfmc', filledHere, shape: { first: r.shape, more: r.extraShapes } }
   } catch (e) {
     if (seq !== previewSeq) return
     dataPreview.value = { ...local, how: 'local' }
@@ -203,12 +208,12 @@ whenStack(() => runSearch())
       <Button variant="outline" title="Read folders and emails again" @click="refresh"><RefreshCw class="h-4 w-4" /> Refresh</Button>
     </div>
 
-    <div class="flex-1 min-h-0 grid [grid-template-columns:minmax(200px,260px)_minmax(260px,360px)_1fr] max-[900px]:grid-cols-1 max-[900px]:overflow-y-auto">
+    <div class="flex-1 min-h-0 grid max-[900px]:grid-cols-1 max-[900px]:overflow-y-auto" :class="focus ? 'grid-cols-1' : '[grid-template-columns:minmax(200px,260px)_minmax(260px,360px)_1fr]'">
       <!-- Folders -->
-      <ContentFolderTree ref="tree" v-model="currentFolder" :stack="stack" all-label="All emails" :all-icon="Mail" class="border-r border-border" />
+      <ContentFolderTree v-show="!focus" ref="tree" v-model="currentFolder" :stack="stack" all-label="All emails" :all-icon="Mail" class="border-r border-border" />
 
       <!-- Emails -->
-      <section class="border-r border-border overflow-y-auto" aria-label="Emails" data-email-list>
+      <section v-show="!focus" class="border-r border-border overflow-y-auto" aria-label="Emails" data-email-list>
         <div class="px-3 py-2 text-xs text-muted-foreground border-b border-border">
           <template v-if="searchedFor">
             {{ total.toLocaleString() }} email(s)<template v-if="searchedFor.folder"> in {{ searchedFor.folder }}</template><template v-if="searchedFor.text"> matching "{{ searchedFor.text }}"</template>
@@ -232,7 +237,10 @@ whenStack(() => runSearch())
         <div v-if="!picked" class="m-auto text-muted-foreground p-6 text-center">Pick an email to see it.</div>
         <template v-else>
           <div class="px-4 py-3 border-b border-border space-y-1">
-            <div class="font-semibold text-base">{{ picked.name }}</div>
+            <div class="flex items-start gap-2">
+              <div class="font-semibold text-base flex-1">{{ picked.name }}</div>
+              <button v-if="dataOpen" type="button" class="h-7 px-3 rounded-full border border-border text-xs hover:bg-accent shrink-0" data-toggle-list @click="listShown = !listShown">{{ focus ? 'Show emails' : 'Hide emails' }}</button>
+            </div>
             <div class="text-xs text-muted-foreground">Subject: <span class="text-foreground" data-email-subject>{{ shownSubject || 'none' }}</span></div>
             <div v-if="shownPreheader" class="text-xs text-muted-foreground">Preheader: <span class="text-foreground" data-email-preheader>{{ shownPreheader }}</span></div>
             <div class="text-[11px] text-muted-foreground">{{ picked.type }} · key {{ picked.customerKey }} · ID {{ picked.id }}<template v-if="picked.legacyId"> · email ID {{ picked.legacyId }}</template></div>
@@ -276,7 +284,11 @@ whenStack(() => runSearch())
                 </template>
                 <template v-else>Filled in here: {{ dataPreview.filled.length ? dataPreview.filled.join(', ') : 'no attributes matched' }}.<template v-if="dataPreview.missing.length"> No value for: {{ dataPreview.missing.join(', ') }}.</template></template>
               </div>
-              <pre v-if="showShape && dataPreview?.shape" class="text-[11px] max-h-40 overflow-auto rounded border border-border bg-card p-2">{{ JSON.stringify(dataPreview.shape, null, 2) }}</pre>
+              <div v-if="showShape && dataPreview?.shape" class="space-y-1">
+                <p class="text-[11px] text-muted-foreground">The structure of SFMC's answers, without their values. Report sends it so the Toolkit can read the subject line and preheader from it.</p>
+                <pre class="text-[11px] max-h-40 overflow-auto rounded border border-border bg-card p-2">{{ JSON.stringify(dataPreview.shape, null, 2) }}</pre>
+                <ReportErrorButton :error="`Email preview: SFMC's answer had no subject line or preheader the Toolkit could read. Answer structure (no values): ${JSON.stringify(dataPreview.shape)}`" />
+              </div>
             </template>
 
             <template v-else>

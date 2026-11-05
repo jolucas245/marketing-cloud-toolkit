@@ -70,4 +70,22 @@ describe('Content > Emails (feedback #1054)', () => {
     expect(p).toMatchObject({ html: '<p>A</p>', subject: 'Hi Ada', preheader: 'Pre' })
     expect(responseShape({ message: { views: [{ contentType: 'x', content: 'secret' }] } })).toEqual({ message: { views: [{ contentType: 'x', content: 'string' }] } })
   })
+  it('asks SFMC again for a subject line and preheader the HTML answer lacked (feedback #1062)', async () => {
+    const fetch = vi.fn(async (url) => {
+      if (url.includes('kind=html')) return { message: { views: [{ contentType: 'vnd.exacttarget.message.email.htmlbody', content: '<p>A</p>' }] } }
+      if (url.includes('kind=subjectline')) return { message: { views: [{ contentType: 'vnd.exacttarget.message.email.subjectline', content: 'Report for Nov 5' }] } }
+      if (url.includes('kind=preheader')) return { message: { views: [{ content: 'Last 7 days' }] } }
+      return { message: { views: [{ contentType: 'vnd.exacttarget.message.email.htmlbody', content: '<p>A</p>' }] } }
+    })
+    const r = await previewWithData('s1', { legacyId: 1, deId: 'G', rowNumber: 1 }, fetch)
+    expect(r).toMatchObject({ html: '<p>A</p>', subject: 'Report for Nov 5', preheader: 'Last 7 days' })
+    expect(fetch.mock.calls.map((c) => c[0].replace(/^.*preview/, ''))).toEqual(['?kind=html', '', '?kind=subjectline', '?kind=preheader'])
+    expect(r.extraShapes).toHaveLength(3)
+  })
+  it('never takes an HTML answer as the preheader', async () => {
+    const html = { message: { views: [{ contentType: 'vnd.exacttarget.message.email.htmlbody', content: '<p>A</p>' }] } }
+    const r = await previewWithData('s1', { legacyId: 1, deId: 'G', rowNumber: 1 }, vi.fn(async () => html))
+    expect(r.subject).toBeNull()
+    expect(r.preheader).toBeNull()
+  })
 })

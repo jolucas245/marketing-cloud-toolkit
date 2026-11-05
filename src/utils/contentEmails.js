@@ -255,9 +255,54 @@ export async function previewWithData(stack, args, fetch = sfmcFetch) {
     try {
       const d = await fetch(url, 'POST', {})
       const p = previewFromResponse(d)
-      if (p) return { ...p, url }
+      if (p) return { ...p, url, ...(await missingParts(url, p, fetch)) }
       last = new Error('SFMC answered without HTML.')
     } catch (e) { last = e }
   }
   throw last
+}
+
+/** The kind values to ask for when the first answer had only the HTML (feedback #1062). */
+export const EXTRA_KINDS = [null, 'subjectline', 'preheader']
+
+/**
+ * Feedback #1062: the kind=html answer had no subject line or preheader. Asks the same
+ * preview again without kind, then for those parts, and takes what comes back (any
+ * answer that is not HTML is used as the part itself). Returns { subject?, preheader?,
+ * extraShapes }.
+ */
+async function missingParts(url, p, fetch) {
+  const out = { extraShapes: [] }
+  if (p.subject != null && p.preheader != null) return out
+  for (const kind of EXTRA_KINDS) {
+    if ((out.subject ?? p.subject) != null && (out.preheader ?? p.preheader) != null) break
+    const u = kind ? url.replace(/kind=html/, `kind=${kind}`) : url.replace(/[?&]kind=html/, '')
+    try {
+      const d = await fetch(u, 'POST', {})
+      out.extraShapes.push({ kind: kind || '(none)', shape: responseShape(d) })
+      const q = previewFromResponse({ ...d, html: d?.html ?? 'x' }) || {}
+      const single = kind && typeof firstString(d) === 'string' ? firstString(d) : null
+      if (out.subject == null && p.subject == null) out.subject = q.subject ?? (kind === 'subjectline' ? single : null) ?? undefined
+      if (out.preheader == null && p.preheader == null) out.preheader = q.preheader ?? (kind === 'preheader' ? single : null) ?? undefined
+    } catch (e) { out.extraShapes.push({ kind: kind || '(none)', error: String(e.message || e).slice(0, 200) }) }
+  }
+  for (const k of ['subject', 'preheader']) if (out[k] == null) delete out[k]
+  return out
+}
+
+/** The only content string in an answer for one kind (views[0].content and the like). */
+function firstString(d) {
+  let found
+  const walk = (o, depth) => {
+    if (found !== undefined || !o || typeof o !== 'object' || depth > 6) return
+    if (Array.isArray(o)) { for (const x of o) walk(x, depth + 1); return }
+    if (typeof o.content === 'string') {
+      // An HTML body is never a subject line or preheader (SFMC may ignore the kind).
+      if (!/html/i.test(String(o.contentType ?? o.type ?? ''))) found = o.content
+      return
+    }
+    for (const v of Object.values(o)) walk(v, depth + 1)
+  }
+  walk(d, 0)
+  return found
 }

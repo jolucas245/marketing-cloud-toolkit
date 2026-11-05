@@ -35,6 +35,18 @@ export const TO_TEST = [
         expect: 'The preview appears as soon as a row is clicked, and changes with the row. Subject line and preheader show the row\'s values (from SFMC, or filled in here when SFMC does not send them: the note says which). Type values lists the email\'s attributes and the preview follows what you type.',
       },
       {
+        id: '2.0.20-emails-focus-subject', area: 'Content', title: 'Emails: preview takes the room; SFMC subject line and preheader', ref: '#1061 #1062', live: true,
+        where: 'Content > Emails > an email > Preview with data',
+        steps: ['Open Preview with data: the folders and email list fold away; Show emails brings them back.', 'Pick a row of a data extension for an email whose subject line uses AMPscript or a field.', 'If the note still says SFMC sent no subject line, open What SFMC sent and use Report.'],
+        expect: 'The subject line and preheader are SFMC\'s rendering for that row. The Toolkit now asks SFMC for them separately when the HTML answer lacks them (the kind values are a guess); Report sends the answers\' structure without values.',
+      },
+      {
+        id: '2.0.20-cloudpage-source', area: 'Content', title: 'CloudPages View: landing page source', ref: '#1063', live: true,
+        where: 'Content > CloudPages > View on a landing page',
+        steps: ['View a landing page whose Source was empty (for example one with only a publish date in Raw JSON).', 'Open Source.'],
+        expect: 'Source shows the page HTML in a code editor, read from landing-pages/<id>/states/<state>/contents/. How the landing page and state IDs are found is a guess: if it fails, the dialog lists each step; use Report on it.',
+      },
+      {
         id: '2.0.20-content-folders', area: 'Content', title: 'CloudPages folders; Saved versions tabs; Email validation DE dialog', ref: '#1059 #1060', live: true,
         where: 'Content > CloudPages; Content > Emails; Contacts > Email validation > Data extension',
         steps: ['On CloudPages, open folders on the left and pick one.', 'Use the Saved versions tab on Emails and on CloudPages, then the first tab to go back.', 'In Email validation, choose the data extension in the dialog.'],
