@@ -6,14 +6,15 @@
 // CloudPages search uses them (utils/cloudPagesApi.js).
 export const CLOUD_PAGE_ASSET_TYPE_IDS = [240, 241, 242, 243, 244, 245, 247, 248, 249]
 
+// base: a version's page is `${base}/<id>`; list: the list of saved records (feedback #1059).
 export const SAVED_ASSET_KINDS = {
   email: {
-    kind: 'email', prefix: 'email_', base: '/emails', noun: 'email', nouns: 'emails', title: 'Saved Emails',
+    kind: 'email', prefix: 'email_', base: '/emails', list: '/emails/saved', noun: 'email', nouns: 'emails', title: 'Saved Emails',
     setting: '_emailSaverEnabled', app: 'Content Builder', appPath: 'Content%20Builder',
     reopen: 'Reload the email in Content Builder to see it.',
   },
   cloudpage: {
-    kind: 'cloudpage', prefix: 'cloudpage_', base: '/cloudpages/saved', noun: 'CloudPage', nouns: 'CloudPages', title: 'Saved CloudPages',
+    kind: 'cloudpage', prefix: 'cloudpage_', base: '/cloudpages/saved', list: '/cloudpages/saved', noun: 'CloudPage', nouns: 'CloudPages', title: 'Saved CloudPages',
     setting: '_cloudPageSaverEnabled', app: 'CloudPages', appPath: 'CloudPages',
     reopen: 'Reopen it in CloudPages to see it, and publish it again to put it live.',
   },

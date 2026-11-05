@@ -23,6 +23,24 @@ export const TO_TEST = [
         expect: 'Folders and emails match Content Builder. Preview shows the email with its blocks. Preview in SFMC shows the email as that row would get it (the guide/v1 preview call is a guess: if it fails, send the error with Report). Fill in here replaces the %%Field%% strings and lists any field the data extension does not have.',
       },
       {
+        id: '2.0.20-emails-data-2', area: 'Content', title: 'Emails: DE and row dialog, automatic preview, subject and preheader, Type values', ref: '#1055 #1056 #1057 #1058', live: true,
+        where: 'Content > Emails > an email > Preview with data',
+        steps: [
+          'Choose data extension and row: open folders, or search, pick a DE, click a row.',
+          'Change the row in the Row list.',
+          'Check the subject line and preheader above the preview.',
+          'Switch to Type values and type values for the attributes listed.',
+          'If SFMC sends its own subject line, click "What SFMC sent" and Report it so the Toolkit can read it.',
+        ],
+        expect: 'The preview appears as soon as a row is clicked, and changes with the row. Subject line and preheader show the row\'s values (from SFMC, or filled in here when SFMC does not send them: the note says which). Type values lists the email\'s attributes and the preview follows what you type.',
+      },
+      {
+        id: '2.0.20-content-folders', area: 'Content', title: 'CloudPages folders; Saved versions tabs; Email validation DE dialog', ref: '#1059 #1060', live: true,
+        where: 'Content > CloudPages; Content > Emails; Contacts > Email validation > Data extension',
+        steps: ['On CloudPages, open folders on the left and pick one.', 'Use the Saved versions tab on Emails and on CloudPages, then the first tab to go back.', 'In Email validation, choose the data extension in the dialog.'],
+        expect: 'CloudPages lists the pages of the folder (the CloudPages folder call is a guess: if the tree stays empty, Report it). Saved versions shows what Saved Emails and Saved CloudPages showed; old links still open. Email validation reads the picked DE\'s fields as before.',
+      },
+      {
         id: '2.0.20-panel-names', area: 'Run Query', title: 'Panels named after their SQL', ref: '#1053',
         where: 'Run Query',
         steps: ['Add a panel: it is called New query.', 'Type a query on _Sent joined to _Job with a COUNT.', 'Rename the panel, then change the SQL.'],

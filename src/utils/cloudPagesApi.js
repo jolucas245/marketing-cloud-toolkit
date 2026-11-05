@@ -28,8 +28,10 @@ function textOperand(value) {
   return node(0)
 }
 
-export function cloudPageSearchBody(query, page = 1, pageSize = CP_PAGE_SIZE) {
-  const types = { property: 'assetType.id', simpleOperator: 'in', values: CLOUD_PAGE_ASSET_TYPE_IDS }
+export function cloudPageSearchBody(query, page = 1, pageSize = CP_PAGE_SIZE, folderId = null) {
+  let types = { property: 'assetType.id', simpleOperator: 'in', values: CLOUD_PAGE_ASSET_TYPE_IDS }
+  // One folder only (feedback #1059).
+  if (folderId != null && folderId !== '') types = { leftOperand: types, logicalOperator: 'AND', rightOperand: { property: 'category.id', simpleOperator: 'equal', value: Number(folderId) } }
   const value = query.trim().toLowerCase()
   return {
     page: { pageSize, page },
@@ -75,8 +77,8 @@ export function toCloudPage(item) {
   }
 }
 
-export async function searchCloudPages(stack, query, page = 1) {
-  const data = await sfmcFetch(`${CB(stack)}/asset/v1/content/assets/query?scope=ours`, 'POST', cloudPageSearchBody(query, page))
+export async function searchCloudPages(stack, query, page = 1, folderId = null) {
+  const data = await sfmcFetch(`${CB(stack)}/asset/v1/content/assets/query?scope=ours`, 'POST', cloudPageSearchBody(query, page, CP_PAGE_SIZE, folderId))
   const items = (data?.items || []).map(toCloudPage)
   return { items, total: data?.count ?? items.length }
 }

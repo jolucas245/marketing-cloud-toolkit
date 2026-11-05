@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 vi.mock('../sfmcApi.js', () => ({ sfmcFetch: vi.fn() }))
 import {
+  emailAttributes, fillEmail, responseShape,
   emailSearchBody, toEmailRow, fetchEmailFolders, clearEmailCaches, emailParts,
   fillPersonalization, previewUrls, previewFromResponse, previewWithData,
 } from '../contentEmails.js'
@@ -37,9 +38,9 @@ describe('Content > Emails (feedback #1054)', () => {
   })
 
   it('fills %%Field%% strings from a row and lists the missing ones', () => {
-    const r = fillPersonalization('Hi %%FirstName%% %%[Last Name]%% <%%Nope%%> %%=v(@x)=%%', { firstname: 'A&B', 'Last Name': 'C' })
-    expect(r.html).toBe('Hi A&amp;B C <%%Nope%%> %%=v(@x)=%%')
-    expect(r.filled).toEqual(['FirstName', 'Last Name'])
+    const r = fillPersonalization('Hi %%FirstName%% %%=AttributeValue("Last Name")=%% %%=v([Last Name])=%% <%%Nope%%> %%=v(@x)=%% %%[ SET @a = 1 ]%% %%view_email_url%%', { firstname: 'A&B', 'Last Name': 'C' })
+    expect(r.html).toBe('Hi A&amp;B C C <%%Nope%%> %%=v(@x)=%% %%[ SET @a = 1 ]%% %%view_email_url%%')
+    expect(r.filled.sort()).toEqual(['FirstName', 'Last Name'])
     expect(r.missing).toEqual(['Nope'])
   })
 
@@ -56,5 +57,17 @@ describe('Content > Emails (feedback #1054)', () => {
     expect(r.url).toContain('/row/2/')
     await expect(previewWithData('s1', { deId: 'G', rowNumber: 1 }, fetch)).rejects.toThrow('legacy email ID')
     expect(previewFromResponse({})).toBe(null)
+  })
+  it('lists the attributes an email uses (feedback #1058)', () => {
+    const html = '<p>%%FirstName%%</p>%%[ SET @c = AttributeValue("City") IF [Loyalty Tier] == "Gold" THEN ]%%<a href="%%view_email_url%%">x</a>%%=v([First Name])=%% %%=Lookup("DE","F","K","[NotAField]")=%%'
+    expect(emailAttributes(html, 'Hi %%firstname%%', '%%xtmonth%% %%Offer%%')).toEqual(['FirstName', 'City', 'Loyalty Tier', 'First Name', 'Offer'])
+  })
+
+  it('fills subject and preheader too, and reads them from any preview shape (feedback #1057)', () => {
+    const f = fillEmail({ html: '<p>%%Name%%</p>', subject: 'Hi %%Name%%', preheader: 'For %%Name%% %%Missing%%' }, { Name: 'Ada' })
+    expect(f).toMatchObject({ html: '<p>Ada</p>', subject: 'Hi Ada', preheader: 'For Ada %%Missing%%', filled: ['Name'], missing: ['Missing'] })
+    const p = previewFromResponse({ message: { views: { htmlBody: { contentType: 'vnd.exacttarget.message.email.htmlBody', content: '<p>A</p>' } }, subject: 'Hi Ada', preHeader: 'Pre' } })
+    expect(p).toMatchObject({ html: '<p>A</p>', subject: 'Hi Ada', preheader: 'Pre' })
+    expect(responseShape({ message: { views: [{ contentType: 'x', content: 'secret' }] } })).toEqual({ message: { views: [{ contentType: 'x', content: 'string' }] } })
   })
 })

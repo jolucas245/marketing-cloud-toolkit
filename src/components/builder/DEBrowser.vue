@@ -13,6 +13,8 @@ const props = defineProps({
   stack: { type: String, default: null },
   // Ids of the tables already in the query, marked "in query" in the lists.
   selectedIds: { type: Array, default: () => [] },
+  // Pickers that need a real data extension leave the data views out (feedback #1055).
+  hideDataViews: { type: Boolean, default: false },
 })
 const inQuery = computed(() => new Set(props.selectedIds.map(String)))
 
@@ -85,6 +87,7 @@ function onSearchInput() {
   // (feedback #137: _ChatMessagingSubscription); match them by name here.
   const dvMatches = () => {
     const q = searchQuery.value.trim().toLowerCase()
+    if (props.hideDataViews) return []
     return q ? dataViews.value.filter((n) => n.name.toLowerCase().includes(q)) : []
   }
   searchResults.value = dvMatches()
@@ -198,11 +201,11 @@ function badgeClass(sourceType) {
         <div v-if="!stack" class="px-2.5 py-2 text-muted-foreground">Connect to SFMC first</div>
 
         <!-- System data views -->
-        <button class="w-full flex items-center gap-1.5 px-2.5 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground hover:text-foreground" :aria-expanded="showDataViews" @click="showDataViews = !showDataViews">
+        <button v-if="!hideDataViews" class="w-full flex items-center gap-1.5 px-2.5 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground hover:text-foreground" :aria-expanded="showDataViews" @click="showDataViews = !showDataViews">
           System data views · {{ dataViews.length }}
           <ChevronDown v-if="showDataViews" class="h-3 w-3" /><ChevronRight v-else class="h-3 w-3" />
         </button>
-        <div v-if="showDataViews" class="flex flex-col gap-0.5">
+        <div v-if="showDataViews && !hideDataViews" class="flex flex-col gap-0.5">
           <button
             v-for="dv in dataViews"
             :key="dv.id"

@@ -116,7 +116,7 @@ async function deleteVersion(versionId) {
     if (!(await askConfirm({ title: `Delete this ${K.value.noun} from Marketing Cloud Toolkit?`, message: `This is the last version. Nothing changes in ${K.value.app}.`, confirmLabel: 'Delete', danger: true }))) return
     await new Promise((r) => chrome.storage.local.remove(emailId.value, r))
     showToast(`${K.value.noun[0].toUpperCase()}${K.value.noun.slice(1)} deleted.`)
-    router.push(K.value.base)
+    router.push(K.value.list)
     return
   }
   deletingVersionId.value = versionId
@@ -141,12 +141,12 @@ const contentBuilderUrl = (stack) => `https://mc.${stack}.exacttarget.com/cloud/
     <div v-else-if="!record" class="flex-1 flex flex-col items-center justify-center gap-3">
       <AlertCircle class="h-10 w-10 text-muted-foreground/40" />
       <p class="text-sm text-muted-foreground">This {{ K.noun }} is not saved in Marketing Cloud Toolkit.</p>
-      <RouterLink :to="K.base" class="text-xs text-primary underline">Back to {{ K.nouns }}</RouterLink>
+      <RouterLink :to="K.list" class="text-xs text-primary underline">Back to {{ K.nouns }}</RouterLink>
     </div>
 
     <template v-else>
       <div class="flex items-center gap-3 px-4 py-2 border-b border-border bg-card">
-        <RouterLink :to="K.base" class="p-1.5 rounded-md text-muted-foreground hover:bg-accent" :title="`Back to ${K.nouns}`"><ArrowLeft class="h-4 w-4" /></RouterLink>
+        <RouterLink :to="K.list" class="p-1.5 rounded-md text-muted-foreground hover:bg-accent" :title="`Back to ${K.nouns}`"><ArrowLeft class="h-4 w-4" /></RouterLink>
         <div class="flex-1 min-w-0">
           <h1 class="text-sm font-semibold truncate">{{ record.name }}</h1>
           <div class="flex items-center gap-2 mt-0.5 flex-wrap text-[11px] text-muted-foreground">

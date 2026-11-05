@@ -1,14 +1,16 @@
 <script setup>
 // CloudPages (SFMC Automation Viewer's CloudPage Finder): search CloudPage assets,
 // get each page's public URL and folder (one or all), export to Excel or a document.
-import { computed, reactive, ref } from 'vue'
-import { Search, Loader2, Link2, FolderTree, FileSpreadsheet, RefreshCw, ExternalLink, Code2 } from 'lucide-vue-next'
+import { computed, reactive, ref, watch } from 'vue'
+import { Search, Loader2, Link2, FolderTree, FileSpreadsheet, RefreshCw, ExternalLink, Code2, Globe } from 'lucide-vue-next'
 import DataTable from '@/components/results/DataTable.vue'
 import DownloadMenu from '@/components/results/DownloadMenu.vue'
 import StatusBadge from '@/components/results/StatusBadge.vue'
 import Button from '@/components/ui/button/Button.vue'
 import SfmcErrorNotice from '@/components/results/SfmcErrorNotice.vue'
 import CloudPageSourceDialog from '@/components/content/CloudPageSourceDialog.vue'
+import ContentFolderTree from '@/components/content/ContentFolderTree.vue'
+import ContentTabs from '@/components/content/ContentTabs.vue'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
 import { useStack, whenStack } from '@/composables/useStack.js'
 import { exportBaseName } from '@/utils/exportName.js'
@@ -35,6 +37,10 @@ const paths = reactive({}) // id → { status, path }
 const busy = reactive({ urls: false, paths: false })
 // The page whose preview and source are open (feedback #1010).
 const viewing = ref(null)
+// Folder tree (feedback #1059): picking a folder lists its CloudPages.
+const folder = ref(null)
+const tree = ref(null)
+watch(folder, () => search())
 
 const shown = computed(() => pages.value.filter((p) => (!hideUnpublished.value || p.status === 'Published') && (!hideSystem.value || !isSystemCloudPage(p.name))))
 
@@ -43,7 +49,7 @@ async function search() {
   loading.value = true
   error.value = ''
   try {
-    const r = await withReconnect(stack.value, () => searchCloudPages(stack.value, query.value, 1))
+    const r = await withReconnect(stack.value, () => searchCloudPages(stack.value, query.value, 1, folder.value?.id))
     pages.value = r.items
     total.value = r.total
     pageNo.value = 1
@@ -59,7 +65,7 @@ async function search() {
 async function loadMore() {
   loadingMore.value = true
   try {
-    const r = await searchCloudPages(stack.value, searched.value, pageNo.value + 1)
+    const r = await searchCloudPages(stack.value, searched.value, pageNo.value + 1, folder.value?.id)
     pages.value = [...pages.value, ...r.items]
     pageNo.value++
     for (const p of r.items) if (p.url) urls[p.id] = { status: 'ok', url: p.url }
@@ -91,6 +97,7 @@ function refresh() {
   clearCloudPageCaches()
   for (const k of Object.keys(paths)) delete paths[k]
   for (const k of Object.keys(urls)) delete urls[k]
+  tree.value?.reload()
   if (searched.value !== null) search()
 }
 
@@ -140,6 +147,7 @@ const columns = [
 <template>
   <div class="h-full flex flex-col">
     <div class="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-border bg-card">
+      <ContentTabs section="cloudpages" />
       <form class="flex items-center gap-2" @submit.prevent="search">
         <div class="relative">
           <Search class="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -159,13 +167,15 @@ const columns = [
       </template>
       <Button variant="ghost" size="icon" class="h-8 w-8" title="Refresh: forget cached URLs and folders" @click="refresh"><RefreshCw class="h-4 w-4" /></Button>
     </div>
-    <div class="flex-1 min-h-0 overflow-y-auto p-4">
+    <div class="flex-1 min-h-0 flex max-[760px]:flex-col">
+    <ContentFolderTree ref="tree" v-model="folder" :stack="stack" category-type="cloudpages" all-label="All CloudPages" :all-icon="Globe" class="w-60 shrink-0 border-r border-border max-[760px]:w-full max-[760px]:max-h-48 max-[760px]:border-r-0 max-[760px]:border-b" />
+    <div class="flex-1 min-w-0 overflow-y-auto p-4">
       <SfmcErrorNotice :error="error" :retrying="loading" @retry="search" />
       <div v-if="searched === null && !loading" class="max-w-md mx-auto mt-12 text-center text-sm text-muted-foreground">
         Search CloudPages by name, content or key, or search with an empty box to list all.
       </div>
       <template v-else-if="searched !== null">
-        <p class="mb-2 text-xs text-muted-foreground">{{ total.toLocaleString() }} found{{ searched ? ` for "${searched}"` : '' }}, {{ shown.length }} shown.</p>
+        <p class="mb-2 text-xs text-muted-foreground">{{ total.toLocaleString() }} found{{ folder ? ` in ${folder.name}` : '' }}{{ searched ? ` for "${searched}"` : '' }}, {{ shown.length }} shown.</p>
         <DataTable :columns="columns" :rows="shown" row-key="id" storage-key="cloudpages" empty-text="No CloudPages found.">
           <template #cell-name="{ row }">
             <span class="font-medium">{{ row.name }}</span>
@@ -190,6 +200,7 @@ const columns = [
           <Button variant="outline" size="sm" class="h-8 text-xs" :disabled="loadingMore" @click="loadMore"><Loader2 v-if="loadingMore" class="h-3.5 w-3.5 mr-1 animate-spin" /> Load {{ Math.min(50, total - pages.length) }} more ({{ pages.length }} of {{ total }})</Button>
         </div>
       </template>
+    </div>
     </div>
 
     <CloudPageSourceDialog :page="viewing" :stack="stack" @close="viewing = null" />

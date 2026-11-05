@@ -9,7 +9,6 @@ const PAGES = {
   '/queries/workspace': () => import('../views/queries/WorkspacePage.vue'),
   '/queries/builder': () => import('../views/queries/BuilderPage.vue'),
   '/queries/cleanup': () => import('../views/queries/CleanupPage.vue'),
-  '/emails': () => import('../views/emails/EmailsPage.vue'),
   '/data-extensions': () => import('../views/data/DataExtensionsPage.vue'),
   '/where-used': () => import('../views/data/WhereUsedPage.vue'),
   '/de-storage': () => import('../views/data/DEStoragePage.vue'),
@@ -25,13 +24,15 @@ const PAGES = {
   '/journey-overview': () => import('../views/journey/JourneyOverviewPage.vue'),
   '/journeys': () => import('../views/journey/JourneysPage.vue'),
   '/journey-entry': () => import('../views/journey/JourneyEntryPage.vue'),
-  '/content-emails': () => import('../views/content/EmailBrowserPage.vue'),
+  '/emails': () => import('../views/content/EmailBrowserPage.vue'),
+  '/emails/saved': () => import('../views/emails/EmailsPage.vue'),
   '/cloudpages': () => import('../views/content/CloudPagesPage.vue'),
   '/cloudpages/saved': () => import('../views/emails/EmailsPage.vue'),
 }
 
 export const routes = [
   { path: '/', redirect: '/home' },
+  { path: '/content-emails', redirect: '/emails' },
   ...NAV_ITEMS.map((item) => ({
     path: item.path,
     component: PAGES[item.path],

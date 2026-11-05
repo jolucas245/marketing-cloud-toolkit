@@ -13,7 +13,7 @@ export const FEATURE_GROUPS = [
       { title: 'Descriptive file names', since: '2.0.4', detail: 'Downloads are named with the business unit, what they contain, and the date and time.' },
       { title: 'Storage by section', since: '2.0.4', how: 'Settings > Storage', detail: 'What takes the space, by section and business unit. Delete one part, or keep only the newest versions of each email.' },
       { title: 'App sessions started for you', how: 'Automatic (Settings > Connection)', detail: 'When the Toolkit opens and at least one SFMC app already has a session, the apps without one are started in the background, one at a time in a tab that closes itself (at most every 10 minutes). The connection menu shows each app as Ready or Starting, and Start missing does it now.' },
-      { title: 'Sections in the sidebar', detail: 'Home, then Queries (Run Query, Query Builder, Saved queries), Data (Data Extensions, Create DE, Where used, DE storage), Contacts (Contacts, Contact journeys, Email validation), Automation (Automation overview, Automations, Activities, Saved Activities, Templates), Journeys (Journey overview, Journeys, Journey Entry) and Content (Emails, CloudPages, Saved Emails, Saved CloudPages). Settings is at the bottom. Collapse the sidebar to icons with Collapse; in a narrow window it shows icons only.' },
+      { title: 'Sections in the sidebar', detail: 'Home, then Queries (Run Query, Query Builder, Saved queries), Data (Data Extensions, Create DE, Where used, DE storage), Contacts (Contacts, Contact journeys, Email validation), Automation (Automation overview, Automations, Activities, Saved Activities, Templates), Journeys (Journey overview, Journeys, Journey Entry) and Content (Emails and CloudPages, each with a Saved versions tab). Settings is at the bottom. Collapse the sidebar to icons with Collapse; in a narrow window it shows icons only.' },
       { title: 'Search everything', how: 'Ctrl+K (Cmd+K on a Mac), or Search in the top bar', detail: 'Jump to a section, open a saved query or a saved email, or start a search for data extensions, automations, activities, CloudPages or journey entry events.' },
       { title: 'Several tabs', detail: 'Each click on the toolbar icon opens a new tab, and Ctrl-click opens a section in a new tab. Two tabs never edit the same workspace or Query Builder query.' },
       { title: 'Results 50 at a time', detail: 'Every SFMC search (data extensions, automations, activities, journeys, journey entry events, CloudPages) shows the first 50 results; Load 50 more shows the next.' },
@@ -400,7 +400,9 @@ export const FEATURE_GROUPS = [
     items: [
       { title: 'Browse and search emails', since: '2.0.20', detail: 'Content Builder folders on the left; open a folder to list its emails, or search by name, subject line or customer key in the open folder or in all folders.' },
       { title: 'See an email', since: '2.0.20', how: 'Pick an email', detail: 'Preview (slots and blocks filled in, scripts off), the text version and the HTML code, with the subject line and preheader.' },
-      { title: 'Preview with data', since: '2.0.20', how: 'Preview with data', detail: 'Pick a data extension and one of its first 50 rows. Preview in SFMC asks SFMC to render the email for that row (AMPscript included); Fill in here replaces %%Field%% strings with the row\'s values.' },
+      { title: 'Preview with data', since: '2.0.20', how: 'Preview with data > From a data extension', detail: 'Choose a data extension from its folders and one of its first 50 rows in a dialog; SFMC renders the email for that row (AMPscript included) straight away, subject line and preheader too, and again when you pick another row.' },
+      { title: 'Type values', since: '2.0.20', how: 'Preview with data > Type values', detail: 'The attributes the email uses (%%Field%%, AttributeValue and [Field] in AMPscript, from the subject line, preheader, HTML and text) each get a box; the preview fills them in as you type.' },
+      { title: 'Saved versions', since: '2.0.20', how: 'Saved versions tab', detail: 'The versions the Toolkit kept of each email (formerly Saved Emails).' },
     ],
   },
   {
@@ -408,7 +410,7 @@ export const FEATURE_GROUPS = [
     title: 'CloudPages',
     intro: 'Content > CloudPages.',
     items: [
-      { title: 'Find CloudPages', detail: 'Search by name, content or key, or list all. Hide unpublished or system pages.' },
+      { title: 'Find CloudPages', detail: 'Search by name, content or key, or list all, or open a folder on the left (since 2.0.20). Hide unpublished or system pages. Saved versions (formerly Saved CloudPages) is a tab.' },
       { title: 'View a CloudPage', since: '2.0.16', how: 'View on a CloudPage', detail: 'Preview (the page with scripts off), Source (its HTML: copy or download) and Raw JSON (the record as SFMC returns it). Code resources show their code instead of a preview.' },
       { title: 'URLs and folders', detail: 'Get each page\'s public URL and folder path, one by one or for every listed page.' },
       { title: 'Excel export', detail: 'Name, key, type, status, asset ID, URL and dates, with folder paths if you want them.' },

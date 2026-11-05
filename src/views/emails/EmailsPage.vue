@@ -11,6 +11,7 @@ import { groupByDate } from '@/utils/dateGroups.js'
 import { useStoredSetting } from '@/composables/useStoredSetting.js'
 import { showToast } from '@/composables/useToast.js'
 import { SAVED_ASSET_KINDS } from '@/utils/savedAssets.js'
+import ContentTabs from '@/components/content/ContentTabs.vue'
 
 const props = defineProps({ kind: { type: String, default: 'email' } })
 // Reactive: /emails and /cloudpages/saved share this component, and Vue reuses the
@@ -100,6 +101,7 @@ async function deleteSelected() {
 <template>
   <div class="h-full flex flex-col">
     <div class="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-border bg-card">
+      <ContentTabs :section="K.kind === 'cloudpage' ? 'cloudpages' : 'emails'" />
       <template v-if="!deleteMode">
         <div class="relative">
           <Search class="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />

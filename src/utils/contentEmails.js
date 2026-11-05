@@ -19,12 +19,17 @@ export function toFolder(c) {
   return { id: String(c.id), name: c.name || '', parentId: String(c.parentId ?? '0'), type: c.categoryType || '' }
 }
 
-/** Child folders of a Content Builder folder ('0' for the top level), by name. */
-export function fetchEmailFolders(stack, parentId = '0', fetch = sfmcFetch) {
-  const key = `${stack}:${parentId}`
+/**
+ * Child folders of a Content Builder folder ('0' for the top level), by name. With a
+ * categoryType (cloudpages, feedback #1059) only folders of that type, as SFMC's own
+ * CloudPages folder calls ask (not checked live for the top level).
+ */
+export function fetchContentFolders(stack, parentId = '0', { categoryType = '', fetch = sfmcFetch } = {}) {
+  const key = `${stack}:${categoryType}:${parentId}`
   if (!folderCache.has(key)) {
     const filter = encodeURIComponent(`parentId eq ${Number(parentId) || 0}`)
-    const p = fetch(`${CB(stack)}/asset/v1/content/categories?$page=1&$pagesize=500&$filter=${filter}`, 'GET')
+    const type = categoryType ? `&categoryType=${encodeURIComponent(categoryType)}` : ''
+    const p = fetch(`${CB(stack)}/asset/v1/content/categories?$page=1&$pagesize=500&$filter=${filter}${type}`, 'GET')
       .then((d) => (d?.items || []).map(toFolder).sort((a, b) => a.name.localeCompare(b.name)))
     p.catch(() => folderCache.delete(key))
     folderCache.set(key, p)
@@ -33,6 +38,9 @@ export function fetchEmailFolders(stack, parentId = '0', fetch = sfmcFetch) {
 }
 
 export function clearEmailCaches() { folderCache.clear() }
+
+/** Email folders (any type, as Content Builder shows them). */
+export const fetchEmailFolders = (stack, parentId = '0', fetch = sfmcFetch) => fetchContentFolders(stack, parentId, { fetch })
 
 // ── Emails ───────────────────────────────────────────────
 /** Query body: email assets, optionally in one folder and matching a text. */
@@ -98,26 +106,81 @@ export function emailParts(asset) {
 }
 
 // ── Preview with data ────────────────────────────────────
+// Personalization strings SFMC fills itself: never asked for in Type values (#1058).
+const SYSTEM_STRINGS = new Set([
+  'view_email_url', 'unsub_center_url', 'profile_center_url', 'subscription_center_url', 'ftaf_url', 'forward_to_a_friend',
+  'double_opt_in_url', 'mobile_view_url', 'member_busname', 'member_addr', 'member_city', 'member_state', 'member_postalcode',
+  'member_country', 'jobid', '_jobsubscriberbatchid', '_messagecontext', '_emailid', '_preheader', 'xtmonth', 'xtmonthnumeric',
+  'xtday', 'xtdayofweek', 'xtyear', 'xtshortdate', 'xtlongdate', '_datasourcename', '_replycontactemail', '_replycontactname',
+  'emailname_', 'additionalemailattribute1', 'listid', '_listname', 'subscriberid', 'replyname', 'replyemailaddress',
+])
+const isSystemString = (n) => SYSTEM_STRINGS.has(n.toLowerCase()) || /^xt/i.test(n) || /_url$/i.test(n)
+
+const FIELD_STRING_RE = /%%([A-Za-z_][A-Za-z0-9_ -]*?)%%/g // %%FirstName%%
+const ATTR_CALL_RE = /AttributeValue\(\s*["']([^"']+)["']\s*\)/gi // AttributeValue("First Name")
+const AMP_RE = /%%\[([\s\S]*?)\]%%|%%=([\s\S]*?)=%%|<script[^>]*runat=["']?server["']?[^>]*>([\s\S]*?)<\/script>/gi
+const BRACKET_RE = /\[([A-Za-z_][A-Za-z0-9_ -]*)\]/g // [First Name] inside AMPscript
+
 /**
- * %%Field%% personalization strings filled from one row (names match regardless of
- * case; brackets allowed: %%[First Name]%%). Other AMPscript is left as written.
- * Returns { html, filled: names used, missing: names with no column }.
+ * The attributes an email uses (feedback #1058): %%Field%% strings, AttributeValue("x")
+ * and [Field Name] inside AMPscript, in the order they first appear. System strings
+ * that SFMC fills itself (view_email_url, xtmonth and the like) are left out.
+ */
+export function emailAttributes(...texts) {
+  const out = new Map()
+  const add = (n) => {
+    const name = String(n || '').trim()
+    if (!name || isSystemString(name)) return
+    const k = name.toLowerCase()
+    if (!out.has(k)) out.set(k, name)
+  }
+  for (const t of texts) {
+    const text = String(t || '')
+    for (const m of text.matchAll(FIELD_STRING_RE)) add(m[1])
+    for (const m of text.matchAll(ATTR_CALL_RE)) add(m[1])
+    for (const m of text.matchAll(AMP_RE)) {
+      const code = (m[1] ?? m[2] ?? m[3] ?? '').replace(/"[^"]*"|'[^']*'/g, '""')
+      for (const b of code.matchAll(BRACKET_RE)) add(b[1])
+    }
+  }
+  return [...out.values()]
+}
+
+/**
+ * Fills one row's values into the text (names match regardless of case): %%Field%%,
+ * and output blocks that only print an attribute: %%=AttributeValue("x")=%%,
+ * %%=v([x])=%%, %%=[x]=%%. Other AMPscript is left as written.
+ * Returns { html, filled: names used, missing: names with no value }.
  */
 export function fillPersonalization(html, row) {
   const values = new Map(Object.entries(row || {}).map(([k, v]) => [k.toLowerCase(), v]))
   const filled = new Set()
   const missing = new Set()
-  const out = String(html || '').replace(/%%\[?([A-Za-z0-9_ -]+?)\]?%%/g, (whole, name) => {
-    const k = name.trim().toLowerCase()
-    if (!values.has(k)) { missing.add(name.trim()); return whole }
-    filled.add(name.trim())
-    return escapeHtml(values.get(k) ?? '')
-  })
+  const sub = (whole, name, escape = true) => {
+    const n = name.trim()
+    if (isSystemString(n)) return whole
+    const k = n.toLowerCase()
+    if (!values.has(k) || values.get(k) == null || values.get(k) === '') { missing.add(n); return whole }
+    filled.add(n)
+    return escape ? escapeHtml(values.get(k)) : String(values.get(k))
+  }
+  const out = String(html || '')
+    .replace(/%%=\s*(?:v\(\s*)?(?:AttributeValue\(\s*["']([^"']+)["']\s*\)|\[([^\]]+)\])\s*\)?\s*=%%/gi, (w, a, b) => sub(w, a || b))
+    .replace(FIELD_STRING_RE, (w, n) => sub(w, n))
   return { html: out, filled: [...filled], missing: [...missing] }
 }
 
 function escapeHtml(v) {
   return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+
+/** Subject, preheader and HTML filled in here from one set of values. */
+export function fillEmail(parts, row) {
+  const h = fillPersonalization(parts?.html, row)
+  const s = fillPersonalization(parts?.subject, row)
+  const p = fillPersonalization(parts?.preheader, row)
+  const uniq = (a) => [...new Set(a)]
+  return { html: h.html, subject: s.html, preheader: p.html, filled: uniq([...h.filled, ...s.filled, ...p.filled]), missing: uniq([...h.missing, ...s.missing, ...p.missing]) }
 }
 
 /** The guide/v1 preview URLs to try, most specific first. */
@@ -132,14 +195,50 @@ export function previewUrls(stack, { legacyId, deId, deKey, subscriberKey, rowNu
   return urls
 }
 
-/** The HTML (and subject) in a guide/v1 preview answer, whatever its exact shape. */
+/**
+ * HTML, subject and preheader in a guide/v1 preview answer, whatever its exact shape
+ * (feedback #1057: the subject did not change): any { contentType|type|name, content }
+ * pair in the answer, or keys named like subject / preheader / html.
+ */
 export function previewFromResponse(d) {
-  const views = d?.message?.views || d?.views || []
-  const list = Array.isArray(views) ? views : Object.values(views)
-  const pick = (re) => list.find((v) => re.test(String(v?.contentType || v?.type || '')))?.content
-  const html = pick(/html/i) ?? (typeof d?.html === 'string' ? d.html : null)
-  const subject = pick(/subject/i) ?? null
-  return html ? { html, subject } : null
+  const found = {}
+  const take = (kind, v) => { if (typeof v === 'string' && found[kind] == null) found[kind] = v }
+  const kindOf = (label) => {
+    const l = String(label || '').toLowerCase()
+    if (/preheader/.test(l)) return 'preheader'
+    if (/subject/.test(l)) return 'subject'
+    if (/html/.test(l)) return 'html'
+    if (/text/.test(l)) return 'text'
+    return null
+  }
+  const walk = (o, depth) => {
+    if (!o || typeof o !== 'object' || depth > 6) return
+    if (Array.isArray(o)) { for (const x of o) walk(x, depth + 1); return }
+    const label = o.contentType ?? o.type ?? o.name ?? o.key
+    const content = o.content ?? o.value ?? o.body
+    if (label && typeof content === 'string') { const k = kindOf(label); if (k) take(k, content) }
+    for (const [k, v] of Object.entries(o)) {
+      if (typeof v === 'string') {
+        const kind = /^(subject|subjectline|subject_line)$/i.test(k) ? 'subject' : /^pre_?header$/i.test(k) ? 'preheader' : /^(html|htmlbody|html_body)$/i.test(k) ? 'html' : null
+        if (kind) take(kind, v)
+      } else walk(v, depth + 1)
+    }
+  }
+  walk(d, 0)
+  if (!found.html) return null
+  return { html: found.html, subject: found.subject ?? null, preheader: found.preheader ?? null, shape: responseShape(d) }
+}
+
+/** The answer's structure without its values (keys and content types), for a report. */
+export function responseShape(d, depth = 0) {
+  if (depth > 5) return '...'
+  if (Array.isArray(d)) return d.slice(0, 6).map((x) => responseShape(x, depth + 1))
+  if (d && typeof d === 'object') {
+    const o = {}
+    for (const [k, v] of Object.entries(d)) o[k] = /^(contentType|type|name|key)$/.test(k) && typeof v === 'string' ? v : responseShape(v, depth + 1)
+    return o
+  }
+  return typeof d
 }
 
 /**

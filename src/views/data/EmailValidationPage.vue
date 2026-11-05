@@ -10,9 +10,9 @@ import Button from '@/components/ui/button/Button.vue'
 import Input from '@/components/ui/input/Input.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import DEFolderPicker from '@/components/data/DEFolderPicker.vue'
+import DEPickerDialog from '@/components/data/DEPickerDialog.vue'
 import { useStack } from '@/composables/useStack.js'
 import { isPolicyOn, POLICY_NOTE } from '@/utils/policy.js'
-import { searchDEsAllSources } from '@/utils/sfmcApi.js'
 import { fetchDEFieldList } from '@/utils/deApi.js'
 import { loadRemainingRows } from '@/utils/deRows.js'
 import { parseKeyList, searchContactKeys } from '@/utils/contactsApi.js'
@@ -127,9 +127,7 @@ async function runContacts() {
 }
 
 // ── Data extension ──
-const deQuery = ref('')
-const deResults = ref([])
-const deSearching = ref(false)
+const pickerOpen = ref(false)
 const de = ref(null)
 const fields = ref([])
 const fieldsError = ref('')
@@ -154,17 +152,6 @@ const newFolderPath = ref('')
 const deStage = ref('') // reading | checking | writing
 const readCount = ref(0)
 const deDone = ref(null) // { name, key, sent, created, stopped }
-let timer = null
-watch(deQuery, (q) => {
-  clearTimeout(timer)
-  if (!q.trim()) { deResults.value = []; return }
-  timer = setTimeout(async () => {
-    deSearching.value = true
-    try { deResults.value = ((await searchDEsAllSources(stack.value, q.trim(), 25))?.items || []).slice(0, 25) }
-    catch (e) { error.value = `Search failed: ${e.message}` }
-    finally { deSearching.value = false }
-  }, 300)
-})
 async function pickDE(d) {
   de.value = d
   fields.value = []
@@ -340,16 +327,13 @@ const openRow = ref(null)
       <!-- Data extension -->
       <div v-else class="space-y-3 text-xs">
         <div class="space-y-1 max-w-xl">
-          <Input v-model="deQuery" class="h-8 text-xs" placeholder="Search data extensions by name" aria-label="Search data extensions" :disabled="busy" />
-          <div v-if="de" class="text-muted-foreground">Picked: <b class="text-foreground">{{ de.name }}</b></div>
-          <div v-if="deQuery.trim()" class="max-h-36 overflow-y-auto border border-border rounded p-1">
-            <div v-if="deSearching" class="flex items-center gap-1 p-1 text-muted-foreground"><Loader2 class="h-3 w-3 animate-spin" /> Searching...</div>
-            <button v-for="d in deResults" :key="d.id" class="w-full flex items-center gap-1.5 px-1 py-1 rounded text-left" :disabled="busy" :class="de?.id === d.id ? 'bg-primary/10' : 'hover:bg-muted'" @click="pickDE(d)">
-              <Database class="h-3 w-3 shrink-0" /><span class="truncate flex-1">{{ d.name }}</span>
-            </button>
-            <div v-if="!deSearching && !deResults.length" class="p-1 text-muted-foreground italic">No matches</div>
+          <!-- Folders and search in a dialog (feedback #1060). -->
+          <div class="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" :disabled="busy || !stack" data-choose-de @click="pickerOpen = true"><Database class="h-3.5 w-3.5" /> {{ de ? 'Change data extension' : 'Choose data extension' }}</Button>
+            <span v-if="de" class="text-muted-foreground">Picked: <b class="text-foreground">{{ de.name }}</b></span>
           </div>
         </div>
+        <DEPickerDialog v-if="pickerOpen" :stack="stack" title="Choose the data extension to validate" @pick="(p) => { pickerOpen = false; pickDE({ id: p.de.id, name: p.de.name, customerKey: p.de.key, key: p.de.key }) }" @close="pickerOpen = false" />
         <p v-if="fieldsError" class="text-red-600">{{ fieldsError }}<ReportErrorButton /></p>
         <template v-if="de && fields.length">
           <label class="flex items-center gap-2">Email field
