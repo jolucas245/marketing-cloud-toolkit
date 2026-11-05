@@ -44,8 +44,10 @@ export const fetchEmailFolders = (stack, parentId = '0', fetch = sfmcFetch) => f
 
 // ── Emails ───────────────────────────────────────────────
 /** Query body: email assets, optionally in one folder and matching a text. */
-export function emailSearchBody({ text = '', folderId = null, page = 1, pageSize = EMAIL_PAGE_SIZE } = {}) {
+export function emailSearchBody({ text = '', folderId = null, page = 1, pageSize = EMAIL_PAGE_SIZE, since = null } = {}) {
   let query = { property: 'assetType.id', simpleOperator: 'in', values: EMAIL_ASSET_TYPE_IDS }
+  // Only what changed after `since` (feedback #1069): the asset query's own date filter.
+  if (since) query = { leftOperand: query, logicalOperator: 'AND', rightOperand: { property: 'modifiedDate', simpleOperator: 'greaterThan', value: since } }
   if (folderId != null && folderId !== '') {
     query = { leftOperand: query, logicalOperator: 'AND', rightOperand: { property: 'category.id', simpleOperator: 'equal', value: Number(folderId) } }
   }
@@ -86,6 +88,18 @@ export async function searchEmails(stack, opts = {}, fetch = sfmcFetch) {
   const d = await fetch(`${CB(stack)}/asset/v1/content/assets/query`, 'POST', emailSearchBody(opts))
   const items = (d?.items || []).map(toEmailRow)
   return { items, total: d?.count ?? items.length }
+}
+
+/** Emails changed after `since` for one search (up to 10 pages). */
+export async function emailChanges(stack, opts, since, fetch = sfmcFetch) {
+  const out = []
+  for (let page = 1; page <= 10; page++) {
+    const d = await fetch(`${CB(stack)}/asset/v1/content/assets/query`, 'POST', emailSearchBody({ ...opts, page, since }))
+    const items = (d?.items || []).map(toEmailRow)
+    out.push(...items)
+    if (items.length < EMAIL_PAGE_SIZE) break
+  }
+  return out
 }
 
 /** The whole asset, for the preview. */

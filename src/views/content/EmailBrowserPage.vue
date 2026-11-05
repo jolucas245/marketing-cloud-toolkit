@@ -14,11 +14,13 @@ import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import DEPickerDialog from '@/components/data/DEPickerDialog.vue'
 import ContentFolderTree from '@/components/content/ContentFolderTree.vue'
 import ContentTabs from '@/components/content/ContentTabs.vue'
+import { cachedList, storedList, saveList } from '@/utils/listCache.js'
+import { savedAgo } from '@/utils/localCache.js'
 import { useStack, whenStack } from '@/composables/useStack.js'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
 import { formatDateTime } from '@/utils/format.js'
 import {
-  clearEmailCaches, searchEmails, fetchEmailAsset, emailParts,
+  clearEmailCaches, emailChanges, searchEmails, fetchEmailAsset, emailParts,
   fillEmail, emailAttributes, previewWithData, EMAIL_PAGE_SIZE,
 } from '@/utils/contentEmails.js'
 
@@ -27,7 +29,7 @@ const { stack } = useStack()
 // ── Folders ──────────────────────────────────────────────
 const currentFolder = ref(null) // { id, name }
 const tree = ref(null)
-watch(currentFolder, () => runSearch())
+watch(currentFolder, () => runSearch('open'))
 
 // ── Emails ───────────────────────────────────────────────
 const text = ref('')
@@ -40,35 +42,55 @@ const error = ref(null)
 const searchedFor = ref(null) // what the list shows: { text, folder }
 const searchAll = ref(false) // search every folder, not only the open one
 
-async function runSearch() {
-  if (!stack.value) { error.value = 'Not connected to Marketing Cloud. Log in to SFMC in this browser.'; return }
+// Feedback #1069: a search is stored for 30 days. Opening a folder (or the page) shows
+// the stored list without a call; Search asks SFMC only for emails changed since;
+// Refresh reads it all again.
+const listInfo = ref(null) // { savedAt, mode, changed }
+const searchParams = () => {
   const folderId = searchAll.value && text.value.trim() ? null : currentFolder.value?.id ?? null
+  return { text: text.value.trim(), folderId }
+}
+async function runSearch(mode = 'search') {
+  if (!stack.value) { error.value = 'Not connected to Marketing Cloud. Log in to SFMC in this browser.'; return }
+  const params = searchParams()
   loading.value = true
   error.value = null
   try {
-    const r = await withReconnect(stack.value, () => searchEmails(stack.value, { text: text.value, folderId, page: 1 }))
+    let r = mode === 'open' ? await storedList(stack.value, 'emails', params) : null
+    if (r) r = { ...r, mode: 'stored' }
+    else {
+      r = await withReconnect(stack.value, () => cachedList({
+        stack: stack.value, kind: 'emails', params, force: mode === 'refresh',
+        full: () => searchEmails(stack.value, { ...params, page: 1 }),
+        changes: (since) => emailChanges(stack.value, params, since),
+        sortBy: (x, y) => String(y.modifiedDate || '').localeCompare(String(x.modifiedDate || '')),
+      }))
+    }
     emails.value = r.items
     total.value = r.total
-    pageNo.value = 1
-    searchedFor.value = { text: text.value.trim(), folder: folderId ? currentFolder.value?.name : null }
+    pageNo.value = Math.max(1, Math.ceil(r.items.length / EMAIL_PAGE_SIZE))
+    listInfo.value = { savedAt: r.savedAt, mode: r.mode, changed: r.changed }
+    searchedFor.value = { text: params.text, folder: params.folderId ? currentFolder.value?.name : null }
   } catch (e) {
     error.value = searchError(e, 'search emails')
   } finally { loading.value = false }
 }
 async function loadMore() {
-  const folderId = searchAll.value && text.value.trim() ? null : currentFolder.value?.id ?? null
+  const params = searchParams()
   loadingMore.value = true
   try {
-    const r = await searchEmails(stack.value, { text: searchedFor.value?.text || '', folderId, page: pageNo.value + 1 })
-    emails.value = [...emails.value, ...r.items]
+    const r = await searchEmails(stack.value, { ...params, page: pageNo.value + 1 })
+    const have = new Set(emails.value.map((e) => e.id))
+    emails.value = [...emails.value, ...r.items.filter((e) => !have.has(e.id))]
     pageNo.value += 1
+    saveList(stack.value, 'emails', params, emails.value, total.value)
   } catch (e) { error.value = searchError(e, 'load more emails') }
   finally { loadingMore.value = false }
 }
 function refresh() {
   clearEmailCaches()
-  tree.value?.reload()
-  runSearch()
+  tree.value?.reload(true)
+  runSearch('refresh')
 }
 
 // ── The picked email ─────────────────────────────────────
@@ -187,7 +209,7 @@ const shownHtml = computed(() => dataPreview.value?.html ?? parts.value?.html ??
 const shownSubject = computed(() => dataPreview.value?.subject ?? parts.value?.subject ?? '')
 const shownPreheader = computed(() => dataPreview.value?.preheader ?? parts.value?.preheader ?? '')
 
-whenStack(() => runSearch())
+whenStack(() => runSearch('open'))
 </script>
 
 <template>
@@ -195,7 +217,7 @@ whenStack(() => runSearch())
     <div class="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-border">
       <h1 class="text-lg font-semibold mr-2">Emails</h1>
       <ContentTabs section="emails" />
-      <form class="flex items-center gap-2 flex-1 min-w-[16rem]" @submit.prevent="runSearch">
+      <form class="flex items-center gap-2 flex-1 min-w-[16rem]" @submit.prevent="runSearch('search')">
         <div class="relative flex-1">
           <Search class="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input v-model="text" class="pl-9 rounded-full" placeholder="Name, subject line or customer key" aria-label="Search emails" data-email-search />
@@ -217,10 +239,12 @@ whenStack(() => runSearch())
         <div class="px-3 py-2 text-xs text-muted-foreground border-b border-border">
           <template v-if="searchedFor">
             {{ total.toLocaleString() }} email(s)<template v-if="searchedFor.folder"> in {{ searchedFor.folder }}</template><template v-if="searchedFor.text"> matching "{{ searchedFor.text }}"</template>
+            <span v-if="listInfo?.mode === 'stored'" class="block" data-list-note>Stored {{ savedAgo(listInfo.savedAt) }}. Search reads only the changes; Refresh reads all.</span>
+            <span v-else-if="listInfo?.mode === 'delta'" class="block" data-list-note>Stored list with {{ listInfo.changed }} change(s) read from SFMC.</span>
           </template>
           <template v-else-if="loading">Searching</template>
         </div>
-        <SfmcErrorNotice v-if="error" :error="error" :retrying="loading" class="m-3" @retry="runSearch" />
+        <SfmcErrorNotice v-if="error" :error="error" :retrying="loading" class="m-3" @retry="runSearch('search')" />
         <button v-for="e in emails" :key="e.id" type="button" class="w-full text-left px-3 py-2 border-b border-border" :class="picked?.id === e.id ? 'bg-primary/10' : 'hover:bg-accent'" :data-email-row="e.id" @click="pick(e)">
           <div class="font-medium truncate">{{ e.name }}</div>
           <div class="text-xs text-muted-foreground truncate">{{ e.subject || 'No subject line' }}</div>

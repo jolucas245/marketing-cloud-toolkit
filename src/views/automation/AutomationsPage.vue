@@ -17,7 +17,9 @@ import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
 import { useStack, whenStack } from '@/composables/useStack.js'
 import { useRouteSearch } from '@/composables/useRouteSearch.js'
 import { showToast } from '@/composables/useToast.js'
-import { searchAutomations, loadMoreAutomations } from '@/utils/automationApi.js'
+import { searchAutomations, loadMoreAutomations, automationChanges } from '@/utils/automationApi.js'
+import { cachedList, storedList, saveList } from '@/utils/listCache.js'
+import { savedAgo } from '@/utils/localCache.js'
 import { automationFolderLoader, inFolder } from '@/utils/folderLoaders.js'
 import ContentFolderTree from '@/components/content/ContentFolderTree.vue'
 import { formatDateTime } from '@/utils/format.js'
@@ -36,17 +38,28 @@ const error = ref('')
 // Folder tree (feedback #1064): picking a folder lists its automations.
 const folder = ref(null)
 const folderLoad = computed(() => (stack.value ? automationFolderLoader(stack.value, 'automations') : null))
-watch(folder, () => search())
+watch(folder, () => search('open'))
 
-async function search() {
+const listInfo = ref(null)
+async function search(mode = 'search') {
   if (!stack.value) { error.value = 'Not connected to Marketing Cloud. Log in to SFMC in this browser.'; return }
   loading.value = true
   error.value = ''
   try {
-    const r = await withReconnect(stack.value, () => searchAutomations(stack.value, query.value, 0, undefined, folder.value?.id ?? null))
-    entries.value = r.entries.filter((a) => inFolder(a, folder.value?.id))
+    const params = { query: query.value.trim(), categoryId: folder.value?.id ?? null }
+    // Feedback #1069: stored 30 days; a folder shows the stored list, Search reads the
+    // automations changed since (status and last run only change with Refresh).
+    let r = mode === 'open' ? await storedList(stack.value, 'automations', params) : null
+    if (r) r = { ...r, mode: 'stored' }
+    else r = await withReconnect(stack.value, () => cachedList({
+      stack: stack.value, kind: 'automations', params, force: mode === 'refresh',
+      full: async () => { const x = await searchAutomations(stack.value, params.query, 0, undefined, params.categoryId); return { items: x.entries, total: x.total } },
+      changes: (since) => automationChanges(stack.value, params.query, params.categoryId, since),
+    }))
+    listInfo.value = { savedAt: r.savedAt, mode: r.mode, changed: r.changed }
+    entries.value = r.items.filter((a) => inFolder(a, folder.value?.id))
     // SFMC ignored the folder: count what is shown (feedback #1064).
-    total.value = entries.value.length < r.entries.length ? entries.value.length : r.total
+    total.value = entries.value.length < r.items.length ? entries.value.length : r.total
     picked.value = new Set()
     searched.value = query.value.trim()
   } catch (e) {
@@ -63,6 +76,7 @@ async function loadMore() {
     entries.value = [...entries.value, ...r.entries.filter((a) => inFolder(a, folder.value?.id))]
     // Nothing new although SFMC counts more: stop offering Load more.
     total.value = r.entries.length ? r.total : entries.value.length
+    saveList(stack.value, 'automations', { query: searched.value, categoryId: folder.value?.id ?? null }, entries.value, total.value)
     if (!r.entries.length) showToast('SFMC returned no more automations.')
   } catch (e) {
     showToast(`Could not load more: ${e.message}`)
@@ -111,7 +125,7 @@ const columns = [
 <template>
   <div class="h-full flex flex-col">
     <div class="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-border bg-card">
-      <form class="flex items-center gap-2" @submit.prevent="search">
+      <form class="flex items-center gap-2" @submit.prevent="search('search')">
         <div class="relative">
           <Search class="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <input v-model="query" type="search" placeholder="Automation name (empty lists all)" aria-label="Automation name"
@@ -122,15 +136,16 @@ const columns = [
       <span class="text-xs text-muted-foreground">Viewing an automation never pauses or changes it.</span>
     </div>
     <div class="flex-1 min-h-0 flex max-[760px]:flex-col">
-    <ContentFolderTree v-model="folder" :stack="stack" :load="folderLoad" all-label="All automations" class="w-60 shrink-0 border-r border-border max-[760px]:w-full max-[760px]:max-h-48 max-[760px]:border-r-0 max-[760px]:border-b" />
+    <ContentFolderTree v-model="folder" :stack="stack" :load="folderLoad" cache-kind="automations" all-label="All automations" class="w-60 shrink-0 border-r border-border max-[760px]:w-full max-[760px]:max-h-48 max-[760px]:border-r-0 max-[760px]:border-b" />
     <div class="flex-1 min-w-0 overflow-y-auto p-4">
-      <SfmcErrorNotice :error="error" :retrying="loading" @retry="search" />
+      <SfmcErrorNotice :error="error" :retrying="loading" @retry="search('search')" />
       <div v-if="searched === null && !loading" class="max-w-md mx-auto mt-12 text-center text-sm text-muted-foreground">
         Search for an automation by name, or search with an empty box to list all, most recently run first.
       </div>
       <template v-else-if="searched !== null">
         <div class="mb-2 flex flex-wrap items-center gap-2">
-          <p class="text-xs text-muted-foreground flex-1">{{ total.toLocaleString() }} found{{ searched ? ` for "${searched}"` : '' }}.{{ entries.length < total ? ` Download covers the ${entries.length} shown; load more to include more.` : '' }}</p>
+          <p class="text-xs text-muted-foreground flex-1">{{ total.toLocaleString() }} found{{ searched ? ` for "${searched}"` : '' }}.{{ entries.length < total ? ` Download covers the ${entries.length} shown; load more to include more.` : '' }} <template v-if="listInfo?.mode === 'stored'">Stored {{ savedAgo(listInfo.savedAt) }}: Search reads only the changes.</template><template v-else-if="listInfo?.mode === 'delta'">{{ listInfo.changed }} change(s) read from SFMC.</template>
+            <button type="button" class="underline hover:text-foreground" title="Read the whole list again from SFMC (statuses, last runs, deletions)" data-list-refresh @click="search('refresh')">Refresh</button></p>
           <ProgressBar v-if="docProgress" :value="docProgress.done" :max="docProgress.total" label="Loading" show-count class="w-56" />
           <WatchButton v-if="entries.length" bulk :stack="stack" :items="entries.filter((a) => picked.has(a.id))" />
           <DownloadMenu v-if="entries.length" :get-doc="buildDoc" :file-name="picked.size === 1 ? entries.find((a) => picked.has(a.id))?.name || 'automation' : `automations-${searched || 'all'}`"

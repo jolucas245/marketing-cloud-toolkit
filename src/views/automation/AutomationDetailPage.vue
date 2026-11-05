@@ -6,7 +6,7 @@
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Loader2, ExternalLink, Mail, ChevronDown, ChevronRight, X, Network } from 'lucide-vue-next'
+import { ArrowLeft, Loader2, ExternalLink, Mail, ChevronDown, ChevronRight, X, Network, RefreshCw } from 'lucide-vue-next'
 import { useUsage } from '@/composables/useUsage.js'
 import ActivityCard from '@/components/results/ActivityCard.vue'
 import StatusBadge from '@/components/results/StatusBadge.vue'
@@ -24,6 +24,7 @@ import { describeActivity, automationUrl } from '@/utils/activityTypes.js'
 import { openInSfmc } from '@/utils/sfmcLinks.js'
 import { automationOverviewRows, scheduleRows, automationDoc } from '@/utils/automationDoc.js'
 import { runInBatches } from '@/utils/batchRunner.js'
+import { cached, cacheKey, cacheScope, readCache, writeCache, savedAgo } from '@/utils/localCache.js'
 import AiButton from '@/components/ai/AiButton.vue'
 import AskAiDialog from '@/components/ai/AskAiDialog.vue'
 import { useAi } from '@/composables/useAi.js'
@@ -49,11 +50,37 @@ const key = (si, ai) => `${si}.${ai}`
 // "0.1" (internal key) → "1.2" (as shown to people)
 const stepLabel = (k) => k.split('.').map((n) => Number(n) + 1).join('.')
 
-async function load() {
+// Feedback #1066, #1069: the automation and its activities are read from SFMC once and
+// kept in this browser (30 days); opening it again shows the stored copy without any
+// call. Refresh reads it all again; Check status asks only for its status.
+const savedAt = ref(null)
+const fromCache = ref(false)
+const actKey = (scope, a) => cacheKey(scope, 'activity', `${a.objectTypeId}:${a.activityObjectId ?? a.id ?? a.name}`)
+async function load(force = false) {
   if (!stack.value || !id.value) return
   loading.value = true
   error.value = ''
   for (const k of Object.keys(acts)) delete acts[k]
+  const scope = await cacheScope(stack.value)
+  const autoKey = cacheKey(scope, 'automation', id.value)
+  const stored = force ? null : await readCache(autoKey)
+  if (stored) {
+    details.value = stored.value.details
+    notifications.value = stored.value.notifications
+    savedAt.value = stored.savedAt
+    fromCache.value = true
+    latestRun.value = null
+    loading.value = false
+    ;(details.value.steps || []).forEach((step, si) => (step.activities || []).forEach((a, ai) => {
+      const raw = stored.value.activities?.[key(si, ai)]
+      acts[key(si, ai)] = raw?.error
+        ? { status: 'error', error: raw.error, desc: describeActivity(a.objectTypeId, { ...a, _fromStep: true }, stack.value) }
+        : { status: 'ok', desc: describeActivity(a.objectTypeId, raw?.details ?? { ...a, _fromStep: true }, stack.value) }
+    }))
+    // The running bar asks SFMC only when the stored copy says it is running.
+    watchRun()
+    return
+  }
   try {
     const r = await fetchAutomation(stack.value, id.value)
     // Opened by REST GUID (older Where used scans, entry events, links): run history and
@@ -65,6 +92,7 @@ async function load() {
     details.value = r.details
     notifications.value = r.notifications
     latestRun.value = null
+    fromCache.value = false
     watchRun()
   } catch (e) {
     error.value = `Could not load this automation: ${e.message}`
@@ -77,16 +105,42 @@ async function load() {
     acts[key(si, ai)] = { status: 'loading' }
     list.push({ a, k: key(si, ai) })
   }))
-  // A few at a time, so a long automation doesn't fire every request at once.
+  const activities = {}
+  // A few at a time, so a long automation doesn't fire every request at once. An
+  // activity already stored (from another automation) is not asked again unless Refresh.
   await runInBatches(list, 4, async ({ a, k }) => {
     try {
-      acts[k] = { status: 'ok', desc: describeActivity(a.objectTypeId, await fetchActivityDetails(stack.value, a), stack.value) }
+      const r = await cached(actKey(scope, a), () => fetchActivityDetails(stack.value, a), { force })
+      activities[k] = { details: r.value }
+      acts[k] = { status: 'ok', desc: describeActivity(a.objectTypeId, r.value, stack.value) }
     } catch (e) {
+      activities[k] = { error: e.message }
       acts[k] = { status: 'error', error: e.message, desc: describeActivity(a.objectTypeId, { ...a, _fromStep: true }, stack.value) }
     }
   })
+  const rec = await writeCache(autoKey, JSON.parse(JSON.stringify({ details: details.value, notifications: notifications.value, activities })))
+  savedAt.value = rec.savedAt
 }
-watch([id, stack], load, { immediate: true })
+// Status only (one call): updates the stored copy and starts the running bar if it runs.
+const checking = ref(false)
+async function checkStatus() {
+  checking.value = true
+  try {
+    const d = await fetchAutomationStatus(stack.value, id.value)
+    const changed = d?.modifiedDate && details.value?.modifiedDate && d.modifiedDate !== details.value.modifiedDate
+    // Edited since it was stored: read it all again.
+    if (changed) { await load(true); return }
+    details.value = { ...details.value, ...d, steps: d?.steps || details.value?.steps }
+    const scope = await cacheScope(stack.value)
+    const k = cacheKey(scope, 'automation', id.value)
+    const stored = await readCache(k)
+    if (stored) savedAt.value = (await writeCache(k, { ...stored.value, details: JSON.parse(JSON.stringify(details.value)) })).savedAt
+    watchRun()
+  } catch (e) {
+    error.value = `Could not check the status: ${e.message}`
+  } finally { checking.value = false }
+}
+watch([id, stack], () => load(), { immediate: true })
 
 // ── Running bar (feedback #123) ─────────────────────────
 // While the automation runs, its status and latest run are read again every 5 seconds;
@@ -134,6 +188,11 @@ const summaryPrompt = (extra) => buildAiTaskPrompt('automation', { text: docText
       <h1 class="text-sm font-semibold truncate">{{ details?.name || 'Automation' }}</h1>
       <StatusBadge v-if="details" :status="details.status ?? details.statusId" automation />
       <span v-if="pending" class="flex items-center gap-1 text-xs text-muted-foreground"><Loader2 class="h-3 w-3 animate-spin" /> Loading {{ pending }} activities</span>
+      <span v-else-if="savedAt && details" class="flex items-center gap-1.5 text-xs text-muted-foreground" data-saved-note>
+        Saved {{ savedAgo(savedAt) }}
+        <button type="button" class="underline hover:text-foreground disabled:opacity-50" :disabled="checking" title="Ask SFMC for the status only (one call)" data-check-status @click="checkStatus">{{ checking ? 'Checking' : 'Check status' }}</button>
+        <button type="button" class="inline-flex items-center gap-0.5 underline hover:text-foreground" title="Read the automation and its activities again from SFMC" data-refresh @click="load(true)"><RefreshCw class="h-3 w-3" /> Refresh</button>
+      </span>
       <div class="flex-1" />
       <template v-if="details">
         <div class="flex items-center gap-0.5 border border-border rounded-md p-0.5" role="group" aria-label="View">

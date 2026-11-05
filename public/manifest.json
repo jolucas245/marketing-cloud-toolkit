@@ -34,9 +34,7 @@
     "https://*.exacttarget.com/*",
     "https://*.marketingcloudapps.com/*",
     "https://*.marketingcloud.com/*",
-    "https://*.salesforce-marketingcloud.com/*"
-  ],
-  "optional_host_permissions": [
+    "https://*.salesforce-marketingcloud.com/*",
     "https://*.herokuapp.com/*"
   ],
   "storage": {

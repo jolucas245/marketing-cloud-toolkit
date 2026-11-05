@@ -1,5 +1,6 @@
 // Automation Studio calls (from SFMC Automation Viewer), through the service worker.
 import { sfmcFetch } from './sfmcApi.js'
+import { changesSince } from './localCache.js'
 import { activityEndpoint } from './activityTypes.js'
 import { RESULTS_PAGE_SIZE } from './paging.js'
 
@@ -15,6 +16,22 @@ export async function searchAutomations(stack, query, skip = 0, top = AUTOMATION
   const data = await sfmcFetch(`${AS(stack)}/legacy/v1/beta/automations/automation/definition/?$top=${top}&$skip=${skip}&$sort=${encodeURIComponent('lastRunTime desc')}&view=gridView${where}`, 'GET')
   const entries = data?.entry || []
   return { entries, total: data?.totalResults ?? entries.length }
+}
+
+/**
+ * Automations changed after `since` for one search (feedback #1069): the same list,
+ * sorted by modifiedDate newest first, read until an older one. Status and last run
+ * change without a new modifiedDate, so those stay as stored until Refresh.
+ */
+export function automationChanges(stack, query, categoryId, since, fetch = sfmcFetch) {
+  const name = query.trim()
+  const parts = [name ? `name like ${name}` : '', categoryId != null ? `categoryId eq ${Number(categoryId)}` : ''].filter(Boolean)
+  const where = parts.length ? `&$where=${encodeURIComponent(parts.join(' and '))}` : ''
+  return changesSince(since, async (page) => {
+    const skip = (page - 1) * AUTOMATION_PAGE_SIZE
+    const data = await fetch(`${AS(stack)}/legacy/v1/beta/automations/automation/definition/?$top=${AUTOMATION_PAGE_SIZE}&$skip=${skip}&$sort=${encodeURIComponent('modifiedDate desc')}&view=gridView${where}`, 'GET')
+    return data?.entry || []
+  })
 }
 
 /**

@@ -7,6 +7,8 @@ import { Loader2, Folder, FolderOpen, ChevronRight, ChevronDown } from 'lucide-v
 import SfmcErrorNotice from '@/components/results/SfmcErrorNotice.vue'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
 import { fetchContentFolders } from '@/utils/contentEmails.js'
+import { cached, cacheKey, cacheScope, forgetCache, savedAgo } from '@/utils/localCache.js'
+import { RefreshCw } from 'lucide-vue-next'
 
 const props = defineProps({
   stack: { type: String, default: null },
@@ -17,6 +19,8 @@ const props = defineProps({
   // Any other folder source (feedback #1064, #1065): (parentId) => Promise<[{ id, name }]>,
   // '0' being the top level. Without it, Content Builder folders.
   load: { type: Function, default: null },
+  // Stored for 30 days under this name (feedback #1069); the refresh icon reads SFMC again.
+  cacheKind: { type: String, default: '' },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -25,10 +29,20 @@ const expanded = reactive(new Set())
 const loading = reactive(new Set())
 const error = ref(null)
 
-async function loadChildren(parentId) {
-  if (!props.stack || children[parentId] || loading.has(parentId)) return
+const kind = computed(() => `folders-${props.cacheKind || (props.load ? 'custom' : `content-${props.categoryType || 'all'}`)}`)
+const savedAt = ref(null)
+async function loadChildren(parentId, force = false) {
+  if (!props.stack || (children[parentId] && !force) || loading.has(parentId)) return
   loading.add(parentId)
-  try { children[parentId] = await withReconnect(props.stack, () => (props.load ? props.load(parentId) : fetchContentFolders(props.stack, parentId, { categoryType: props.categoryType }))) }
+  const read = () => withReconnect(props.stack, () => (props.load ? props.load(parentId) : fetchContentFolders(props.stack, parentId, { categoryType: props.categoryType })))
+  try {
+    if (props.cacheKind || !props.load) {
+      const scope = await cacheScope(props.stack)
+      const r = await cached(cacheKey(scope, kind.value, parentId), read, { force })
+      children[parentId] = r.value
+      if (parentId === '0') savedAt.value = r.savedAt
+    } else children[parentId] = await read()
+  }
   catch (e) { error.value = searchError(e, 'read the folders') }
   finally { loading.delete(parentId) }
 }
@@ -57,11 +71,13 @@ const visible = computed(() => {
   walk('0', 0)
   return out
 })
-function reload() {
+/** Reads the folders again; `force` asks SFMC instead of the stored copy. */
+async function reload(force = false) {
   for (const k of Object.keys(children)) delete children[k]
   expanded.clear()
   error.value = null
-  loadChildren('0')
+  if (force && props.stack) await forgetCache(kind.value, await cacheScope(props.stack))
+  loadChildren('0', force)
 }
 watch(() => props.stack, () => reload(), { immediate: true })
 defineExpose({ reload })
@@ -69,9 +85,12 @@ defineExpose({ reload })
 
 <template>
   <nav class="overflow-y-auto p-2" aria-label="Folders" data-content-folders>
-    <button type="button" class="w-full flex items-center gap-1.5 rounded px-2 py-1 text-left" :class="!modelValue ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-accent'" @click="open(null)">
-      <component :is="allIcon || Folder" class="h-4 w-4" /> {{ allLabel }}
-    </button>
+    <div class="flex items-center gap-1">
+      <button type="button" class="flex-1 flex items-center gap-1.5 rounded px-2 py-1 text-left" :class="!modelValue ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-accent'" @click="open(null)">
+        <component :is="allIcon || Folder" class="h-4 w-4" /> {{ allLabel }}
+      </button>
+      <button type="button" class="p-1 rounded text-muted-foreground hover:bg-accent" :title="savedAt ? `Folders saved ${savedAgo(savedAt)}. Read them again from SFMC` : 'Read the folders again from SFMC'" aria-label="Refresh folders" data-folders-refresh @click="reload(true)"><RefreshCw class="h-3.5 w-3.5" /></button>
+    </div>
     <div v-for="f in visible" :key="f.id" :style="{ paddingLeft: `${f.depth * 14}px` }">
       <div v-if="f.loading" class="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground"><Loader2 class="h-3 w-3 animate-spin" /> Loading</div>
       <div v-else class="flex items-center rounded" :class="modelValue?.id === f.id ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-accent'">

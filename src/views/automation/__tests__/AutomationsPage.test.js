@@ -11,6 +11,7 @@ let connectReply = { ok: true }
 vi.mock('@/composables/useStack.js', () => ({ useStack: () => ({ stack: ref('s13') }), whenStack: () => {} }))
 vi.mock('@/composables/useRouteSearch.js', () => ({ useRouteSearch: () => {} }))
 vi.mock('@/utils/folderLoaders.js', () => ({ automationFolderLoader: () => async () => [], inFolder: () => true }))
+vi.mock('@/utils/listCache.js', () => ({ cachedList: ({ full }) => full().then((r) => ({ ...r, mode: 'full', savedAt: 1 })), storedList: async () => null, saveList: async () => 1 }))
 vi.mock('@/utils/automationApi.js', () => ({ searchAutomations: (...a) => search(...a), loadMoreAutomations: vi.fn() }))
 vi.mock('@/utils/messaging.js', () => ({ sendToBackground: async (m) => { sent.push(m); return connectReply } }))
 vi.mock('@/utils/sfmcLinks.js', () => ({ openInSfmc: () => {} }))

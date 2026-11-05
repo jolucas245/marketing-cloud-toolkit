@@ -1,8 +1,11 @@
 <script setup>
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
+import Button from '@/components/ui/button/Button.vue'
 import { computed, onUnmounted, ref } from 'vue'
 import Switch from '@/components/ui/switch/Switch.vue'
 import StorageUsage from '@/components/StorageUsage.vue'
+import { CACHE_DAYS, forgetCache, forgetScope } from '@/utils/localCache.js'
+import { askConfirm } from '@/composables/useConfirm.js'
 import FeedbackModal from '@/components/modals/FeedbackModal.vue'
 import CreatorCredit from '@/components/shell/CreatorCredit.vue'
 import { useTheme } from '@/composables/useTheme.js'
@@ -69,10 +72,16 @@ const { enabled: aiEnabled, availability: aiAvailabilityState } = useAi()
 const aiStatus = computed(() => (!isChromeBrowser() ? 'AI works only in Google Chrome; this browser does not show it.' : AVAILABILITY_TEXT[aiAvailabilityState.value] || 'Checking Chrome\'s built-in model...'))
 const { value: shareSetting } = useStoredSetting(SHARE_SETTING, true, (v) => v !== false)
 
-// Saving Query Studio runs: on by default (feedback #1021), but it needs the optional
-// *.herokuapp.com permission, which Chrome grants only on a click: the switch shows on
-// only once granted. Off gives the permission back (utils/queryStudio.js).
+// Saving Query Studio runs: on by default (feedback #1021). Since feedback #1068 the
+// *.herokuapp.com access is part of the install (no click needed); the switch only turns
+// saving on or off. An older install without the access still asks once.
 const qsCapture = ref(false)
+async function forgetStored() {
+  if (!(await askConfirm({ title: 'Forget stored SFMC data?', message: 'Folders, lists and automation details kept in this browser are removed. Pages read them from SFMC again when you open them.', confirmLabel: 'Forget' }))) return
+  await forgetCache()
+  forgetScope()
+  showToast('Stored SFMC data forgotten.')
+}
 chrome.storage?.local.get(QUERY_STUDIO_SETTING, (r) => {
   chrome.permissions?.contains(QUERY_STUDIO_PERMISSION, (has) => { qsCapture.value = !!has && r?.[QUERY_STUDIO_SETTING] !== false })
 })
@@ -83,8 +92,8 @@ function setQsCapture(on) {
     chrome.storage.local.set({ [QUERY_STUDIO_SETTING]: qsCapture.value })
     if (on && !ok) showToast('Query Studio runs are not saved: Chrome did not get the permission.')
   }
-  if (on) chrome.permissions.request(QUERY_STUDIO_PERMISSION, done)
-  else chrome.permissions.remove(QUERY_STUDIO_PERMISSION, () => done(false))
+  if (!on) { done(false); return }
+  chrome.permissions.contains(QUERY_STUDIO_PERMISSION, (has) => (has ? done(true) : chrome.permissions.request(QUERY_STUDIO_PERMISSION, done)))
 }
 const retentionInput = computed({
   get: () => retentionDays.value,
@@ -251,7 +260,7 @@ function setDebounce(e) {
       <div class="flex items-start gap-3">
         <div class="flex-1">
           <div class="text-sm font-medium">Save Query Studio runs</div>
-          <p class="text-xs text-muted-foreground">Queries you run in Query Studio and Query Studio 2 are saved in Saved queries, in this browser only. On by default, but Chrome needs your OK once: turning the switch on asks Chrome to let the extension read requests to herokuapp.com, where both Query Studios run; only their "run query" requests are read.</p>
+          <p class="text-xs text-muted-foreground">Queries you run in Query Studio and Query Studio 2 are saved in Saved queries, in this browser only. On by default. The extension may read requests to herokuapp.com, where both Query Studios run; only their "run query" requests are read, and only while this switch is on.</p>
         </div>
         <Switch :model-value="qsCapture && !policy.disableHistory" :disabled="policy.disableHistory" aria-label="Save Query Studio runs" @update:model-value="setQsCapture" />
       </div>
@@ -382,6 +391,11 @@ function setDebounce(e) {
     <section class="rounded-lg border border-border bg-card p-4">
       <h2 class="text-sm font-semibold mb-3">Storage</h2>
       <StorageUsage />
+      <!-- Feedback #1069: what the Toolkit keeps so it asks SFMC less. -->
+      <div class="mt-4 pt-3 border-t border-border flex flex-wrap items-center gap-3 text-xs" data-stored-sfmc>
+        <p class="flex-1 min-w-[16rem] text-muted-foreground">Folders, lists and automation details read from SFMC are kept in this browser for {{ CACHE_DAYS }} days, so pages open without asking SFMC again. Refresh on a page reads it again; this forgets all of it.</p>
+        <Button variant="outline" size="sm" data-forget-stored @click="forgetStored">Forget stored SFMC data</Button>
+      </div>
     </section>
 
     <section class="rounded-lg border border-border bg-card p-4 text-sm">

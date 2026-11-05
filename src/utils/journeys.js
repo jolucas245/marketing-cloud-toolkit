@@ -5,6 +5,7 @@
 // Not yet checked against a live org: the list filter (`nameOrDescription`), the
 // detail call's `extras=all`, and the Journey Builder deep link format.
 import { sfmcFetch } from './sfmcApi.js'
+import { changesSince } from './localCache.js'
 import { formatValue } from './activityTypes.js'
 import { formatDateTime } from './format.js'
 import { RESULTS_PAGE_SIZE } from './paging.js'
@@ -26,6 +27,14 @@ export async function searchJourneys(stack, { query = '', status = '', page = 1,
   const data = await sfmcFetch(`${JB(stack)}/interactions?${params}`, 'GET')
   const items = data?.items || []
   return { items, total: data?.count ?? items.length }
+}
+
+/**
+ * Journeys changed after `since` for one search (feedback #1069): the list is sorted
+ * newest change first, so pages are read until one holds an older journey.
+ */
+export function journeyChanges(stack, opts, since) {
+  return changesSince(since, async (page) => (await searchJourneys(stack, { ...opts, page })).items)
 }
 
 /**

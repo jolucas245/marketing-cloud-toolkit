@@ -449,7 +449,7 @@ const columns = [
     </div>
 
     <div class="flex-1 min-h-0 flex max-[760px]:flex-col">
-      <ContentFolderTree v-model="folder" :stack="stack" :load="folderLoad" all-label="All data extensions" class="w-60 shrink-0 border-r border-border max-[760px]:w-full max-[760px]:max-h-48 max-[760px]:border-r-0 max-[760px]:border-b" />
+      <ContentFolderTree v-model="folder" :stack="stack" :load="folderLoad" cache-kind="des" all-label="All data extensions" class="w-60 shrink-0 border-r border-border max-[760px]:w-full max-[760px]:max-h-48 max-[760px]:border-r-0 max-[760px]:border-b" />
       <div class="flex-1 min-w-0 flex flex-col">
         <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col gap-3.5">
           <!-- Search and filters -->

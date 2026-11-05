@@ -11,12 +11,14 @@ import SfmcErrorNotice from '@/components/results/SfmcErrorNotice.vue'
 import CloudPageSourceDialog from '@/components/content/CloudPageSourceDialog.vue'
 import ContentFolderTree from '@/components/content/ContentFolderTree.vue'
 import ContentTabs from '@/components/content/ContentTabs.vue'
+import { cachedList, storedList, saveList } from '@/utils/listCache.js'
+import { savedAgo } from '@/utils/localCache.js'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
 import { useStack, whenStack } from '@/composables/useStack.js'
 import { exportBaseName } from '@/utils/exportName.js'
 import { useRouteSearch } from '@/composables/useRouteSearch.js'
 import { showToast } from '@/composables/useToast.js'
-import { searchCloudPages, resolveCloudPageUrl, fetchCloudPageFolderPath, clearCloudPageCaches, isSystemCloudPage, CP_PAGE_SIZE } from '@/utils/cloudPagesApi.js'
+import { cloudPageChanges, searchCloudPages, resolveCloudPageUrl, fetchCloudPageFolderPath, clearCloudPageCaches, isSystemCloudPage, CP_PAGE_SIZE } from '@/utils/cloudPagesApi.js'
 import { runInBatches } from '@/utils/batchRunner.js'
 import { downloadWorkbook } from '@/utils/exportDoc.js'
 import { formatDateTime, formatDate } from '@/utils/format.js'
@@ -40,19 +42,32 @@ const viewing = ref(null)
 // Folder tree (feedback #1059): picking a folder lists its CloudPages.
 const folder = ref(null)
 const tree = ref(null)
-watch(folder, () => search())
+watch(folder, () => search('open'))
 
 const shown = computed(() => pages.value.filter((p) => (!hideUnpublished.value || p.status === 'Published') && (!hideSystem.value || !isSystemCloudPage(p.name))))
 
-async function search() {
+// Feedback #1069: stored for 30 days; a folder shows its stored list without a call,
+// Search reads only the changes, Refresh reads it all again.
+const listInfo = ref(null)
+const cpParams = () => ({ query: query.value.trim(), folderId: folder.value?.id ?? null })
+async function search(mode = 'search') {
   if (!stack.value) { error.value = 'Not connected to Marketing Cloud. Log in to SFMC in this browser.'; return }
   loading.value = true
   error.value = ''
+  const params = cpParams()
   try {
-    const r = await withReconnect(stack.value, () => searchCloudPages(stack.value, query.value, 1, folder.value?.id))
+    let r = mode === 'open' ? await storedList(stack.value, 'cloudpages', params) : null
+    if (r) r = { ...r, mode: 'stored' }
+    else r = await withReconnect(stack.value, () => cachedList({
+      stack: stack.value, kind: 'cloudpages', params, force: mode === 'refresh',
+      full: () => searchCloudPages(stack.value, params.query, 1, params.folderId),
+      changes: (since) => cloudPageChanges(stack.value, params.query, params.folderId, since),
+      sortBy: (x, y) => String(y.modifiedDate || '').localeCompare(String(x.modifiedDate || '')),
+    }))
     pages.value = r.items
     total.value = r.total
-    pageNo.value = 1
+    listInfo.value = { savedAt: r.savedAt, mode: r.mode, changed: r.changed }
+    pageNo.value = Math.max(1, Math.ceil(r.items.length / CP_PAGE_SIZE))
     searched.value = query.value.trim()
     for (const p of r.items) if (p.url) urls[p.id] = { status: 'ok', url: p.url }
   } catch (e) {
@@ -66,8 +81,10 @@ async function loadMore() {
   loadingMore.value = true
   try {
     const r = await searchCloudPages(stack.value, searched.value, pageNo.value + 1, folder.value?.id)
-    pages.value = [...pages.value, ...r.items]
+    const have = new Set(pages.value.map((p) => p.id))
+    pages.value = [...pages.value, ...r.items.filter((p) => !have.has(p.id))]
     pageNo.value++
+    saveList(stack.value, 'cloudpages', cpParams(), pages.value, total.value)
     for (const p of r.items) if (p.url) urls[p.id] = { status: 'ok', url: p.url }
   } catch (e) {
     showToast(`Could not load more: ${e.message}`)
@@ -97,8 +114,8 @@ function refresh() {
   clearCloudPageCaches()
   for (const k of Object.keys(paths)) delete paths[k]
   for (const k of Object.keys(urls)) delete urls[k]
-  tree.value?.reload()
-  if (searched.value !== null) search()
+  tree.value?.reload(true)
+  if (searched.value !== null) search('refresh')
 }
 
 const exportOpen = ref(false)
@@ -148,7 +165,7 @@ const columns = [
   <div class="h-full flex flex-col">
     <div class="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-border bg-card">
       <ContentTabs section="cloudpages" />
-      <form class="flex items-center gap-2" @submit.prevent="search">
+      <form class="flex items-center gap-2" @submit.prevent="search('search')">
         <div class="relative">
           <Search class="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <input v-model="query" type="search" placeholder="Name, content or key (empty lists all)" aria-label="CloudPage search"
@@ -170,12 +187,14 @@ const columns = [
     <div class="flex-1 min-h-0 flex max-[760px]:flex-col">
     <ContentFolderTree ref="tree" v-model="folder" :stack="stack" category-type="cloudpages" all-label="All CloudPages" :all-icon="Globe" class="w-60 shrink-0 border-r border-border max-[760px]:w-full max-[760px]:max-h-48 max-[760px]:border-r-0 max-[760px]:border-b" />
     <div class="flex-1 min-w-0 overflow-y-auto p-4">
-      <SfmcErrorNotice :error="error" :retrying="loading" @retry="search" />
+      <SfmcErrorNotice :error="error" :retrying="loading" @retry="search('search')" />
       <div v-if="searched === null && !loading" class="max-w-md mx-auto mt-12 text-center text-sm text-muted-foreground">
         Search CloudPages by name, content or key, or search with an empty box to list all.
       </div>
       <template v-else-if="searched !== null">
-        <p class="mb-2 text-xs text-muted-foreground">{{ total.toLocaleString() }} found{{ folder ? ` in ${folder.name}` : '' }}{{ searched ? ` for "${searched}"` : '' }}, {{ shown.length }} shown.</p>
+        <p class="mb-2 text-xs text-muted-foreground">{{ total.toLocaleString() }} found{{ folder ? ` in ${folder.name}` : '' }}{{ searched ? ` for "${searched}"` : '' }}, {{ shown.length }} shown.
+          <template v-if="listInfo?.mode === 'stored'"> Stored {{ savedAgo(listInfo.savedAt) }}: Search reads only the changes, Refresh reads all.</template>
+          <template v-else-if="listInfo?.mode === 'delta'"> Stored list with {{ listInfo.changed }} change(s) read from SFMC.</template></p>
         <DataTable :columns="columns" :rows="shown" row-key="id" storage-key="cloudpages" empty-text="No CloudPages found.">
           <template #cell-name="{ row }">
             <span class="font-medium">{{ row.name }}</span>

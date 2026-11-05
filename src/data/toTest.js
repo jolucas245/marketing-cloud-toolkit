@@ -35,6 +35,18 @@ export const TO_TEST = [
         expect: 'The preview appears as soon as a row is clicked, and changes with the row. Subject line and preheader show the row\'s values (from SFMC, or filled in here when SFMC does not send them: the note says which). Type values lists the email\'s attributes and the preview follows what you type.',
       },
       {
+        id: '2.0.20-stored-sfmc-data', area: 'General', title: 'Fewer SFMC calls: stored lists, folders and automation details; Query Studio without a prompt', ref: '#1066 #1068 #1069', live: true,
+        where: 'Emails, CloudPages, Journeys, Automations, an automation page; Settings > Storage; Settings > API console to watch calls',
+        steps: [
+          'Open Emails, a folder, then leave and come back: the list shows with "Stored ..." and no SFMC call in the API console.',
+          'Change an email in Content Builder, then Search in the Toolkit: only the change is read.',
+          'Open an automation twice: the second time shows "Saved ..." and makes no call; try Check status and Refresh.',
+          'Settings > Storage > Forget stored SFMC data, then open a page again.',
+          'Update from the store build (or load this zip over it): Chrome asks to accept herokuapp.com access; Query Studio runs are saved without the banner.',
+        ],
+        expect: 'Stored pages open without SFMC calls; Search reads only changes; Refresh reads all. The automations list delta uses $sort=modifiedDate desc (not checked live): if Search reports errors, Report them. Status and last run on the Automations list only change with Refresh.',
+      },
+      {
         id: '2.0.20-folders-concepts', area: 'Automation', title: 'Folder trees on Automations, Journeys and Data Extensions; Concepts button', ref: '#1064 #1065 #1067', live: true,
         where: 'Automation > Automations; Journeys > Journeys; Data > Data Extensions; the book icon in the top bar',
         steps: ['Open folders on the left of each page and pick one.', 'Check the list shows only that folder\'s items.', 'Click the book icon on several pages.'],

@@ -28,8 +28,10 @@ function textOperand(value) {
   return node(0)
 }
 
-export function cloudPageSearchBody(query, page = 1, pageSize = CP_PAGE_SIZE, folderId = null) {
+export function cloudPageSearchBody(query, page = 1, pageSize = CP_PAGE_SIZE, folderId = null, since = null) {
   let types = { property: 'assetType.id', simpleOperator: 'in', values: CLOUD_PAGE_ASSET_TYPE_IDS }
+  // Only what changed after `since` (feedback #1069).
+  if (since) types = { leftOperand: types, logicalOperator: 'AND', rightOperand: { property: 'modifiedDate', simpleOperator: 'greaterThan', value: since } }
   // One folder only (feedback #1059).
   if (folderId != null && folderId !== '') types = { leftOperand: types, logicalOperator: 'AND', rightOperand: { property: 'category.id', simpleOperator: 'equal', value: Number(folderId) } }
   const value = query.trim().toLowerCase()
@@ -81,6 +83,18 @@ export async function searchCloudPages(stack, query, page = 1, folderId = null) 
   const data = await sfmcFetch(`${CB(stack)}/asset/v1/content/assets/query?scope=ours`, 'POST', cloudPageSearchBody(query, page, CP_PAGE_SIZE, folderId))
   const items = (data?.items || []).map(toCloudPage)
   return { items, total: data?.count ?? items.length }
+}
+
+/** CloudPages changed after `since` for one search (up to 10 pages). */
+export async function cloudPageChanges(stack, query, folderId, since, fetch = sfmcFetch) {
+  const out = []
+  for (let page = 1; page <= 10; page++) {
+    const data = await fetch(`${CB(stack)}/asset/v1/content/assets/query?scope=ours`, 'POST', cloudPageSearchBody(query, page, CP_PAGE_SIZE, folderId, since))
+    const items = (data?.items || []).map(toCloudPage)
+    out.push(...items)
+    if (items.length < CP_PAGE_SIZE) break
+  }
+  return out
 }
 
 let sitesCache = null // { stack, promise }

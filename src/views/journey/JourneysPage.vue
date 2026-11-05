@@ -14,7 +14,9 @@ import { useRouteSearch } from '@/composables/useRouteSearch.js'
 import { showToast } from '@/composables/useToast.js'
 import { automationFolderLoader, inFolder } from '@/utils/folderLoaders.js'
 import ContentFolderTree from '@/components/content/ContentFolderTree.vue'
-import { searchJourneys, JOURNEY_STATUSES, JOURNEY_PAGE_SIZE } from '@/utils/journeys.js'
+import { cachedList, storedList, saveList } from '@/utils/listCache.js'
+import { savedAgo } from '@/utils/localCache.js'
+import { journeyChanges, searchJourneys, JOURNEY_STATUSES, JOURNEY_PAGE_SIZE } from '@/utils/journeys.js'
 import { formatDateTime } from '@/utils/format.js'
 import SfmcErrorNotice from '@/components/results/SfmcErrorNotice.vue'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
@@ -33,18 +35,29 @@ const error = ref('')
 // Folder tree (feedback #1064): picking a folder lists its journeys.
 const folder = ref(null)
 const folderLoad = computed(() => (stack.value ? automationFolderLoader(stack.value, 'journey') : null))
-watch(folder, () => search())
+watch(folder, () => search('open'))
 
-async function search() {
+const listInfo = ref(null)
+async function search(mode = 'search') {
   if (!stack.value) { error.value = 'Not connected to Marketing Cloud. Log in to SFMC in this browser.'; return }
   loading.value = true
   error.value = ''
   try {
-    const r = await withReconnect(stack.value, () => searchJourneys(stack.value, { query: query.value, status: status.value, page: 1, categoryId: folder.value?.id ?? null }))
+    const params = { query: query.value.trim(), status: status.value, categoryId: folder.value?.id ?? null }
+    // Feedback #1069: stored 30 days; a folder shows the stored list, Search reads the changes.
+    let r = mode === 'open' ? await storedList(stack.value, 'journeys', params) : null
+    if (r) r = { ...r, mode: 'stored' }
+    else r = await withReconnect(stack.value, () => cachedList({
+      stack: stack.value, kind: 'journeys', params, force: mode === 'refresh',
+      full: () => searchJourneys(stack.value, { ...params, page: 1 }),
+      changes: (since) => journeyChanges(stack.value, params, since),
+      sortBy: (x, y) => String(y.modifiedDate || '').localeCompare(String(x.modifiedDate || '')),
+    }))
+    listInfo.value = { savedAt: r.savedAt, mode: r.mode, changed: r.changed }
     items.value = r.items.filter((j) => inFolder(j, folder.value?.id))
     // SFMC ignored the folder: count what is shown (feedback #1064).
     total.value = items.value.length < r.items.length ? items.value.length : r.total
-    page.value = 1
+    page.value = Math.max(1, Math.ceil(r.items.length / JOURNEY_PAGE_SIZE))
     searched.value = { query: query.value.trim(), status: status.value, categoryId: folder.value?.id ?? null }
   } catch (e) {
     error.value = searchError(e, 'search journeys')
@@ -57,8 +70,10 @@ async function loadMore() {
   loadingMore.value = true
   try {
     const r = await searchJourneys(stack.value, { ...searched.value, page: page.value + 1 })
-    items.value = [...items.value, ...r.items.filter((j) => inFolder(j, searched.value?.categoryId))]
+    const have = new Set(items.value.map((j) => j.id))
+    items.value = [...items.value, ...r.items.filter((j) => inFolder(j, searched.value?.categoryId) && !have.has(j.id))]
     page.value++
+    saveList(stack.value, 'journeys', { query: searched.value.query, status: searched.value.status, categoryId: searched.value.categoryId }, items.value, total.value)
   } catch (e) {
     showToast(`Could not load more: ${e.message}`)
   } finally {
@@ -99,7 +114,7 @@ const columns = [
 <template>
   <div class="h-full flex flex-col">
     <div class="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-border bg-card">
-      <form class="flex items-center gap-2" @submit.prevent="search">
+      <form class="flex items-center gap-2" @submit.prevent="search('search')">
         <div class="relative">
           <Search class="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <input v-model="query" type="search" placeholder="Journey name or description (empty lists all)" aria-label="Journey name"
@@ -114,15 +129,16 @@ const columns = [
       <span class="text-xs text-muted-foreground">Viewing a journey never changes it.</span>
     </div>
     <div class="flex-1 min-h-0 flex max-[760px]:flex-col">
-    <ContentFolderTree v-model="folder" :stack="stack" :load="folderLoad" all-label="All journeys" class="w-60 shrink-0 border-r border-border max-[760px]:w-full max-[760px]:max-h-48 max-[760px]:border-r-0 max-[760px]:border-b" />
+    <ContentFolderTree v-model="folder" :stack="stack" :load="folderLoad" cache-kind="journeys" all-label="All journeys" class="w-60 shrink-0 border-r border-border max-[760px]:w-full max-[760px]:max-h-48 max-[760px]:border-r-0 max-[760px]:border-b" />
     <div class="flex-1 min-w-0 overflow-y-auto p-4">
-      <SfmcErrorNotice :error="error" :retrying="loading" @retry="search" />
+      <SfmcErrorNotice :error="error" :retrying="loading" @retry="search('search')" />
       <div v-if="searched === null && !loading" class="max-w-md mx-auto mt-12 text-center text-sm text-muted-foreground">
         Search for a journey by name, or search with an empty box to list all, most recently changed first.
       </div>
       <template v-else-if="searched !== null">
         <div class="mb-2 flex flex-wrap items-center gap-2">
-          <p class="text-xs text-muted-foreground flex-1">{{ total.toLocaleString() }} found{{ searched.query ? ` for "${searched.query}"` : '' }}{{ searched.status ? `, status ${searched.status}` : '' }}.</p>
+          <p class="text-xs text-muted-foreground flex-1">{{ total.toLocaleString() }} found{{ searched.query ? ` for "${searched.query}"` : '' }}{{ searched.status ? `, status ${searched.status}` : '' }}. <template v-if="listInfo?.mode === 'stored'">Stored {{ savedAgo(listInfo.savedAt) }}: Search reads only the changes.</template><template v-else-if="listInfo?.mode === 'delta'">{{ listInfo.changed }} change(s) read from SFMC.</template>
+            <button type="button" class="underline hover:text-foreground" title="Read the whole list again from SFMC (statuses, last runs, deletions)" data-list-refresh @click="search('refresh')">Refresh</button></p>
           <WatchButton v-if="items.length" bulk type="journey" :stack="stack" :items="items.filter((j) => picked.has(j.id))" />
         </div>
         <DataTable :columns="columns" :rows="items" row-key="id" storage-key="journeys" empty-text="No journeys found." @shown="filtered = $event" @ordered="setBrowseList('journeys', $event.map((j) => ({ id: j.id, name: j.name, query: j.version ? { version: String(j.version) } : null })))">

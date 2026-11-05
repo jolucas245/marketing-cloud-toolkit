@@ -26,7 +26,7 @@ Or with `ExtensionSettings`, which also lets you keep it off hosts it could othe
 }
 ```
 
-`runtime_blocked_hosts` above is optional: it stops the optional Query Studio capture from ever reading Heroku requests, even if a user turns it on.
+`runtime_blocked_hosts` above is optional: it stops the Query Studio capture from ever reading Heroku requests, whatever the user's setting.
 
 In the Google Admin console: Devices > Chrome > Apps & extensions > Users & browsers > add by ID, then set the installation policy.
 
