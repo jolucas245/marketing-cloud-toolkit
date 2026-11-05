@@ -88,4 +88,9 @@ describe('Content > Emails (feedback #1054)', () => {
     expect(r.subject).toBeNull()
     expect(r.preheader).toBeNull()
   })
+  it('finds bare field names in AMPscript, not functions, variables or keywords (feedback #1070)', () => {
+    const pre = "%%=iif(technology == 'FTTN' and region == 'ON', 'A', 'B')=%%"
+    const html = '%%[ SET @x = Lookup("DE", "F", "K", SubscriberKey) IF @x == 1 THEN ]%%%%=v(@headline)=%%%%=ContentBlockByID(45650)=%%<script runat="server">var foo = bar;</script>'
+    expect(emailAttributes(pre, html)).toEqual(['technology', 'region', 'SubscriberKey'])
+  })
 })

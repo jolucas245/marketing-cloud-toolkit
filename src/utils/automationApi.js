@@ -19,6 +19,64 @@ export async function searchAutomations(stack, query, skip = 0, top = AUTOMATION
 }
 
 /**
+ * Automations in one folder (feedback #1064, #1071). SFMC's list ignored
+ * `$where=categoryId eq <id>` on a live account (278 automations for one folder) and
+ * its rows carry no folder field, so several forms are tried and the first that really
+ * narrows the list (fewer than the unfiltered total, or rows that name the folder) is
+ * remembered per stack. Returns { entries, total, form } or { unsupported: true }.
+ */
+const FOLDER_FORMS = ['where', 'param', 'rest']
+const folderFormKey = (stack) => `toolkit_automationFolderForm_${stack}`
+const folderOf = (a) => a?.categoryId ?? a?.categoryID ?? a?.category?.id ?? a?.folderId ?? a?.folder?.id ?? null
+
+export async function searchAutomationsInFolder(stack, query, categoryId, skip = 0, top = AUTOMATION_PAGE_SIZE, fetch = sfmcFetch) {
+  const cat = Number(categoryId)
+  const name = query.trim()
+  const nameWhere = name ? `name like ${name}` : ''
+  const legacy = (where, extra = '') => `${AS(stack)}/legacy/v1/beta/automations/automation/definition/?$top=${top}&$skip=${skip}&$sort=${encodeURIComponent('lastRunTime desc')}&view=gridView${where ? `&$where=${encodeURIComponent(where)}` : ''}${extra}`
+  const forms = {
+    where: async () => { const d = await fetch(legacy([nameWhere, `categoryId eq ${cat}`].filter(Boolean).join(' and ')), 'GET'); return { entries: d?.entry || [], total: d?.totalResults ?? (d?.entry || []).length } },
+    param: async () => { const d = await fetch(legacy(nameWhere, `&categoryId=${cat}`), 'GET'); return { entries: d?.entry || [], total: d?.totalResults ?? (d?.entry || []).length } },
+    rest: async () => {
+      const page = Math.floor(skip / top) + 1
+      const d = await fetch(`${AS(stack)}/automation/v1/automations?$page=${page}&$pagesize=${top}&$filter=${encodeURIComponent(`categoryId eq ${cat}`)}`, 'GET')
+      const items = (d?.items || d?.entry || []).filter((i) => !name || String(i.name || '').toLowerCase().includes(name.toLowerCase()))
+      return { entries: items.map((i) => ({ ...i, status: i.status ?? i.statusId })), total: d?.count ?? items.length }
+    },
+  }
+  let remembered = null
+  try { remembered = localStorage.getItem(folderFormKey(stack)) } catch { /* no storage */ }
+  if (remembered && forms[remembered]) {
+    try {
+      const r = await forms[remembered]()
+      if (r.entries.length && r.entries.every((e) => folderOf(e) != null)) {
+        const mine = r.entries.filter((e) => Number(folderOf(e)) === cat)
+        if (mine.length < r.entries.length) return { entries: mine, total: mine.length, form: remembered, filteredHere: true }
+      }
+      return { ...r, form: remembered }
+    } catch { /* try them all again */ }
+  }
+  const all = await fetch(legacy(nameWhere).replace(`$top=${top}`, '$top=1'), 'GET').catch(() => null)
+  const allTotal = all?.totalResults ?? null
+  for (const f of FOLDER_FORMS) {
+    let r
+    try { r = await forms[f]() } catch { continue }
+    const narrowed = allTotal != null && r.total < allTotal
+    // Rows that carry their folder can be filtered here even when SFMC did not.
+    const labelled = r.entries.length && r.entries.every((e) => folderOf(e) != null)
+    if (narrowed || labelled) {
+      try { localStorage.setItem(folderFormKey(stack), f) } catch { /* no storage */ }
+      if (!narrowed) {
+        const mine = r.entries.filter((e) => Number(folderOf(e)) === cat)
+        return { entries: mine, total: mine.length, form: f, filteredHere: true }
+      }
+      return { ...r, form: f }
+    }
+  }
+  return { entries: [], total: 0, unsupported: true }
+}
+
+/**
  * Automations changed after `since` for one search (feedback #1069): the same list,
  * sorted by modifiedDate newest first, read until an older one. Status and last run
  * change without a new modifiedDate, so those stay as stored until Refresh.

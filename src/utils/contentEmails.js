@@ -134,6 +134,10 @@ const FIELD_STRING_RE = /%%([A-Za-z_][A-Za-z0-9_ -]*?)%%/g // %%FirstName%%
 const ATTR_CALL_RE = /AttributeValue\(\s*["']([^"']+)["']\s*\)/gi // AttributeValue("First Name")
 const AMP_RE = /%%\[([\s\S]*?)\]%%|%%=([\s\S]*?)=%%|<script[^>]*runat=["']?server["']?[^>]*>([\s\S]*?)<\/script>/gi
 const BRACKET_RE = /\[([A-Za-z_][A-Za-z0-9_ -]*)\]/g // [First Name] inside AMPscript
+// Bare names in AMPscript are fields too (`iif(technology == 'FTTN', ...)`, feedback #1070):
+// any word that is not an @variable, a function (followed by "("), a keyword or a number.
+const BARE_RE = /(^|[^@\w\]])([A-Za-z_][A-Za-z0-9_]*)\b(?!\s*\()/g
+const AMP_KEYWORDS = new Set(['if', 'then', 'else', 'elseif', 'endif', 'set', 'var', 'and', 'or', 'not', 'true', 'false', 'for', 'do', 'next', 'to', 'downto', 'null', 'output'])
 
 /**
  * The attributes an email uses (feedback #1058): %%Field%% strings, AttributeValue("x")
@@ -155,6 +159,11 @@ export function emailAttributes(...texts) {
     for (const m of text.matchAll(AMP_RE)) {
       const code = (m[1] ?? m[2] ?? m[3] ?? '').replace(/"[^"]*"|'[^']*'/g, '""')
       for (const b of code.matchAll(BRACKET_RE)) add(b[1])
+      // Bare names only in AMPscript, not server-side JavaScript (too many JS words).
+      if (m[3] == null) {
+        const plain = code.replace(BRACKET_RE, ' ').replace(/\/\*[\s\S]*?\*\//g, ' ')
+        for (const b of plain.matchAll(BARE_RE)) if (!AMP_KEYWORDS.has(b[2].toLowerCase())) add(b[2])
+      }
     }
   }
   return [...out.values()]

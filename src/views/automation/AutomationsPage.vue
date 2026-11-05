@@ -17,7 +17,7 @@ import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
 import { useStack, whenStack } from '@/composables/useStack.js'
 import { useRouteSearch } from '@/composables/useRouteSearch.js'
 import { showToast } from '@/composables/useToast.js'
-import { searchAutomations, loadMoreAutomations, automationChanges } from '@/utils/automationApi.js'
+import { searchAutomations, loadMoreAutomations, automationChanges, searchAutomationsInFolder } from '@/utils/automationApi.js'
 import { cachedList, storedList, saveList } from '@/utils/listCache.js'
 import { savedAgo } from '@/utils/localCache.js'
 import { automationFolderLoader, inFolder } from '@/utils/folderLoaders.js'
@@ -49,12 +49,18 @@ async function search(mode = 'search') {
     const params = { query: query.value.trim(), categoryId: folder.value?.id ?? null }
     // Feedback #1069: stored 30 days; a folder shows the stored list, Search reads the
     // automations changed since (status and last run only change with Refresh).
-    let r = mode === 'open' ? await storedList(stack.value, 'automations', params) : null
+    let r = mode === 'open' ? await storedList(stack.value, 'automations2', params) : null
     if (r) r = { ...r, mode: 'stored' }
     else r = await withReconnect(stack.value, () => cachedList({
-      stack: stack.value, kind: 'automations', params, force: mode === 'refresh',
-      full: async () => { const x = await searchAutomations(stack.value, params.query, 0, undefined, params.categoryId); return { items: x.entries, total: x.total } },
-      changes: (since) => automationChanges(stack.value, params.query, params.categoryId, since),
+      stack: stack.value, kind: 'automations2', params, force: mode === 'refresh',
+      full: async () => {
+        if (params.categoryId == null) { const x = await searchAutomations(stack.value, params.query, 0); return { items: x.entries, total: x.total } }
+        const x = await searchAutomationsInFolder(stack.value, params.query, params.categoryId)
+        if (x.unsupported) throw Object.assign(new Error('folder-unsupported'), { folderUnsupported: true })
+        return { items: x.entries, total: x.total }
+      },
+      // A folder is read in full (its folder filter cannot be combined with the change sort).
+      changes: params.categoryId == null ? (since) => automationChanges(stack.value, params.query, null, since) : null,
     }))
     listInfo.value = { savedAt: r.savedAt, mode: r.mode, changed: r.changed }
     entries.value = r.items.filter((a) => inFolder(a, folder.value?.id))
@@ -63,7 +69,12 @@ async function search(mode = 'search') {
     picked.value = new Set()
     searched.value = query.value.trim()
   } catch (e) {
-    error.value = searchError(e, 'search automations')
+    if (e?.folderUnsupported) {
+      entries.value = []
+      total.value = 0
+      searched.value = query.value.trim()
+      error.value = `SFMC did not filter the automations by folder with any of the requests the Toolkit knows, so the folder "${folder.value?.name}" cannot be listed yet. Open the folder in Automation Studio with the browser's Network tab open and send the list request through Report.`
+    } else error.value = searchError(e, 'search automations')
   } finally {
     loading.value = false
   }
@@ -72,11 +83,13 @@ async function search(mode = 'search') {
 async function loadMore() {
   loadingMore.value = true
   try {
-    const r = await loadMoreAutomations(stack.value, searched.value, entries.value, folder.value?.id ?? null)
+    const r = folder.value
+      ? await searchAutomationsInFolder(stack.value, searched.value, folder.value.id, entries.value.length).then((x) => ({ entries: x.entries || [], total: x.total }))
+      : await loadMoreAutomations(stack.value, searched.value, entries.value)
     entries.value = [...entries.value, ...r.entries.filter((a) => inFolder(a, folder.value?.id))]
     // Nothing new although SFMC counts more: stop offering Load more.
     total.value = r.entries.length ? r.total : entries.value.length
-    saveList(stack.value, 'automations', { query: searched.value, categoryId: folder.value?.id ?? null }, entries.value, total.value)
+    saveList(stack.value, 'automations2', { query: searched.value, categoryId: folder.value?.id ?? null }, entries.value, total.value)
     if (!r.entries.length) showToast('SFMC returned no more automations.')
   } catch (e) {
     showToast(`Could not load more: ${e.message}`)

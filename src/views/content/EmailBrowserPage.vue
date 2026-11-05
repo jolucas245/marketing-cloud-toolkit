@@ -15,6 +15,8 @@ import DEPickerDialog from '@/components/data/DEPickerDialog.vue'
 import ContentFolderTree from '@/components/content/ContentFolderTree.vue'
 import ContentTabs from '@/components/content/ContentTabs.vue'
 import { cachedList, storedList, saveList } from '@/utils/listCache.js'
+import { fetchDEFieldList } from '@/utils/deApi.js'
+import { PanelLeftClose, PanelLeftOpen, Plus, X as XIcon, ChevronDown as ChevronDownIcon, ChevronRight as ChevronRightIcon } from 'lucide-vue-next'
 import { savedAgo } from '@/utils/localCache.js'
 import { useStack, whenStack } from '@/composables/useStack.js'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
@@ -127,9 +129,13 @@ async function pick(row) {
 const dataOpen = ref(false)
 // Feedback #1061: while previewing with data, the folders and the email list fold away
 // to give the preview the room; Show emails brings them back.
-const listShown = ref(false)
-const focus = computed(() => dataOpen.value && !!picked.value && !listShown.value)
-watch(dataOpen, (o) => { if (o) listShown.value = false })
+// Feedback #1070: the folders and list fold into a rail, like the main sidebar; the
+// choice is remembered, and opening Preview with data still folds them (#1061).
+const PANEL_KEY = 'toolkit_emails_panel_collapsed'
+const panelCollapsed = ref((() => { try { return localStorage.getItem(PANEL_KEY) === '1' } catch { return false } })())
+watch(panelCollapsed, (v) => { try { localStorage.setItem(PANEL_KEY, v ? '1' : '0') } catch { /* no storage */ } })
+watch(dataOpen, (o) => { if (o) panelCollapsed.value = true })
+const focus = computed(() => panelCollapsed.value)
 const dataMode = ref('de') // de | values
 const pickerOpen = ref(false)
 const de = ref(null) // { id, name, key }
@@ -188,8 +194,43 @@ async function previewRow() {
 
 // Type values (feedback #1058): the attributes the email uses, found in its HTML,
 // subject line, preheader and text.
-const attributes = computed(() => (parts.value ? emailAttributes(parts.value.subject, parts.value.preheader, parts.value.html, parts.value.text) : []))
+// Feedback #1070: the list comes from the email (found) or from a data extension's
+// fields, plus attributes you add; each row has a value.
+const attrSource = ref('email') // email | de
+const schemaDE = ref(null) // { de, fields: [names] }
+const schemaPicker = ref(false)
+const schemaError = ref('')
+const added = ref([]) // names you added
+const newAttr = ref('')
+const attrsOpen = ref(true)
+const found = computed(() => (parts.value ? emailAttributes(parts.value.subject, parts.value.preheader, parts.value.html, parts.value.text) : []))
+const attrRows = computed(() => {
+  const base = attrSource.value === 'de' ? (schemaDE.value?.fields || []).map((n) => ({ name: n, from: schemaDE.value.de.name })) : found.value.map((n) => ({ name: n, from: 'Found in the email' }))
+  const seen = new Set(base.map((r) => r.name.toLowerCase()))
+  return [...base, ...added.value.filter((n) => !seen.has(n.toLowerCase())).map((n) => ({ name: n, from: 'Added', added: true }))]
+})
+const attributes = computed(() => attrRows.value.map((r) => r.name))
 const typed = reactive({})
+function addAttr() {
+  const n = newAttr.value.trim()
+  if (!n || attributes.value.some((a) => a.toLowerCase() === n.toLowerCase())) { newAttr.value = ''; return }
+  added.value = [...added.value, n]
+  newAttr.value = ''
+}
+function removeAttr(n) { added.value = added.value.filter((x) => x !== n); delete typed[n] }
+async function onSchemaPicked({ de: d }) {
+  schemaPicker.value = false
+  schemaError.value = ''
+  try {
+    const fields = await fetchDEFieldList(stack.value, d.id)
+    schemaDE.value = { de: d, fields: fields.map((f) => f.name) }
+    attrSource.value = 'de'
+  } catch (e) { schemaError.value = `Could not read the fields of ${d.name}: ${e.message}` }
+}
+function useSource(src) {
+  if (src === 'de' && !schemaDE.value) { schemaPicker.value = true; return }
+  attrSource.value = src
+}
 function previewTyped() {
   if (!parts.value) return
   dataPreview.value = { ...fillEmail(parts.value, typed), how: 'typed' }
@@ -230,13 +271,19 @@ whenStack(() => runSearch('open'))
       <Button variant="outline" title="Read folders and emails again" @click="refresh"><RefreshCw class="h-4 w-4" /> Refresh</Button>
     </div>
 
-    <div class="flex-1 min-h-0 grid max-[900px]:grid-cols-1 max-[900px]:overflow-y-auto" :class="focus ? 'grid-cols-1' : '[grid-template-columns:minmax(200px,260px)_minmax(260px,360px)_1fr]'">
+    <div class="flex-1 min-h-0 grid max-[900px]:grid-cols-1 max-[900px]:overflow-y-auto" :class="focus ? '[grid-template-columns:44px_1fr]' : '[grid-template-columns:minmax(200px,260px)_minmax(260px,360px)_1fr]'">
+      <!-- Folded panel: a rail with the button that opens it again (feedback #1070). -->
+      <div v-if="focus" class="border-r border-border flex flex-col items-center gap-2 py-2 bg-card" data-email-rail>
+        <button type="button" class="p-1.5 rounded-md text-muted-foreground hover:bg-accent" title="Show folders and emails" aria-label="Show folders and emails" data-panel-open @click="panelCollapsed = false"><PanelLeftOpen class="h-4 w-4" /></button>
+        <Mail class="h-4 w-4 text-muted-foreground" />
+      </div>
       <!-- Folders -->
       <ContentFolderTree v-show="!focus" ref="tree" v-model="currentFolder" :stack="stack" all-label="All emails" :all-icon="Mail" class="border-r border-border" />
 
       <!-- Emails -->
       <section v-show="!focus" class="border-r border-border overflow-y-auto" aria-label="Emails" data-email-list>
-        <div class="px-3 py-2 text-xs text-muted-foreground border-b border-border">
+        <div class="px-3 py-2 text-xs text-muted-foreground border-b border-border relative pr-9">
+          <button type="button" class="absolute right-1.5 top-1.5 p-1 rounded-md hover:bg-accent" title="Fold the folders and emails" aria-label="Fold the folders and emails" data-panel-close @click="panelCollapsed = true"><PanelLeftClose class="h-4 w-4" /></button>
           <template v-if="searchedFor">
             {{ total.toLocaleString() }} email(s)<template v-if="searchedFor.folder"> in {{ searchedFor.folder }}</template><template v-if="searchedFor.text"> matching "{{ searchedFor.text }}"</template>
             <span v-if="listInfo?.mode === 'stored'" class="block" data-list-note>Stored {{ savedAgo(listInfo.savedAt) }}. Search reads only the changes; Refresh reads all.</span>
@@ -263,7 +310,6 @@ whenStack(() => runSearch('open'))
           <div class="px-4 py-3 border-b border-border space-y-1">
             <div class="flex items-start gap-2">
               <div class="font-semibold text-base flex-1">{{ picked.name }}</div>
-              <button v-if="dataOpen" type="button" class="h-7 px-3 rounded-full border border-border text-xs hover:bg-accent shrink-0" data-toggle-list @click="listShown = !listShown">{{ focus ? 'Show emails' : 'Hide emails' }}</button>
             </div>
             <div class="text-xs text-muted-foreground">Subject: <span class="text-foreground" data-email-subject>{{ shownSubject || 'none' }}</span></div>
             <div v-if="shownPreheader" class="text-xs text-muted-foreground">Preheader: <span class="text-foreground" data-email-preheader>{{ shownPreheader }}</span></div>
@@ -316,18 +362,42 @@ whenStack(() => runSearch('open'))
             </template>
 
             <template v-else>
-              <p class="text-xs text-muted-foreground">Attributes found in this email's subject line, preheader, HTML and text. The preview updates as you type: %%Field%% strings and simple AttributeValue output are filled in; other AMPscript is shown as written.</p>
-              <div v-if="!attributes.length" class="text-xs italic text-muted-foreground">No attributes found in this email.</div>
-              <div v-else class="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]" data-typed-values>
-                <label v-for="a in attributes" :key="a" class="text-xs flex flex-col gap-0.5">
-                  <span class="font-medium">{{ a }}</span>
-                  <Input v-model="typed[a]" class="h-8 rounded-lg text-xs" :aria-label="`Value for ${a}`" />
-                </label>
+              <div class="flex flex-wrap items-center gap-2 text-xs">
+                <span class="text-muted-foreground">Attributes from</span>
+                <button v-for="m in [['email', 'Found in this email'], ['de', schemaDE ? `Fields of ${schemaDE.de.name}` : 'A data extension\'s fields']]" :key="m[0]" type="button" class="h-7 px-3 rounded-full border"
+                  :class="attrSource === m[0] ? 'bg-primary/10 border-primary text-primary' : 'border-border bg-card hover:bg-accent'" :data-attr-source="m[0]" @click="useSource(m[0])">{{ m[1] }}</button>
+                <button v-if="schemaDE" type="button" class="underline text-muted-foreground hover:text-foreground" @click="schemaPicker = true">Other data extension</button>
               </div>
+              <p v-if="schemaError" class="text-xs text-red-700 dark:text-red-300">{{ schemaError }}</p>
+              <section class="rounded-lg border border-border bg-card" data-typed-values>
+                <button type="button" class="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-semibold" :aria-expanded="attrsOpen" @click="attrsOpen = !attrsOpen">
+                  <ChevronDownIcon v-if="attrsOpen" class="h-3.5 w-3.5" /><ChevronRightIcon v-else class="h-3.5 w-3.5" /> Attributes ({{ attrRows.length }})
+                  <span class="font-normal text-muted-foreground">%%Field%% strings and simple AttributeValue output are filled in; other AMPscript is shown as written.</span>
+                </button>
+                <div v-if="attrsOpen" class="border-t border-border max-h-72 overflow-y-auto">
+                  <table class="w-full text-xs">
+                    <thead class="sticky top-0 bg-muted"><tr><th class="text-left font-semibold px-3 py-1.5 w-[35%]">Attribute</th><th class="text-left font-semibold px-3 py-1.5">Value</th><th class="text-left font-semibold px-3 py-1.5 w-[22%]">From</th><th class="w-8" /></tr></thead>
+                    <tbody>
+                      <tr v-for="r in attrRows" :key="r.name" class="border-t border-border">
+                        <td class="px-3 py-1 font-medium break-all">{{ r.name }}</td>
+                        <td class="px-2 py-1"><Input v-model="typed[r.name]" class="h-7 rounded-md text-xs" :aria-label="`Value for ${r.name}`" /></td>
+                        <td class="px-3 py-1 text-muted-foreground truncate">{{ r.from }}</td>
+                        <td class="px-1"><button v-if="r.added" type="button" class="p-1 rounded hover:bg-accent" :aria-label="`Remove ${r.name}`" @click="removeAttr(r.name)"><XIcon class="h-3.5 w-3.5" /></button></td>
+                      </tr>
+                      <tr v-if="!attrRows.length"><td colspan="4" class="px-3 py-2 italic text-muted-foreground">{{ attrSource === 'de' ? 'This data extension has no fields.' : 'No attributes found in this email.' }} Add your own below.</td></tr>
+                      <tr class="border-t border-border bg-muted/40">
+                        <td class="px-2 py-1"><Input v-model="newAttr" class="h-7 rounded-md text-xs" placeholder="Attribute name" aria-label="New attribute name" data-new-attr @keydown.enter.prevent="addAttr" /></td>
+                        <td colspan="3" class="px-2 py-1"><Button size="sm" variant="outline" class="h-7" :disabled="!newAttr.trim()" data-add-attr @click="addAttr"><Plus class="h-3.5 w-3.5" /> Add attribute</Button></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
               <div v-if="dataPreview?.how === 'typed' && dataPreview.missing.length" class="text-xs text-muted-foreground">No value yet for: {{ dataPreview.missing.join(', ') }}.</div>
             </template>
             <div v-if="dataError" class="text-xs text-amber-800 dark:text-amber-300 flex flex-wrap items-center gap-2">{{ dataError }} <ReportErrorButton :error="dataError" /></div>
           </div>
+          <DEPickerDialog v-if="schemaPicker" :stack="stack" title="Use the fields of a data extension" @pick="onSchemaPicked" @close="schemaPicker = false" />
           <DEPickerDialog v-if="pickerOpen" :stack="stack" with-row title="Choose a data extension and a row" @pick="onPicked" @close="pickerOpen = false" />
 
           <div v-if="assetLoading" class="p-6 text-muted-foreground"><Loader2 class="h-4 w-4 animate-spin inline" /> Reading the email</div>
