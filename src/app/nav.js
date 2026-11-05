@@ -2,7 +2,7 @@
 // Queries, Data, Contacts, Automation, Journeys, Content (feedback #128, regrouped in
 // the redesign, #1031). `hidden` pages have a route but no sidebar entry.
 import {
-  Bookmark, LayoutGrid, Blocks, Workflow, ListChecks, Database, Route, LogIn, Globe, Mail, Network, Trash2, LayoutTemplate, LayoutDashboard, Users, HardDrive, FilePlus2, History, MailCheck, Footprints, House, FileClock } from 'lucide-vue-next'
+  Bookmark, LayoutGrid, Blocks, Workflow, ListChecks, Database, Route, LogIn, Globe, Mail, Network, Trash2, LayoutTemplate, LayoutDashboard, Users, HardDrive, FilePlus2, History, MailCheck, Footprints, House, FileClock, ShieldCheck, Package } from 'lucide-vue-next'
 
 export const NAV_GROUPS = [
   // Home (feedback #1025): the start page, in a group without a heading.
@@ -55,6 +55,16 @@ export const NAV_GROUPS = [
     items: [
       { path: '/emails', name: 'Emails', icon: Mail },
       { path: '/cloudpages', name: 'CloudPages', icon: Globe },
+    ],
+  },
+  // Setup (user, 2026-11-05): sender authentication, From addresses and custom domains;
+  // installed packages with their secrets, API endpoints and Automation Studio access
+  // (was Account under Settings, feedback #1078).
+  {
+    label: 'Setup',
+    items: [
+      { path: '/domains', name: 'Domains', icon: ShieldCheck },
+      { path: '/installed-packages', name: 'Installed Packages', icon: Package },
     ],
   },
   // Saved Emails and Saved CloudPages are tabs of Emails and CloudPages (feedback #1059);

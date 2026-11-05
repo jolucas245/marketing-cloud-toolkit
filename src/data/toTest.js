@@ -7,6 +7,45 @@
 
 export const TO_TEST = [
   {
+    version: '2.0.21',
+    status: 'Not released: test builds only',
+    items: [
+      {
+        id: '2.0.21-domains-sfmc', area: 'Setup', title: 'Domains: sender domains and custom domains load', live: true,
+        where: 'Setup > Domains',
+        steps: [
+          'Open Setup > Domains with no Setup page open in SFMC.',
+          'Check the four figures at the top, then each tab.',
+          'If an error says it could not connect, click Retry once, then try Open ... in SFMC to log in.',
+        ],
+        expect: 'SAP and Private Domains, From addresses and custom domains match Setup in SFMC. The email-app and custom-domains-ui calls are assumed to use their own session (not a Bearer token): if they fail, send the error with Report.',
+      },
+      {
+        id: '2.0.21-domains-dns', area: 'Setup', title: 'Domains: DNS checks', live: true,
+        where: 'Setup > Domains > Turn on DNS checks',
+        steps: [
+          'Turn on DNS checks; check SPF, DMARC, DKIM and DNS hosting on each SAP or Private Domain.',
+          'Copy s= from the DKIM-Signature header of an email sent from a SAP domain, enter it under DKIM and click Check key.',
+          'Open From addresses: check the DMARC column and the risk text for a domain that is not a SAP domain.',
+          'Open Custom domains: check Live CNAME.',
+          'Turn DNS checks off in Settings and reload: nothing is looked up.',
+        ],
+        expect: 'Records match public DNS (for example dig TXT _dmarc.<domain>). Only cloudflare-dns.com is called for DNS (API console shows SFMC calls only).',
+      },
+      {
+        id: '2.0.21-secret-alerts', area: 'Setup', title: 'Package secret alerts and Installed Packages page', ref: '#1078, #1079', live: true,
+        where: 'Top of every page, Home, Setup > Installed Packages',
+        steps: [
+          'In an account with a package secret expiring within 7 days, open the Toolkit.',
+          'Click Details on the alert at the top: Installed Packages opens and Details is gone from the alert.',
+          'Click Dismiss on the alert at the top; open Home.',
+          'Open Setup > Installed Packages: check the package secrets, API endpoints (Copy) and Automation Studio activities.',
+        ],
+        expect: 'The alert lists only secrets expiring within 7 days or expired; Dismiss hides the top alert, Home still shows it. Installed Packages lists every secret, the endpoints and the activity types with your permissions.',
+      },
+    ],
+  },
+  {
     version: '2.0.20',
     status: 'Not released: test builds only',
     items: [

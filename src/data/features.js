@@ -13,7 +13,7 @@ export const FEATURE_GROUPS = [
       { title: 'Descriptive file names', since: '2.0.4', detail: 'Downloads are named with the business unit, what they contain, and the date and time.' },
       { title: 'Storage by section', since: '2.0.4', how: 'Settings > Storage', detail: 'What takes the space, by section and business unit. Delete one part, or keep only the newest versions of each email.' },
       { title: 'App sessions started for you', how: 'Automatic (Settings > Connection)', detail: 'When the Toolkit opens and at least one SFMC app already has a session, the apps without one are started in the background, one at a time in a tab that closes itself (at most every 10 minutes). The connection menu shows each app as Ready or Starting, and Start missing does it now.' },
-      { title: 'Sections in the sidebar', detail: 'Home, then Queries (Run Query, Query Builder, Saved queries), Data (Data Extensions, Create DE, Where used, DE storage), Contacts (Contacts, Contact journeys, Email validation), Automation (Automation overview, Automations, Activities, Saved Activities, Templates), Journeys (Journey overview, Journeys, Journey Entry) and Content (Emails and CloudPages, each with a Saved versions tab). Settings is at the bottom. Collapse the sidebar to icons with Collapse; in a narrow window it shows icons only.' },
+      { title: 'Sections in the sidebar', detail: 'Home, then Queries (Run Query, Query Builder, Saved queries), Data (Data Extensions, Create DE, Where used, DE storage), Contacts (Contacts, Contact journeys, Email validation), Automation (Automation overview, Automations, Activities, Saved Activities, Templates), Journeys (Journey overview, Journeys, Journey Entry), Content (Emails and CloudPages, each with a Saved versions tab) and Setup (Domains, since 2.0.21). Settings is at the bottom. Collapse the sidebar to icons with Collapse; in a narrow window it shows icons only.' },
       { title: 'Concepts', since: '2.0.20', how: 'Book icon in the top bar', detail: 'Plain explanations of the terms used in the section you are on, with a search box and All sections.' },
       { title: 'Folders', since: '2.0.20', how: 'Left side of Automations, Journeys, Data Extensions, Emails and CloudPages', detail: 'Open a folder to list what is in it, as in SFMC.' },
       { title: 'Search everything', how: 'Ctrl+K (Cmd+K on a Mac), or Search in the top bar', detail: 'Jump to a section, open a saved query or a saved email, or start a search for data extensions, automations, activities, CloudPages or journey entry events.' },
@@ -436,6 +436,29 @@ export const FEATURE_GROUPS = [
       { title: 'Every Content Builder save is kept', how: 'Automatic', detail: 'Each save of an email becomes a version. Saves closer together than the time set in Settings count as one.' },
       { title: 'Preview and delete versions', how: 'Click an email', detail: 'Pick any version to preview it with its subject line, and delete versions you do not need.' },
       { title: 'Revert to an earlier version', how: 'Revert to this version, then confirm', detail: 'Writes that version back to Content Builder; reload the email there to see it. Emails saved before version history existed cannot be reverted.' },
+    ],
+  },
+  {
+    id: 'domains',
+    title: 'Domains',
+    intro: 'Setup > Domains: how this account sends mail and serves links, images and pages under your own domains.',
+    items: [
+      { title: 'Sender Authentication Package and Private Domains', since: '2.0.21', detail: 'Each authenticated sender domain with its status, whether it is sendable, and its custom domains (click, image, view, cloud).' },
+      { title: 'SPF, DKIM and DMARC explained', since: '2.0.21', how: 'Turn on DNS checks (Domains page or Settings)', detail: 'Reads each domain\'s public records: whether SPF authorizes Marketing Cloud and how many of its 10 DNS lookups it uses, the DMARC policy (or the parent domain\'s) with its alignment and reports, whether DKIM keys are published, and who hosts its DNS and receives replies. Check a DKIM key by its selector (s= from a sent email). Only domain names are sent, to Cloudflare\'s DNS resolver; off until you turn it on.' },
+      { title: 'From addresses at risk', since: '2.0.21', how: 'From addresses tab', detail: 'Verified From addresses by domain, and what that domain\'s DMARC does to mail sent from it through Marketing Cloud: covered by a SAP or Private Domain, passing through relaxed alignment, or likely refused or sent to spam.' },
+      { title: 'Custom domains and certificates', since: '2.0.21', how: 'Custom domains tab', detail: 'Every custom domain with its DNS and TLS status, days until its certificate expires, business units, SSL slots used, and (with DNS checks) whether its live CNAME still points to Marketing Cloud.' },
+      { title: 'What these mean', since: '2.0.21', how: 'What these mean tab, or Concepts', detail: 'Plain explanations of SAP, Private Domain, SPF, DKIM, DMARC, alignment and custom domains.' },
+    ],
+  },
+  {
+    id: 'installed-packages',
+    title: 'Installed Packages',
+    intro: 'Setup > Installed Packages.',
+    items: [
+      { title: 'Package secrets about to expire', since: '2.0.21', how: 'Automatic', detail: 'When an installed package\'s client secret expires within a week (or has expired), an alert shows at the top of every page and on Home. Dismiss hides it until that secret\'s expiry changes.' },
+      { title: 'All installed package secrets', since: '2.0.21', detail: 'Every installed package with when its client secret expires.' },
+      { title: 'API endpoints', since: '2.0.21', detail: 'This account\'s authentication, REST, SOAP and SFTP addresses and its tenant subdomain, each with Copy.' },
+      { title: 'Automation Studio activities you can use', since: '2.0.21', detail: 'Every activity type Automation Studio offers, whether you have access to it, and your permissions on it (create, run, delete and so on).' },
     ],
   },
   {

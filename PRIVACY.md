@@ -1,6 +1,6 @@
 # Marketing Cloud Toolkit privacy policy
 
-Last updated: 2026-10-30. This policy covers Marketing Cloud Toolkit version 2.0.18 and later, the Chrome extension that was published as SFMC Query Saver until version 1.4.0.
+Last updated: 2026-11-05. This policy covers Marketing Cloud Toolkit version 2.0.18 and later, the Chrome extension that was published as SFMC Query Saver until version 1.4.0.
 
 Publisher: Matheswaran Kanagarajan, an individual developer. Contact: mathes.btech@gmail.com.
 
@@ -8,7 +8,7 @@ Publisher: Matheswaran Kanagarajan, an individual developer. Contact: mathes.bte
 
 - The extension works with your own Salesforce Marketing Cloud (SFMC) account, in your browser, with the login you already have. It never asks for or stores a password.
 - There is no analytics, no advertising and no tracking. Nothing is sold.
-- Data leaves your browser only in these cases: calls to Salesforce Marketing Cloud on your behalf; loading Einstein activity icons; a query you choose to share; feedback you choose to send; and a diagram you choose to open on diagramforce.com. Each is described below.
+- Data leaves your browser only in these cases: calls to Salesforce Marketing Cloud on your behalf; loading Einstein activity icons; a query you choose to share; feedback you choose to send; a diagram you choose to open on diagramforce.com; and, if you turn on DNS checks, your domain names looked up in public DNS. Each is described below.
 
 ## What the extension reads in your browser
 
@@ -33,11 +33,12 @@ Publisher: Matheswaran Kanagarajan, an individual developer. Contact: mathes.bte
 - **Share (shown by default; nothing is sent until you confirm).** When you share a query, its name and SQL are sent to the Toolkit's share service (`sfmc-share-worker.mathes-btech.workers.dev`, run on Cloudflare Workers). Anyone with the link can read it for 24 hours, after which it is deleted. Before anything is sent, the extension shows exactly what will be sent and asks you to confirm. No results, data extension rows or account details are sent. The share service does not store who sent it.
 - **Feedback (only when you send it).** The feedback form sends your message, the kind of feedback, the page you were on (without record IDs), the extension version and, only if you fill them in, your name and email. Technical details (browser, language, window size, Marketing Cloud stack and the status codes of recent failed calls) and a screenshot are added only if you choose them; before sending, the form shows exactly what will be sent. Technical details never include business unit names or IDs, SQL, results, record names or Marketing Cloud addresses. Feedback is stored in a Cloudflare D1 database (`query-saver-feedback.mathes-btech.workers.dev`), read only by the developer, and deleted after 180 days. IP addresses are not stored.
 - **AI (experimental): nothing is sent.** Ask AI, Fix with AI, Explain, Summarize and Suggest types (Run Query, Home, Query Builder, Saved queries, query activities, automations, journeys, Where used, Create DE) use the language model built into Chrome (Gemini Nano, through Chrome's Prompt API), which runs on your computer. They are on by default and shown only in Google Chrome on a computer that can run the model; Settings > Experimental turns them off. What the model gets is your request, SQL, problems found, table and field names, and the settings and names shown on the page you ask about (for example an automation's steps). Query results, data extension rows and sample values from Create DE are never included, and email addresses, phone numbers and Salesforce record IDs are replaced before the model sees the text. You can read the whole prompt before it runs. Nothing is sent over the network by the extension. Chrome downloads the model once from Google when you first use it; Google's terms for Chrome's built-in AI apply to that download.
+- **DNS checks (off until you turn them on).** On the Domains page, the extension can read the public SPF, DKIM, DMARC, name server, MX and CNAME records of your sender and custom domains through Cloudflare's public DNS resolver (`cloudflare-dns.com`, DNS over HTTPS). Only the domain names (for example `_dmarc.example.com`) are sent; nothing from Marketing Cloud, no email addresses and no account details. Cloudflare's resolver privacy policy applies. Settings turns DNS checks off again.
 - **Diagramforce (only when you click Open in Diagramforce).** The query's table, column and join names are passed to diagramforce.com, a free diagram editor by Mateusz Dabrowski, in a new tab. That site's own privacy policy applies.
 
 ## Controls for organizations
 
-Administrators can turn features off for everyone through Chrome policy (managed storage): local query history and the capture features, Share, the feedback form, technical details in feedback, screenshots in feedback, the Contacts page, Open in Diagramforce, and the AI features. See `docs/enterprise-deployment.md` in the source repository.
+Administrators can turn features off for everyone through Chrome policy (managed storage): local query history and the capture features, Share, the feedback form, technical details in feedback, screenshots in feedback, the Contacts page, Open in Diagramforce, the AI features, and DNS checks. See `docs/enterprise-deployment.md` in the source repository.
 
 ## Retention and deletion
 

@@ -1,6 +1,8 @@
 // Concepts explained in plain words (feedback #1067), by sidebar group, shown by the
 // Concepts button in the top bar for the section you are in. Facts about SFMC only;
 // keep each short.
+import { DOMAIN_HELP } from './domainHelp.js'
+
 export const CONCEPTS = {
   Queries: [
     { term: 'Query activity', text: 'A saved SQL query in Automation Studio. It writes its results into a target data extension when it runs, alone (Run once) or as a step of an automation.' },
@@ -47,6 +49,8 @@ export const CONCEPTS = {
     { term: 'CloudPages', text: 'Landing pages, web pages and code resources published on an SFMC address. Changes go live only after Publish.' },
     { term: 'Saved versions', text: 'The Toolkit keeps a copy each time you save an email or CloudPage, in this browser only, so you can compare and go back.' },
   ],
+  // The Domains page's terms (user, 2026-11-05), kept in one place in data/domainHelp.js.
+  Setup: DOMAIN_HELP.flatMap((g) => g.items),
 }
 
 /** Concepts for a sidebar group (route meta.group), or every group's when unknown. */

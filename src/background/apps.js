@@ -79,6 +79,38 @@ export const SFMC_APPS = [
     probeUrl: (s) => `https://jbinteractions.${s}.marketingcloudapps.com/fuelapi/interaction/v1/eventDefinitions?$page=1&$pagesize=1`,
     landings: (s) => [`https://mc.${s}.exacttarget.com/cloud/#app/Journey%20Builder`],
   },
+  // Setup's apps (Domains and Installed Packages pages, user, 2026-11-05): the calls SFMC's
+  // Setup screens make, from the user's network log. Assumed to use their own session
+  // cookies like CloudPages (not the MCA Bearer token), with the app's root and then
+  // Setup as landings; not yet checked against a live org through the extension.
+  // On demand: started only when one of their calls needs a session.
+  {
+    id: 'emailApp',
+    onDemand: true,
+    name: 'Sender authentication (Setup)',
+    matches: (url) => url.hostname.startsWith('email-app.'),
+    bearer: false,
+    probeUrl: (s) => `https://email-app.${s}.marketingcloudapps.com/fuelapi/messaging/v1/domainverification?$page=1&$pagesize=1`,
+    landings: (s) => [`https://email-app.${s}.marketingcloudapps.com/`, `https://mc.${s}.exacttarget.com/cloud/#app/Setup`],
+  },
+  {
+    id: 'customDomains',
+    onDemand: true,
+    name: 'Custom domains (Setup)',
+    matches: (url) => url.hostname.startsWith('custom-domains-ui.'),
+    bearer: false,
+    probeUrl: (s) => `https://custom-domains-ui.${s}.marketingcloudapps.com/fuelapi/internal/v1/ssl/customdomains/?$page=1&$pageSize=1`,
+    landings: (s) => [`https://custom-domains-ui.${s}.marketingcloudapps.com/`, `https://mc.${s}.exacttarget.com/cloud/#app/Setup`],
+  },
+  {
+    id: 'domainAllowlist',
+    onDemand: true,
+    name: 'Account endpoints (Setup)',
+    matches: (url) => url.hostname.startsWith('mc-domainwhitelist-admin-app.'),
+    bearer: false,
+    probeUrl: (s) => `https://mc-domainwhitelist-admin-app.${s}.marketingcloudapps.com/fuelapi/platform/v1/endpoints`,
+    landings: (s) => [`https://mc-domainwhitelist-admin-app.${s}.marketingcloudapps.com/`, `https://mc.${s}.exacttarget.com/cloud/#app/Setup`],
+  },
 ]
 
 export function findApp(appId) {

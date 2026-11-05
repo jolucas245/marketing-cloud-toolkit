@@ -21,6 +21,7 @@ import { useAi } from '@/composables/useAi.js'
 import { AVAILABILITY_TEXT, isChromeBrowser } from '@/utils/aiAssist.js'
 import { DEFAULT_RETENTION_DAYS, SUGGESTED_RETENTION_DAYS, parseRetentionDays } from '@/utils/sfmcApi.js'
 import { policy, POLICY_NOTE } from '@/utils/policy.js'
+import { DNS_SETTING } from '@/utils/dnsCheck.js'
 import { HISTORY_SETTING } from '@/utils/history.js'
 import { SHARE_SETTING } from '@/utils/share.js'
 import { QUERY_STUDIO_SETTING, QUERY_STUDIO_PERMISSION } from '@/utils/queryStudio.js'
@@ -46,6 +47,8 @@ const { value: reuseQueryDE } = useStoredSetting('_reuseQueryDE', false, (v) => 
 const { value: autoStartSessions } = useStoredSetting('_autoStartSessions', true, (v) => v !== false)
 const { value: preloadOnConnect } = useStoredSetting('_preloadOnConnect', false, (v) => v === true)
 const { value: automationPanel } = useStoredSetting('_automationPanel', true, (v) => v !== false)
+// DNS checks on the Domains page (user, 2026-11-05): off until the user turns them on.
+const { value: dnsLookup } = useStoredSetting(DNS_SETTING, false, (v) => v === true)
 const { value: dashboardPanel } = useStoredSetting('_dashboardPanel', false, (v) => v === true)
 const { value: retentionDays } = useStoredSetting('_queryDERetentionDays', DEFAULT_RETENTION_DAYS, parseRetentionDays)
 
@@ -340,6 +343,25 @@ function setDebounce(e) {
         <Switch v-model="dashboardPanel" aria-label="Marketing Cloud Toolkit on the Marketing Cloud Dashboard" />
       </div>
 </section>
+
+    <section class="rounded-lg border border-border bg-card p-4">
+      <h2 class="text-sm font-semibold mb-3">Marketing Cloud account</h2>
+      <div class="flex items-start gap-3">
+        <div class="flex-1">
+          <div class="text-sm font-medium">Installed packages</div>
+          <p class="text-xs text-muted-foreground">Setup > Installed Packages: when each installed package secret expires, this account's API endpoints (REST, SOAP, authentication, SFTP), and which Automation Studio activities you can use. Secrets that expire within a week also show as an alert at the top and on Home.</p>
+        </div>
+        <RouterLink to="/installed-packages" class="text-xs font-medium text-primary hover:underline whitespace-nowrap">Open Installed Packages</RouterLink>
+      </div>
+      <div class="flex items-start gap-3 mt-4">
+        <div class="flex-1">
+          <div class="text-sm font-medium">DNS checks on the Domains page</div>
+          <p class="text-xs text-muted-foreground">Off by default. Reads the public SPF, DKIM, DMARC, name server, MX and CNAME records of your sender and custom domains through Cloudflare's DNS resolver (cloudflare-dns.com). Only domain names are sent; nothing from Marketing Cloud.</p>
+          <p v-if="policy.disableDnsLookup" class="text-xs text-muted-foreground mt-1">{{ POLICY_NOTE }}</p>
+        </div>
+        <Switch :model-value="dnsLookup && !policy.disableDnsLookup" :disabled="policy.disableDnsLookup" aria-label="DNS checks on the Domains page" @update:model-value="dnsLookup = $event" />
+      </div>
+    </section>
 
     <section class="rounded-lg border border-border bg-card p-4">
       <h2 class="text-sm font-semibold mb-3">Experimental</h2>

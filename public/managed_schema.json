@@ -40,6 +40,11 @@
       "title": "Turn off AI Assist",
       "description": "Hides AI Assist in Run Query (Chrome's built-in model, on the computer; nothing is sent over the network).",
       "type": "boolean"
+    },
+    "disableDnsLookup": {
+      "title": "Turn off DNS checks",
+      "description": "The Domains page never looks up SPF, DKIM, DMARC, name server, MX or CNAME records, so no domain name is ever sent to Cloudflare's public DNS resolver (cloudflare-dns.com).",
+      "type": "boolean"
     }
   }
 }
