@@ -13,7 +13,7 @@ export const FEATURE_GROUPS = [
       { title: 'Descriptive file names', since: '2.0.4', detail: 'Downloads are named with the business unit, what they contain, and the date and time.' },
       { title: 'Storage by section', since: '2.0.4', how: 'Settings > Storage', detail: 'What takes the space, by section and business unit. Delete one part, or keep only the newest versions of each email.' },
       { title: 'App sessions started for you', how: 'Automatic (Settings > Connection)', detail: 'When the Toolkit opens and at least one SFMC app already has a session, the apps without one are started in the background, one at a time in a tab that closes itself (at most every 10 minutes). The connection menu shows each app as Ready or Starting, and Start missing does it now.' },
-      { title: 'Sections in the sidebar', detail: 'Home, then Queries (Run Query, Query Builder, Saved queries), Data (Data Extensions, Create DE, Where used, DE storage), Contacts (Contacts, Contact journeys, Email validation), Automation (Automation overview, Automations, Activities, Saved Activities, Templates), Journeys (Journey overview, Journeys, Journey Entry) and Content (CloudPages, Saved Emails), since 2.0.19. Settings is at the bottom. Collapse the sidebar to icons with Collapse; in a narrow window it shows icons only.' },
+      { title: 'Sections in the sidebar', detail: 'Home, then Queries (Run Query, Query Builder, Saved queries), Data (Data Extensions, Create DE, Where used, DE storage), Contacts (Contacts, Contact journeys, Email validation), Automation (Automation overview, Automations, Activities, Saved Activities, Templates), Journeys (Journey overview, Journeys, Journey Entry) and Content (Emails, CloudPages, Saved Emails, Saved CloudPages). Settings is at the bottom. Collapse the sidebar to icons with Collapse; in a narrow window it shows icons only.' },
       { title: 'Search everything', how: 'Ctrl+K (Cmd+K on a Mac), or Search in the top bar', detail: 'Jump to a section, open a saved query or a saved email, or start a search for data extensions, automations, activities, CloudPages or journey entry events.' },
       { title: 'Several tabs', detail: 'Each click on the toolbar icon opens a new tab, and Ctrl-click opens a section in a new tab. Two tabs never edit the same workspace or Query Builder query.' },
       { title: 'Results 50 at a time', detail: 'Every SFMC search (data extensions, automations, activities, journeys, journey entry events, CloudPages) shows the first 50 results; Load 50 more shows the next.' },
@@ -391,6 +391,16 @@ export const FEATURE_GROUPS = [
       { title: 'One address or a list', since: '2.0.18', detail: 'Type one address, or paste or load up to 5,000. Results show valid or not, the reason and SFMC\'s answer, with a CSV download.' },
       { title: 'Contacts', since: '2.0.18', how: 'Contacts tab', detail: 'Enter Contact Keys; every email address Contact Builder has for each contact is checked.' },
       { title: 'A data extension', since: '2.0.18', how: 'Data extension tab', detail: 'Pick a data extension and its email field (up to 50,000 rows). Results go into three fields you pick in that data extension (isValidEmail, invalidReason, APIresponse; rows matched by primary key), or into a new data extension with the keys, the email and those three fields.' },
+    ],
+  },
+  {
+    id: 'content-emails',
+    title: 'Emails',
+    intro: 'Content > Emails. Read only: nothing in SFMC changes.',
+    items: [
+      { title: 'Browse and search emails', since: '2.0.20', detail: 'Content Builder folders on the left; open a folder to list its emails, or search by name, subject line or customer key in the open folder or in all folders.' },
+      { title: 'See an email', since: '2.0.20', how: 'Pick an email', detail: 'Preview (slots and blocks filled in, scripts off), the text version and the HTML code, with the subject line and preheader.' },
+      { title: 'Preview with data', since: '2.0.20', how: 'Preview with data', detail: 'Pick a data extension and one of its first 50 rows. Preview in SFMC asks SFMC to render the email for that row (AMPscript included); Fill in here replaces %%Field%% strings with the row\'s values.' },
     ],
   },
   {

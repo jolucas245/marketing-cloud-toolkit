@@ -11,6 +11,24 @@ export const TO_TEST = [
     status: 'Not released: test builds only',
     items: [
       {
+        id: '2.0.20-content-emails', area: 'Content', title: 'Content > Emails: folders, search, preview, preview with data', ref: '#1054', live: true,
+        where: 'Content > Emails',
+        steps: [
+          'Open folders on the left; open one with emails and check the list.',
+          'Search a name or subject line, with and without All folders ticked.',
+          'Pick a template-based email: check Preview, Text and Code.',
+          'Preview with data: pick a data extension with a subscriber key or email field, pick a row, then Preview in SFMC.',
+          'Try Fill in here on an email with %%FirstName%% style strings.',
+        ],
+        expect: 'Folders and emails match Content Builder. Preview shows the email with its blocks. Preview in SFMC shows the email as that row would get it (the guide/v1 preview call is a guess: if it fails, send the error with Report). Fill in here replaces the %%Field%% strings and lists any field the data extension does not have.',
+      },
+      {
+        id: '2.0.20-panel-names', area: 'Run Query', title: 'Panels named after their SQL', ref: '#1053',
+        where: 'Run Query',
+        steps: ['Add a panel: it is called New query.', 'Type a query on _Sent joined to _Job with a COUNT.', 'Rename the panel, then change the SQL.'],
+        expect: 'The name follows the SQL ("Counts from _Sent, _Job") until you rename it; your name then stays. Older panels called "Panel 1 · date" get a name from their SQL the next time it changes.',
+      },
+      {
         id: '2.0.20-createde-switches', area: 'Data', title: 'Create DE: Sendable and Testable switch on', ref: '#1052',
         where: 'Data > Create DE',
         steps: ['Start with one column, emailAddress (EmailAddress).', 'Turn Sendable on, then Testable.', 'Review and create the DE.'],

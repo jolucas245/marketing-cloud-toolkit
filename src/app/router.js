@@ -25,6 +25,7 @@ const PAGES = {
   '/journey-overview': () => import('../views/journey/JourneyOverviewPage.vue'),
   '/journeys': () => import('../views/journey/JourneysPage.vue'),
   '/journey-entry': () => import('../views/journey/JourneyEntryPage.vue'),
+  '/content-emails': () => import('../views/content/EmailBrowserPage.vue'),
   '/cloudpages': () => import('../views/content/CloudPagesPage.vue'),
   '/cloudpages/saved': () => import('../views/emails/EmailsPage.vue'),
 }

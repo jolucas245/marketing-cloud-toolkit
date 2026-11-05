@@ -7,6 +7,7 @@ import { openTab } from '../utils/openTab.js'
 import { useStoredSetting } from './useStoredSetting.js'
 import { SNAPSHOTS_KEY, addSnapshot, pruneSnapshots, typingSnapshotDue } from '../utils/textSnapshots.js'
 import { HISTORY_SETTING, historyAllowed, runsForStorage } from '../utils/history.js'
+import { isAutoName, suggestQueryName } from '../utils/queryNames.js'
 import {
   fetchDEMetadata, fetchDEFields, buildDEFields,
   createTargetDE, createQueryActivity,
@@ -20,7 +21,7 @@ import {
 export function useQueryPanel(options) {
   // Query history: a run's SQL is stored only while history is on (utils/history.js).
   const { value: keepHistory } = useStoredSetting(HISTORY_SETTING, true, (v) => v !== false)
-  const { queryId, stack: stackInput, panelIndex = 0, initialSql = '', onTitleChange } = options
+  const { queryId, stack: stackInput, initialSql = '', onTitleChange } = options
   const stack = computed(() => unref(stackInput))
   const canInteract = computed(() => !!stack.value)
 
@@ -204,6 +205,12 @@ export function useQueryPanel(options) {
   let pendingText = null
   function writeText(text) {
     const updated = { ...queryRecord.value, queryText: text }
+    // Feedback #1053: a panel the user has not named takes its name from the SQL.
+    if (isAutoName(updated)) {
+      updated.name = suggestQueryName(text)
+      updated.autoName = true
+      queryName.value = updated.name
+    }
     queryRecord.value = updated
     return new Promise((resolve) => chrome.storage.local.set({ [queryId]: updated }, resolve))
   }
@@ -269,7 +276,7 @@ export function useQueryPanel(options) {
     const trimmed = editableName.value.trim()
     if (!trimmed) return
     queryName.value = trimmed
-    const updated = { ...queryRecord.value, name: trimmed }
+    const updated = { ...queryRecord.value, name: trimmed, autoName: false }
     queryRecord.value = updated
     await new Promise((resolve) => chrome.storage.local.set({ [queryId]: updated }, resolve))
     chrome.runtime.sendMessage({ type: 'RENAME_QUERY', name: trimmed, id: queryId })
@@ -406,7 +413,7 @@ export function useQueryPanel(options) {
     onEditorChange(item.queryText || '')
     if (item.name) {
       queryName.value = item.name
-      const updated = { ...queryRecord.value, name: item.name }
+      const updated = { ...queryRecord.value, name: item.name, autoName: false }
       queryRecord.value = updated
       chrome.storage.local.set({ [queryId]: updated })
       chrome.runtime.sendMessage({ type: 'RENAME_QUERY', name: item.name, id: queryId })
@@ -1073,8 +1080,8 @@ export function useQueryPanel(options) {
           }
         } else {
           const ts = Date.now()
-          const defaultName = 'Panel ' + (panelIndex + 1) + ' · ' + new Date(ts).toLocaleString()
-          queryRecord.value = { id: queryId, name: defaultName, queryText: initialSql || '', timeStamp: ts, isFavourite: false, url: '' }
+          const defaultName = suggestQueryName(initialSql)
+          queryRecord.value = { id: queryId, name: defaultName, autoName: true, queryText: initialSql || '', timeStamp: ts, isFavourite: false, url: '' }
           queryName.value = defaultName
           queryText.value = initialSql || ''
           chrome.storage.local.set({ [queryId]: queryRecord.value }, resolve)
