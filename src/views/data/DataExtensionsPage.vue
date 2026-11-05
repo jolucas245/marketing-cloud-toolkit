@@ -5,6 +5,8 @@
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import { computed, reactive, ref, watch } from 'vue'
+import ContentFolderTree from '@/components/content/ContentFolderTree.vue'
+import { deFolderLoader } from '@/utils/folderLoaders.js'
 import { useRouter } from 'vue-router'
 import { Search, Loader2, RefreshCw, FolderTree, ListTree, FileSpreadsheet, Copy, Play, X, ChevronDown, ChevronRight, Network, ExternalLink, Rows3, ArrowUpDown, Database, Plus, KeyRound } from 'lucide-vue-next'
 import DataTable from '@/components/results/DataTable.vue'
@@ -60,8 +62,13 @@ watch(sourceFilter, (v) => {
   writePref('toolkit_deSource', v)
   if (searched.value !== null) search()
 })
-const wantsLocal = computed(() => sourceFilter.value === 'all' || sourceFilter.value === 'local')
-const wantsShared = computed(() => sourceFilter.value !== 'local')
+const wantsLocal = computed(() => !!folder.value || sourceFilter.value === 'all' || sourceFilter.value === 'local')
+// Folder tree (feedback #1065): a folder lists its own data extensions; the Shared and
+// Synchronized search (it walks every shared folder) is left out then.
+const folder = ref(null)
+const folderLoad = computed(() => (stack.value ? deFolderLoader(stack.value) : null))
+watch(folder, () => search())
+const wantsShared = computed(() => sourceFilter.value !== 'local' && !folder.value)
 
 // Local DEs come 50 a page, straight away; Shared and Synchronized DEs need a folder
 // walk, so they load in the background and are slotted in by date (mergeDEPages).
@@ -99,7 +106,7 @@ const pickable = computed(() => filtered.value || shown.value)
 const allPicked = computed(() => pickable.value.length > 0 && pickable.value.every((d) => picked.value.has(d.id)))
 
 async function loadLocalPage(id) {
-  const r = await searchLocalDEs(stack.value, searched.value, localPage.value + 1)
+  const r = await searchLocalDEs(stack.value, searched.value, localPage.value + 1, folder.value?.id || 0)
   if (id !== searchId) return
   const have = new Set(local.value.map((d) => d.id))
   local.value = [...local.value, ...r.items.filter((d) => !have.has(d.id))]
@@ -441,7 +448,8 @@ const columns = [
       </nav>
     </div>
 
-    <div class="flex-1 min-h-0 flex">
+    <div class="flex-1 min-h-0 flex max-[760px]:flex-col">
+      <ContentFolderTree v-model="folder" :stack="stack" :load="folderLoad" all-label="All data extensions" class="w-60 shrink-0 border-r border-border max-[760px]:w-full max-[760px]:max-h-48 max-[760px]:border-r-0 max-[760px]:border-b" />
       <div class="flex-1 min-w-0 flex flex-col">
         <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col gap-3.5">
           <!-- Search and filters -->

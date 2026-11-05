@@ -1,7 +1,7 @@
 <script setup>
 // Automations (SFMC Automation Viewer's Automation Viewer tab): search by name or list
 // all, newest run first; View opens the automation without pausing it.
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, Loader2 } from 'lucide-vue-next'
 import DataTable from '@/components/results/DataTable.vue'
@@ -18,6 +18,8 @@ import { useStack, whenStack } from '@/composables/useStack.js'
 import { useRouteSearch } from '@/composables/useRouteSearch.js'
 import { showToast } from '@/composables/useToast.js'
 import { searchAutomations, loadMoreAutomations } from '@/utils/automationApi.js'
+import { automationFolderLoader, inFolder } from '@/utils/folderLoaders.js'
+import ContentFolderTree from '@/components/content/ContentFolderTree.vue'
 import { formatDateTime } from '@/utils/format.js'
 import { automationsDoc } from '@/utils/automationDoc.js'
 import { automationStatusName } from '@/utils/watches.js'
@@ -31,15 +33,20 @@ const total = ref(0)
 const loading = ref(false)
 const loadingMore = ref(false)
 const error = ref('')
+// Folder tree (feedback #1064): picking a folder lists its automations.
+const folder = ref(null)
+const folderLoad = computed(() => (stack.value ? automationFolderLoader(stack.value, 'automations') : null))
+watch(folder, () => search())
 
 async function search() {
   if (!stack.value) { error.value = 'Not connected to Marketing Cloud. Log in to SFMC in this browser.'; return }
   loading.value = true
   error.value = ''
   try {
-    const r = await withReconnect(stack.value, () => searchAutomations(stack.value, query.value, 0))
-    entries.value = r.entries
-    total.value = r.total
+    const r = await withReconnect(stack.value, () => searchAutomations(stack.value, query.value, 0, undefined, folder.value?.id ?? null))
+    entries.value = r.entries.filter((a) => inFolder(a, folder.value?.id))
+    // SFMC ignored the folder: count what is shown (feedback #1064).
+    total.value = entries.value.length < r.entries.length ? entries.value.length : r.total
     picked.value = new Set()
     searched.value = query.value.trim()
   } catch (e) {
@@ -52,8 +59,8 @@ async function search() {
 async function loadMore() {
   loadingMore.value = true
   try {
-    const r = await loadMoreAutomations(stack.value, searched.value, entries.value)
-    entries.value = [...entries.value, ...r.entries]
+    const r = await loadMoreAutomations(stack.value, searched.value, entries.value, folder.value?.id ?? null)
+    entries.value = [...entries.value, ...r.entries.filter((a) => inFolder(a, folder.value?.id))]
     // Nothing new although SFMC counts more: stop offering Load more.
     total.value = r.entries.length ? r.total : entries.value.length
     if (!r.entries.length) showToast('SFMC returned no more automations.')
@@ -114,7 +121,9 @@ const columns = [
       </form>
       <span class="text-xs text-muted-foreground">Viewing an automation never pauses or changes it.</span>
     </div>
-    <div class="flex-1 min-h-0 overflow-y-auto p-4">
+    <div class="flex-1 min-h-0 flex max-[760px]:flex-col">
+    <ContentFolderTree v-model="folder" :stack="stack" :load="folderLoad" all-label="All automations" class="w-60 shrink-0 border-r border-border max-[760px]:w-full max-[760px]:max-h-48 max-[760px]:border-r-0 max-[760px]:border-b" />
+    <div class="flex-1 min-w-0 overflow-y-auto p-4">
       <SfmcErrorNotice :error="error" :retrying="loading" @retry="search" />
       <div v-if="searched === null && !loading" class="max-w-md mx-auto mt-12 text-center text-sm text-muted-foreground">
         Search for an automation by name, or search with an empty box to list all, most recently run first.
@@ -155,6 +164,7 @@ const columns = [
           </Button>
         </div>
       </template>
+    </div>
     </div>
   </div>
 </template>

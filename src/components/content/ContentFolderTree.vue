@@ -1,6 +1,6 @@
 <script setup>
-// Content Builder folder tree for Content > Emails (feedback #1054) and CloudPages
-// (#1059). Folders load as they are opened. v-model is the open folder ({ id, name }
+// Folder tree: Content Builder folders for Content > Emails (feedback #1054) and
+// CloudPages (#1059), or any folders given by `load` (Automations, Journeys, DEs). Folders load as they are opened. v-model is the open folder ({ id, name }
 // or null for "All").
 import { computed, reactive, ref, watch } from 'vue'
 import { Loader2, Folder, FolderOpen, ChevronRight, ChevronDown } from 'lucide-vue-next'
@@ -14,6 +14,9 @@ const props = defineProps({
   categoryType: { type: String, default: '' },
   allLabel: { type: String, default: 'All' },
   allIcon: { type: [Object, Function], default: null },
+  // Any other folder source (feedback #1064, #1065): (parentId) => Promise<[{ id, name }]>,
+  // '0' being the top level. Without it, Content Builder folders.
+  load: { type: Function, default: null },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -25,7 +28,7 @@ const error = ref(null)
 async function loadChildren(parentId) {
   if (!props.stack || children[parentId] || loading.has(parentId)) return
   loading.add(parentId)
-  try { children[parentId] = await withReconnect(props.stack, () => fetchContentFolders(props.stack, parentId, { categoryType: props.categoryType })) }
+  try { children[parentId] = await withReconnect(props.stack, () => (props.load ? props.load(parentId) : fetchContentFolders(props.stack, parentId, { categoryType: props.categoryType }))) }
   catch (e) { error.value = searchError(e, 'read the folders') }
   finally { loading.delete(parentId) }
 }
@@ -39,8 +42,11 @@ function open(f) {
 }
 const visible = computed(() => {
   const out = []
+  const seen = new Set() // a folder listed under its own child is shown once
   const walk = (pid, depth) => {
     for (const f of children[pid] || []) {
+      if (seen.has(f.id) || depth > 30) continue
+      seen.add(f.id)
       out.push({ ...f, depth })
       if (expanded.has(f.id)) {
         if (loading.has(f.id)) out.push({ id: `${f.id}:loading`, loading: true, depth: depth + 1 })

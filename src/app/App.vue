@@ -11,6 +11,7 @@ import ApiConsole from '@/components/shell/ApiConsole.vue'
 import WhatsNew from '@/components/shell/WhatsNew.vue'
 import UpdateBanner from '@/components/shell/UpdateBanner.vue'
 import NoticesMenu from '@/components/shell/NoticesMenu.vue'
+import ConceptsButton from '@/components/shell/ConceptsButton.vue'
 import ThemeSwitcher from '@/components/ui/ThemeSwitcher.vue'
 import { policy } from '@/utils/policy.js'
 import FeedbackModal from '@/components/modals/FeedbackModal.vue'
@@ -103,6 +104,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
         <span v-if="usage.state.running" class="text-muted-foreground">{{ usagePercent }}%</span>
       </button>
       <ConnectionMenu />
+      <ConceptsButton />
       <NoticesMenu />
       <button v-if="!policy.disableFeedback" class="h-9 w-9 flex items-center justify-center rounded-lg text-foreground/80 hover:bg-accent" title="Send feedback" aria-label="Send feedback" @click="showFeedback = true">
         <MessageSquare class="h-[18px] w-[18px]" />

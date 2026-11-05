@@ -6,9 +6,12 @@ import { RESULTS_PAGE_SIZE } from './paging.js'
 export const AUTOMATION_PAGE_SIZE = RESULTS_PAGE_SIZE
 const AS = (stack) => `https://mc.${stack}.marketingcloudapps.com/AutomationStudioFuel3/fuelapi`
 
-export async function searchAutomations(stack, query, skip = 0, top = AUTOMATION_PAGE_SIZE) {
+export async function searchAutomations(stack, query, skip = 0, top = AUTOMATION_PAGE_SIZE, categoryId = null) {
   const name = query.trim()
-  const where = name ? `&$where=${encodeURIComponent(`name like ${name}`)}` : ''
+  // One folder (feedback #1064): `categoryId eq <id>` in the same $where (not checked
+  // live); the page also drops rows from other folders.
+  const parts = [name ? `name like ${name}` : '', categoryId != null ? `categoryId eq ${Number(categoryId)}` : ''].filter(Boolean)
+  const where = parts.length ? `&$where=${encodeURIComponent(parts.join(' and '))}` : ''
   const data = await sfmcFetch(`${AS(stack)}/legacy/v1/beta/automations/automation/definition/?$top=${top}&$skip=${skip}&$sort=${encodeURIComponent('lastRunTime desc')}&view=gridView${where}`, 'GET')
   const entries = data?.entry || []
   return { entries, total: data?.totalResults ?? entries.length }
@@ -19,12 +22,12 @@ export async function searchAutomations(stack, query, skip = 0, top = AUTOMATION
  * brings nothing new (SFMC repeated the first page or returned none, feedback #28),
  * asks for everything from the start up to one page more and keeps the new ones.
  */
-export async function loadMoreAutomations(stack, query, have) {
+export async function loadMoreAutomations(stack, query, have, categoryId = null) {
   const known = new Set(have.map((a) => a.id))
-  const r = await searchAutomations(stack, query, have.length)
+  const r = await searchAutomations(stack, query, have.length, AUTOMATION_PAGE_SIZE, categoryId)
   let entries = r.entries.filter((a) => !known.has(a.id))
   if (!entries.length) {
-    const all = await searchAutomations(stack, query, 0, have.length + AUTOMATION_PAGE_SIZE)
+    const all = await searchAutomations(stack, query, 0, have.length + AUTOMATION_PAGE_SIZE, categoryId)
     entries = all.entries.filter((a) => !known.has(a.id))
   }
   return { entries, total: r.total }

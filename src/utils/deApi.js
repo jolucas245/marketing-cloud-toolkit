@@ -71,9 +71,10 @@ export function deSearchTerms(query) {
 // text); those use $search, which only matches from the start of a word.
 const nameSearchIgnored = new Set()
 
-export async function searchLocalDEs(stack, query, page = 1) {
+export async function searchLocalDEs(stack, query, page = 1, categoryId = 0) {
   const { term, filter } = deSearchTerms(query)
-  const base = `${CM(stack)}/data-internal/v1/customobjects/category/0?retrievalType=1&$page=${page}&$pagesize=${DE_PAGE_SIZE}&$orderBy=modifiedDate%20DESC`
+  // category/0 is every folder; a folder's ID lists that folder (feedback #1065).
+  const base = `${CM(stack)}/data-internal/v1/customobjects/category/${encodeURIComponent(categoryId || 0)}?retrievalType=1&$page=${page}&$pagesize=${DE_PAGE_SIZE}&$orderBy=modifiedDate%20DESC`
   const get = async (param) => {
     const data = await sfmcFetch(base + param, 'GET')
     if (!data || !Array.isArray(data.items)) throw new Error('Unexpected response from the data extension search.')

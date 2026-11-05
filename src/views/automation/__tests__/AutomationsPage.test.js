@@ -10,6 +10,7 @@ let connectReply = { ok: true }
 
 vi.mock('@/composables/useStack.js', () => ({ useStack: () => ({ stack: ref('s13') }), whenStack: () => {} }))
 vi.mock('@/composables/useRouteSearch.js', () => ({ useRouteSearch: () => {} }))
+vi.mock('@/utils/folderLoaders.js', () => ({ automationFolderLoader: () => async () => [], inFolder: () => true }))
 vi.mock('@/utils/automationApi.js', () => ({ searchAutomations: (...a) => search(...a), loadMoreAutomations: vi.fn() }))
 vi.mock('@/utils/messaging.js', () => ({ sendToBackground: async (m) => { sent.push(m); return connectReply } }))
 vi.mock('@/utils/sfmcLinks.js', () => ({ openInSfmc: () => {} }))

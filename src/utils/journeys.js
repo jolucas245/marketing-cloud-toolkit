@@ -14,12 +14,15 @@ const JB = (stack) => `https://jbinteractions.${stack}.marketingcloudapps.com/fu
 
 export const JOURNEY_STATUSES = ['Draft', 'Published', 'ScheduledToPublish', 'Paused', 'Stopped', 'Unpublished', 'Deleted']
 
-export async function searchJourneys(stack, { query = '', status = '', page = 1 } = {}) {
+export async function searchJourneys(stack, { query = '', status = '', page = 1, categoryId = null } = {}) {
   const params = new URLSearchParams({
     $page: String(page), $pageSize: String(JOURNEY_PAGE_SIZE), $orderBy: 'ModifiedDate DESC', mostRecentVersionOnly: 'true',
   })
   if (query.trim()) params.set('nameOrDescription', query.trim())
   if (status) params.set('status', status)
+  // One folder (feedback #1064): the list's categoryId parameter (not checked live); the
+  // page also drops journeys from other folders.
+  if (categoryId != null) params.set('categoryId', String(categoryId))
   const data = await sfmcFetch(`${JB(stack)}/interactions?${params}`, 'GET')
   const items = data?.items || []
   return { items, total: data?.count ?? items.length }

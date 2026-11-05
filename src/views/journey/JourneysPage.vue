@@ -1,7 +1,7 @@
 <script setup>
 // Journeys: search Journey Builder journeys by name or list all, newest change
 // first; View draws the journey. Read-only.
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, Loader2 } from 'lucide-vue-next'
 import DataTable from '@/components/results/DataTable.vue'
@@ -12,6 +12,8 @@ import WatchButton from '@/components/automation/WatchButton.vue'
 import { useStack, whenStack } from '@/composables/useStack.js'
 import { useRouteSearch } from '@/composables/useRouteSearch.js'
 import { showToast } from '@/composables/useToast.js'
+import { automationFolderLoader, inFolder } from '@/utils/folderLoaders.js'
+import ContentFolderTree from '@/components/content/ContentFolderTree.vue'
 import { searchJourneys, JOURNEY_STATUSES, JOURNEY_PAGE_SIZE } from '@/utils/journeys.js'
 import { formatDateTime } from '@/utils/format.js'
 import SfmcErrorNotice from '@/components/results/SfmcErrorNotice.vue'
@@ -28,17 +30,22 @@ const page = ref(1)
 const loading = ref(false)
 const loadingMore = ref(false)
 const error = ref('')
+// Folder tree (feedback #1064): picking a folder lists its journeys.
+const folder = ref(null)
+const folderLoad = computed(() => (stack.value ? automationFolderLoader(stack.value, 'journey') : null))
+watch(folder, () => search())
 
 async function search() {
   if (!stack.value) { error.value = 'Not connected to Marketing Cloud. Log in to SFMC in this browser.'; return }
   loading.value = true
   error.value = ''
   try {
-    const r = await withReconnect(stack.value, () => searchJourneys(stack.value, { query: query.value, status: status.value, page: 1 }))
-    items.value = r.items
-    total.value = r.total
+    const r = await withReconnect(stack.value, () => searchJourneys(stack.value, { query: query.value, status: status.value, page: 1, categoryId: folder.value?.id ?? null }))
+    items.value = r.items.filter((j) => inFolder(j, folder.value?.id))
+    // SFMC ignored the folder: count what is shown (feedback #1064).
+    total.value = items.value.length < r.items.length ? items.value.length : r.total
     page.value = 1
-    searched.value = { query: query.value.trim(), status: status.value }
+    searched.value = { query: query.value.trim(), status: status.value, categoryId: folder.value?.id ?? null }
   } catch (e) {
     error.value = searchError(e, 'search journeys')
   } finally {
@@ -50,7 +57,7 @@ async function loadMore() {
   loadingMore.value = true
   try {
     const r = await searchJourneys(stack.value, { ...searched.value, page: page.value + 1 })
-    items.value = [...items.value, ...r.items]
+    items.value = [...items.value, ...r.items.filter((j) => inFolder(j, searched.value?.categoryId))]
     page.value++
   } catch (e) {
     showToast(`Could not load more: ${e.message}`)
@@ -106,7 +113,9 @@ const columns = [
       </form>
       <span class="text-xs text-muted-foreground">Viewing a journey never changes it.</span>
     </div>
-    <div class="flex-1 min-h-0 overflow-y-auto p-4">
+    <div class="flex-1 min-h-0 flex max-[760px]:flex-col">
+    <ContentFolderTree v-model="folder" :stack="stack" :load="folderLoad" all-label="All journeys" class="w-60 shrink-0 border-r border-border max-[760px]:w-full max-[760px]:max-h-48 max-[760px]:border-r-0 max-[760px]:border-b" />
+    <div class="flex-1 min-w-0 overflow-y-auto p-4">
       <SfmcErrorNotice :error="error" :retrying="loading" @retry="search" />
       <div v-if="searched === null && !loading" class="max-w-md mx-auto mt-12 text-center text-sm text-muted-foreground">
         Search for a journey by name, or search with an empty box to list all, most recently changed first.
@@ -138,6 +147,7 @@ const columns = [
           </Button>
         </div>
       </template>
+    </div>
     </div>
   </div>
 </template>

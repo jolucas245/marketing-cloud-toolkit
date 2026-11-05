@@ -35,6 +35,12 @@ export const TO_TEST = [
         expect: 'The preview appears as soon as a row is clicked, and changes with the row. Subject line and preheader show the row\'s values (from SFMC, or filled in here when SFMC does not send them: the note says which). Type values lists the email\'s attributes and the preview follows what you type.',
       },
       {
+        id: '2.0.20-folders-concepts', area: 'Automation', title: 'Folder trees on Automations, Journeys and Data Extensions; Concepts button', ref: '#1064 #1065 #1067', live: true,
+        where: 'Automation > Automations; Journeys > Journeys; Data > Data Extensions; the book icon in the top bar',
+        steps: ['Open folders on the left of each page and pick one.', 'Check the list shows only that folder\'s items.', 'Click the book icon on several pages.'],
+        expect: 'Folders match Automation Studio, Journey Builder and Contact Builder; picking one lists its items (the Automation Studio and Journey folder types and the category filters are guesses: if a tree stays empty or a folder lists everything, Report it). Concepts explains the terms of the section you are on; All sections shows the rest.',
+      },
+      {
         id: '2.0.20-emails-focus-subject', area: 'Content', title: 'Emails: preview takes the room; SFMC subject line and preheader', ref: '#1061 #1062', live: true,
         where: 'Content > Emails > an email > Preview with data',
         steps: ['Open Preview with data: the folders and email list fold away; Show emails brings them back.', 'Pick a row of a data extension for an email whose subject line uses AMPscript or a field.', 'If the note still says SFMC sent no subject line, open What SFMC sent and use Report.'],
