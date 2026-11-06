@@ -22,6 +22,7 @@ Publisher: Matheswaran Kanagarajan, an individual developer. Contact: mathes.bte
 - Saved queries and, while Keep query history is on, the SQL of each run. A run also records the data extension and query activity it created in Marketing Cloud, so they can be cleaned up later.
 - Unless you turn them off: saved email versions (at most 10 per email), saved CloudPage versions (at most 10 per page), saved Query and Script activity versions, and queries you ran in Query Studio.
 - Earlier text: copies of each Run Query panel's SQL from the last 24 hours (taken before Clear, opening a query activity, AI Assist and Restore, and every few minutes while typing), deleted after 24 hours.
+- For Publication Lists, the state of the last count in each business unit (running or done, when, and the IDs of the data extension and query activity it uses in Marketing Cloud). The counts themselves stay in that data extension.
 - Query Builder drafts, Where used scans (names and SQL of Marketing Cloud items, used to show what depends on what), watched automations and journeys, and your settings.
 - **Query results are never stored in your browser.** They stay in Marketing Cloud, in the data extension the query wrote to.
 - Settings > Storage > Clear all deletes everything the extension stores. Removing the extension deletes it too.

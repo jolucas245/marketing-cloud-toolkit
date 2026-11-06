@@ -15,6 +15,7 @@ const PAGES = {
   '/create-de': () => import('../views/data/CreateDEPage.vue'),
   '/contacts': () => import('../views/contacts/ContactsPage.vue'),
   '/email-validation': () => import('../views/data/EmailValidationPage.vue'),
+  '/publication-lists': () => import('../views/contacts/PublicationListsPage.vue'),
   '/contact-journeys': () => import('../views/journey/ContactJourneysPage.vue'),
   '/automations': () => import('../views/automation/AutomationsPage.vue'),
   '/activities': () => import('../views/automation/ActivitiesPage.vue'),

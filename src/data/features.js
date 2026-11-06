@@ -386,6 +386,15 @@ export const FEATURE_GROUPS = [
     ],
   },
   {
+    id: 'publication-lists',
+    title: 'Publication Lists',
+    intro: 'Contacts > Publication Lists.',
+    items: [
+      { title: 'Subscribers per list by status', since: '2.0.21', detail: 'Every list in the business unit with its Active, Unsubscribed, Held and Bounced subscribers and the total, counted by a query on the _ListSubscribers data view (feedback #1080). Sort, filter and download like any results table.' },
+      { title: 'Runs in the background', since: '2.0.21', how: 'Refresh', detail: 'SFMC runs the count as a Query Activity, which can take minutes: leave the page and the Toolkit says when the counts are ready, even after a reload. One data extension and Query Activity per business unit are reused (SFMCQS_publist_...); the counts stay in that data extension.' },
+    ],
+  },
+  {
     id: 'email-validation',
     title: 'Email validation',
     intro: 'Data > Email validation. Uses SFMC\'s email validation API, one call per address; sends nothing to anyone.',

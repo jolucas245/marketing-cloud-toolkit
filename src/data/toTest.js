@@ -33,6 +33,18 @@ export const TO_TEST = [
         expect: 'Records match public DNS (for example dig TXT _dmarc.<domain>). Only cloudflare-dns.com is called for DNS (API console shows SFMC calls only).',
       },
       {
+        id: '2.0.21-publication-lists', area: 'Contacts', title: 'Publication Lists: subscribers per list by status', ref: '#1080', live: true,
+        where: 'Contacts > Publication Lists',
+        steps: [
+          'Open Publication Lists for the first time in a business unit: it says the count is running and you will be told.',
+          'Go to another page and wait: a message says the counts are ready.',
+          'Open Publication Lists again: each list with Active, Unsubscribed, Held, Bounced and Total; compare a list with Email Studio.',
+          'Reload the Toolkit while a count is running: it still finishes and tells you.',
+          'Refresh again: the same SFMCQS_publist data extension and Query Activity are reused (check Automation Studio); delete them in Settings > Clean up, then Refresh: new ones are made.',
+        ],
+        expect: 'Counts match Email Studio; no new SFMCQS_publist objects per refresh; the counts are not kept in the browser (Settings > Storage).',
+      },
+      {
         id: '2.0.21-run-cleanup', area: 'Queries', title: 'Delete old runs from SFMC (7 days)', ref: '#1081', live: true,
         where: 'Settings > Running queries > Delete old runs from SFMC; Run Query > History',
         steps: [

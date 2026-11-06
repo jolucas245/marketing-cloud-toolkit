@@ -13,6 +13,8 @@ import UpdateBanner from '@/components/shell/UpdateBanner.vue'
 import SecretAlerts from '@/components/shell/SecretAlerts.vue'
 import { refreshSecrets } from '@/composables/useSecretAlerts.js'
 import { cleanUpOldRuns } from '@/utils/runCleanup.js'
+import { resumeSummary } from '@/utils/publicationLists.js'
+import { fetchCurrentBU } from '@/utils/sfmcApi.js'
 import NoticesMenu from '@/components/shell/NoticesMenu.vue'
 import ConceptsButton from '@/components/shell/ConceptsButton.vue'
 import ThemeSwitcher from '@/components/ui/ThemeSwitcher.vue'
@@ -57,6 +59,8 @@ watch(stack, (s) => { if (s) refreshSecrets(s).catch(() => undefined) }, { immed
 // Run Query's data extensions and Query activities older than 7 days (Settings) are
 // deleted, once a day per stack, a minute after opening (feedback #1081).
 watch(stack, (s) => { if (s) setTimeout(() => cleanUpOldRuns(s).catch(() => undefined), 60000) }, { immediate: true })
+// Publication list counts still running when the Toolkit was closed are picked up (#1080).
+watch(stack, (s) => { if (s) fetchCurrentBU(s).then((bu) => bu && resumeSummary(s, bu.accountId)).catch(() => undefined) }, { immediate: true })
 // Load everything when connected (feedback #1037): Settings > Connection, off by default.
 let preloadedFor = null
 function maybeLoadEverything(s) {
