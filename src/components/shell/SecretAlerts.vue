@@ -1,7 +1,8 @@
 <script setup>
 // Installed package secrets that expire within a week, or have expired (user,
-// 2026-11-05). `bar`: a strip at the top of every page until dismissed (a renewed
-// secret alerts again). `home`: a card on Home that stays while the alert applies.
+// 2026-11-05). `bar`: a strip at the top of every page. `home`: a card on Home.
+// Both close with the same dismissal (Home's close button, user 2026-11-06): hidden
+// until a secret's expiry changes or another secret starts expiring.
 // Both link to Setup > Installed Packages; the bar drops its link there (feedback #1079).
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
@@ -11,11 +12,11 @@ import { expiryText } from '@/utils/secretExpirations.js'
 import { formatDateTime } from '@/utils/format.js'
 
 const props = defineProps({ variant: { type: String, default: 'bar' } })
-const { alerts, undismissed, dismissAll } = useSecretAlerts()
+const { undismissed, dismissAll } = useSecretAlerts()
 const PAGE = '/installed-packages'
 const route = useRoute()
 const onPage = computed(() => route?.path === PAGE)
-const shown = computed(() => (props.variant === 'bar' ? undismissed.value : alerts.value))
+const shown = computed(() => undismissed.value)
 const anyExpired = computed(() => shown.value.some((s) => s.expired))
 const title = computed(() => {
   const n = shown.value.length
@@ -37,7 +38,10 @@ const tone = computed(() => (anyExpired.value
     <button type="button" class="inline-flex items-center gap-1 opacity-80 hover:opacity-100" title="Hide until a secret's expiry changes" @click="dismissAll"><X class="h-3.5 w-3.5" /> Dismiss</button>
   </div>
   <section v-else-if="shown.length" class="rounded-[14px] border px-4 py-3 text-sm space-y-2" :class="tone" role="alert" data-secret-alert>
-    <div class="flex items-center gap-2 font-semibold"><KeyRound class="h-4 w-4" /> {{ title }}</div>
+    <div class="flex items-center gap-2 font-semibold">
+      <KeyRound class="h-4 w-4" /> <span class="flex-1">{{ title }}</span>
+      <button type="button" class="-mr-1 h-7 w-7 inline-flex items-center justify-center rounded-full opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10" aria-label="Close" title="Hide until a secret's expiry changes or another secret starts expiring" data-close-secret-alert @click="dismissAll"><X class="h-4 w-4" /></button>
+    </div>
     <p class="m-0 text-xs">Apps and integrations that use these packages' client secret stop authenticating once it expires. Renew the secret in Setup > Apps > Installed Packages, then update it where it is used.</p>
     <ul class="m-0 pl-0 list-none space-y-1 text-xs">
       <li v-for="s in shown" :key="s.packageId || s.name" class="flex flex-wrap gap-x-2">

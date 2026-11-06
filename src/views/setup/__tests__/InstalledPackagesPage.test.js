@@ -47,7 +47,8 @@ describe('Installed Packages page and secret alerts (user, 2026-11-05)', () => {
     expect(type.text()).toContain('Move')
   })
 
-  it('alerts only about the secret expiring within a week; dismissing hides the bar, not Home', async () => {
+  // Home's card closes too (user, 2026-11-06): one dismissal hides the bar and the Home card.
+  it('alerts only about the secret expiring within a week; dismissing hides the bar and the Home card', async () => {
     const { refreshSecrets } = await import('@/composables/useSecretAlerts.js')
     await refreshSecrets('s12', { force: true })
     const { default: Alerts } = await import('@/components/shell/SecretAlerts.vue')
@@ -59,7 +60,7 @@ describe('Installed Packages page and secret alerts (user, 2026-11-05)', () => {
     expect(home.text()).toContain('1 installed package secret expiring within a week')
     await bar.findAll('button').find((b) => b.text().includes('Dismiss')).trigger('click')
     expect(bar.find('[data-secret-alert]').exists()).toBe(false)
-    expect(home.find('[data-secret-alert]').exists()).toBe(true)
+    expect(home.find('[data-secret-alert]').exists()).toBe(false)
   })
 
   it('shows no alert when the user cannot read installed packages', async () => {

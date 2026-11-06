@@ -13,7 +13,7 @@ export const BACKUP_VERSION = 1
 export const BACKUP_SETTINGS = [
   '_emailSaverEnabled', '_emailSaveDebounce', '_cloudPageSaverEnabled', '_reuseQueryDE', '_queryRunCleanupDays', 'cardSize',
   'sfmcqs_theme', 'sfmcqs_settings', 'lintDisabledRules',
-  '_activitySaverEnabled', '_activityMaxVersions',
+  '_activitySaverEnabled', '_activityMaxVersions', 'toolkit_homeLayout',
 ]
 
 const RECORD_RE = /^(sql|email|cloudpage|workspace|activity)_/
