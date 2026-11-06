@@ -15,7 +15,12 @@ const props = defineProps({
   selectedIds: { type: Array, default: () => [] },
   // Pickers that need a real data extension leave the data views out (feedback #1055).
   hideDataViews: { type: Boolean, default: false },
+  // Leaves out data extensions SFMC's list marks not sendable (Email validation).
+  sendableOnly: { type: Boolean, default: false },
+  // The tag on a selected DE: "in query" in the Query Builder, "selected" in pickers.
+  selectedLabel: { type: String, default: 'in query' },
 })
+const keep = (nodes) => (props.sendableOnly ? nodes.filter((n) => !(n?.type === 'de' && n.isSendable === false)) : nodes)
 const inQuery = computed(() => new Set(props.selectedIds.map(String)))
 
 const emit = defineEmits(['select-de'])
@@ -69,7 +74,7 @@ async function loadChildren(node) {
   loadingFolders.value.add(key)
   loadingFolders.value = new Set(loadingFolders.value)
   try {
-    folderChildren.value[key] = await loadFolderContents(props.stack, node)
+    folderChildren.value[key] = keep(await loadFolderContents(props.stack, node))
     folderChildren.value = { ...folderChildren.value }
   } finally {
     loadingFolders.value.delete(key)
@@ -98,7 +103,7 @@ function onSearchInput() {
     const ids = new Set(items.map((d) => String(d.id)))
     const inTree = Object.values(folderChildren.value).flat()
       .filter((n) => n?.type === 'de' && String(n.name || '').toLowerCase().includes(q) && !ids.has(String(n.id)))
-    searchResults.value = [...dvMatches(), ...items, ...inTree]
+    searchResults.value = keep([...dvMatches(), ...items, ...inTree])
     searchError.value = searchResults.value.length ? '' : (error || '')
     searching.value = false
   })
@@ -132,10 +137,10 @@ function badgeClass(sourceType) {
 <template>
   <aside class="de-browser flex flex-col h-full border-r border-border bg-card" aria-label="Data sources">
     <div class="p-3 shrink-0">
-      <label for="qb-src" class="sr-only">Search DEs and data views</label>
+      <label for="qb-src" class="sr-only">{{ hideDataViews ? 'Search data extensions' : 'Search DEs and data views' }}</label>
       <div class="flex items-center gap-2.5 h-[38px] px-4 rounded-full border border-border bg-card focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10">
         <Search class="h-4 w-4 shrink-0 text-muted-foreground" />
-        <input id="qb-src" v-model="searchQuery" type="text" class="flex-1 min-w-0 bg-transparent border-0 outline-none text-sm placeholder:text-muted-foreground" placeholder="Search DEs and data views" @input="onSearchInput" />
+        <input id="qb-src" v-model="searchQuery" type="text" class="flex-1 min-w-0 bg-transparent border-0 outline-none text-sm placeholder:text-muted-foreground" :placeholder="hideDataViews ? 'Search data extensions' : 'Search DEs and data views'" @input="onSearchInput" />
       </div>
     </div>
 
@@ -155,7 +160,7 @@ function badgeClass(sourceType) {
         >
           <Database class="h-3.5 w-3.5 shrink-0" />
           <span class="truncate flex-1">{{ node.name }}</span>
-          <span v-if="inQuery.has(String(node.id))" class="shrink-0 text-[11px]">in query</span>
+          <span v-if="inQuery.has(String(node.id))" class="shrink-0 text-[11px]">{{ selectedLabel }}</span>
           <span v-else class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-md" :class="badgeClass(node.sourceType)">{{ node.sourceType === 'dataview' ? 'data view' : node.sourceType }}</span>
         </button>
         <div v-if="!searching && !searchResults.length && searchError" class="px-2.5 py-1.5 text-destructive" role="alert">Search failed: {{ searchError }}<ReportErrorButton /></div>
@@ -186,7 +191,7 @@ function badgeClass(sourceType) {
               :expanded="expanded"
               :loading-folders="loadingFolders"
               :folder-children="folderChildren"
-              :in-query="inQuery"
+              :in-query="inQuery" :selected-label="selectedLabel"
               @toggle="toggleExpand"
               @select="selectDe"
             />
@@ -217,7 +222,7 @@ function badgeClass(sourceType) {
           >
             <Database class="h-3.5 w-3.5 shrink-0" />
             <span class="truncate">{{ dv.name }}</span>
-            <span v-if="inQuery.has(String(dv.id))" class="ml-auto shrink-0 text-[11px]">in query</span>
+            <span v-if="inQuery.has(String(dv.id))" class="ml-auto shrink-0 text-[11px]">{{ selectedLabel }}</span>
           </button>
         </div>
       </template>

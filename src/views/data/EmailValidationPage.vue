@@ -4,16 +4,18 @@
 // extension the results go into three of its fields (matched by primary key) or into
 // a new data extension. One SFMC call per address.
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
-import { computed, ref, watch } from 'vue'
-import { Loader2, MailCheck, Upload, Download, Square, Database, CheckCircle2, XCircle, HelpCircle } from 'lucide-vue-next'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
+import { askConfirm } from '@/composables/useConfirm.js'
+import { Loader2, MailCheck, Upload, Download, Square, CheckCircle2, XCircle, HelpCircle } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
 import Input from '@/components/ui/input/Input.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import DEFolderPicker from '@/components/data/DEFolderPicker.vue'
-import DEPickerDialog from '@/components/data/DEPickerDialog.vue'
+import DEPickPanel from '@/components/data/DEPickPanel.vue'
 import { useStack } from '@/composables/useStack.js'
 import { isPolicyOn, POLICY_NOTE } from '@/utils/policy.js'
-import { fetchDEFieldList } from '@/utils/deApi.js'
+import { fetchDEFieldList, deRowCountOf } from '@/utils/deApi.js'
 import { loadRemainingRows } from '@/utils/deRows.js'
 import { parseKeyList, searchContactKeys } from '@/utils/contactsApi.js'
 import { saveTextFile, readFileText } from '@/utils/download.js'
@@ -26,13 +28,14 @@ import {
 
 const { stack } = useStack()
 const contactsOff = computed(() => isPolicyOn('disableContacts'))
+// One address is a list of one, so one tab takes both (user, 2026-11-06; was One address
+// and List of addresses).
 const TABS = [
-  { id: 'single', label: 'One address' },
-  { id: 'list', label: 'List of addresses' },
-  { id: 'contacts', label: 'Contacts' },
+  { id: 'addresses', label: 'Email addresses' },
   { id: 'de', label: 'Data extension' },
+  { id: 'contacts', label: 'Contacts' },
 ]
-const tab = ref('single')
+const tab = ref('addresses')
 const validators = ref([...DEFAULT_VALIDATORS])
 
 const busy = ref(false)
@@ -80,8 +83,7 @@ async function runEmails(emails, extra = []) {
   }
 }
 
-// ── One address / list ──
-const single = ref('')
+// ── Email addresses (one or many) ──
 const listText = ref('')
 const parsedList = computed(() => parseEmailList(listText.value))
 const fileInput = ref(null)
@@ -127,7 +129,6 @@ async function runContacts() {
 }
 
 // ── Data extension ──
-const pickerOpen = ref(false)
 const de = ref(null)
 const fields = ref([])
 const fieldsError = ref('')
@@ -144,7 +145,7 @@ watch(newName, (n) => {
   nameTimer = setTimeout(async () => {
     try {
       if (await deNameTaken(stack.value, n)) nameTaken.value = { name: n.trim(), suggestion: await freeDEName(stack.value, n) }
-    } catch { /* checked again on Validate */ }
+    } catch { /* checked again when the run starts */ }
   }, 400)
 })
 const newFolderId = ref(null)
@@ -152,10 +153,23 @@ const newFolderPath = ref('')
 const deStage = ref('') // reading | checking | writing
 const readCount = ref(0)
 const deDone = ref(null) // { name, key, sent, created, stopped }
-async function pickDE(d) {
+// The DE's row count, to say up front when only the first MAX_DE_ROWS are checked (user, 2026-11-06).
+const deRowCount = ref(null)
+const overLimit = computed(() => deRowCount.value != null && deRowCount.value > MAX_DE_ROWS)
+
+// The panel has read the DE's record already: its row count comes from there.
+async function pickDE(d, detail) {
   de.value = d
   fields.value = []
   fieldsError.value = ''
+  deRowCount.value = null
+  try { deRowCount.value = deRowCountOf(detail) } catch { /* no count in the record */ }
+  // The new DE goes next to the picked one unless the user picks another folder
+  // (user, 2026-11-06). DEFolderPicker opens the tree to it, or clears it for a shared folder.
+  if (detail?.categoryId != null) {
+    newFolderId.value = detail.categoryId
+    newFolderPath.value = ''
+  }
   try {
     fields.value = await fetchDEFieldList(stack.value, d.id)
     emailField.value = guessEmailField(fields.value)
@@ -172,6 +186,17 @@ const fieldsByName = computed(() => Object.fromEntries(fields.value.map((f) => [
 const keyFields = computed(() => fields.value.filter((f) => f.isPrimaryKey).map((f) => f.name))
 const inPlaceProblem = computed(() => (outMode.value === 'inplace' && fields.value.length ? checkInPlace({ fields: fields.value, emailField: emailField.value, mapping: mapping.value }) : ''))
 const resultFieldOptions = computed(() => fields.value.filter((f) => !f.isPrimaryKey && f.name !== emailField.value))
+
+// A check runs in this page: leaving it, or closing the tab, stops it (user, 2026-11-06).
+onBeforeRouteLeave(async () => {
+  if (!busy.value) return true
+  const leave = await askConfirm({ title: 'Stop the email check?', message: 'The check runs on this screen. Leaving it stops the check; results already written stay.', confirmLabel: 'Leave and stop', cancelLabel: 'Stay', danger: true })
+  if (leave) stopping.value = true
+  return leave
+})
+const onUnload = (e) => { if (busy.value) { e.preventDefault(); e.returnValue = '' } }
+onMounted(() => window.addEventListener('beforeunload', onUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', onUnload))
 
 async function runDE() {
   reset()
@@ -285,23 +310,17 @@ const openRow = ref(null)
         </label>
       </fieldset>
 
-      <!-- One address -->
-      <form v-if="tab === 'single'" class="flex flex-wrap items-center gap-2 text-xs" @submit.prevent="runEmails([single.trim()].filter(Boolean))">
-        <Input v-model="single" class="h-8 text-xs max-w-sm" type="text" placeholder="name@example.com" aria-label="Email address" />
-        <Button size="sm" class="h-8 text-xs" type="submit" :disabled="busy || !single.trim() || !stack">
-          <Loader2 v-if="busy" class="h-3.5 w-3.5 mr-1 animate-spin" /><MailCheck v-else class="h-3.5 w-3.5 mr-1" /> Validate
-        </Button>
-      </form>
-
-      <!-- List -->
-      <form v-else-if="tab === 'list'" class="space-y-2 text-xs" @submit.prevent="runEmails(parsedList.emails)">
-        <label class="flex flex-col gap-0.5">Addresses, one per line or separated by commas (up to {{ MAX_BULK.toLocaleString() }})
-          <textarea v-model="listText" rows="7" class="w-full max-w-2xl rounded-md border border-border bg-background px-2 py-1.5 font-mono resize-y" placeholder="ana@example.com&#10;sam@example.org" />
+      <!-- Email addresses: one or many -->
+      <form v-if="tab === 'addresses'" class="space-y-2 text-xs" data-addresses @submit.prevent="runEmails(parsedList.emails)">
+        <label class="flex flex-col gap-0.5">One address, or several: one per line or separated by commas (up to {{ MAX_BULK.toLocaleString() }})
+          <textarea v-model="listText" rows="4" class="w-full max-w-2xl rounded-md border border-border bg-background px-2 py-1.5 font-mono resize-y" placeholder="ana@example.com&#10;sam@example.org" aria-label="Email addresses"
+            @keydown.enter.meta.prevent="runEmails(parsedList.emails)" @keydown.enter.ctrl.prevent="runEmails(parsedList.emails)" />
         </label>
         <div class="flex flex-wrap items-center gap-2">
-          <Button size="sm" class="h-8 text-xs" type="submit" :disabled="busy || !parsedList.emails.length || !stack">
-            <Loader2 v-if="busy" class="h-3.5 w-3.5 mr-1 animate-spin" /><MailCheck v-else class="h-3.5 w-3.5 mr-1" /> Validate {{ parsedList.emails.length ? parsedList.emails.length.toLocaleString() : '' }}
+          <Button size="sm" class="h-8 text-xs" type="submit" :disabled="busy || !parsedList.emails.length || !stack" title="Ctrl+Enter or Cmd+Enter in the box also runs it">
+            <Loader2 v-if="busy" class="h-3.5 w-3.5 mr-1 animate-spin" /><MailCheck v-else class="h-3.5 w-3.5 mr-1" /> Run email validation
           </Button>
+          <span v-if="parsedList.emails.length" class="text-muted-foreground" data-address-count>{{ parsedList.emails.length.toLocaleString() }} {{ parsedList.emails.length === 1 ? 'address' : 'addresses' }}</span>
           <Button type="button" variant="outline" size="sm" class="h-8 text-xs" :disabled="busy" @click="fileInput?.click()"><Upload class="h-3.5 w-3.5 mr-1" /> Load a file</Button>
           <input ref="fileInput" type="file" accept=".txt,.csv,.tsv,text/plain,text/csv" class="hidden" @change="onFile" />
           <span v-if="parsedList.skipped" class="text-amber-700 dark:text-amber-300">Only the first {{ MAX_BULK.toLocaleString() }} are checked ({{ parsedList.skipped.toLocaleString() }} left out).</span>
@@ -316,7 +335,7 @@ const openRow = ref(null)
             <textarea v-model="contactKeys" rows="5" class="w-full max-w-2xl rounded-md border border-border bg-background px-2 py-1.5 font-mono resize-y" />
           </label>
           <Button size="sm" class="h-8 text-xs" type="submit" :disabled="busy || !parsedKeys.keys.length || !stack">
-            <Loader2 v-if="busy" class="h-3.5 w-3.5 mr-1 animate-spin" /><MailCheck v-else class="h-3.5 w-3.5 mr-1" /> Find and validate
+            <Loader2 v-if="busy" class="h-3.5 w-3.5 mr-1 animate-spin" /><MailCheck v-else class="h-3.5 w-3.5 mr-1" /> Find contacts and run email validation
           </Button>
           <ul v-if="contactNotes.length" class="text-amber-700 dark:text-amber-300 list-disc pl-5">
             <li v-for="n in contactNotes" :key="n">{{ n }}</li>
@@ -326,14 +345,12 @@ const openRow = ref(null)
 
       <!-- Data extension -->
       <div v-else class="space-y-3 text-xs">
-        <div class="space-y-1 max-w-xl">
-          <!-- Folders and search in a dialog (feedback #1060). -->
-          <div class="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="outline" :disabled="busy || !stack" data-choose-de @click="pickerOpen = true"><Database class="h-3.5 w-3.5" /> {{ de ? 'Change data extension' : 'Choose data extension' }}</Button>
-            <span v-if="de" class="text-muted-foreground">Picked: <b class="text-foreground">{{ de.name }}</b></span>
-          </div>
+        <!-- Folders, search and the picked DE's details on the page (user, 2026-11-06; a dialog before, feedback #1060). -->
+        <div class="space-y-1 max-w-5xl">
+          <p class="text-muted-foreground">Pick the data extension to validate. Only sendable data extensions are listed.</p>
+          <DEPickPanel :stack="stack" :disabled="busy" sendable-only not-sendable-message="Email validation works only on sendable data extensions: pick a sendable one." @pick="(p) => pickDE(p.de, p.detail)" />
+          <p v-if="overLimit" class="text-amber-700 dark:text-amber-300" role="alert" data-over-limit>This data extension has {{ deRowCount.toLocaleString() }} rows. Email validation can't check more than {{ MAX_DE_ROWS.toLocaleString() }} in one run: only the first {{ MAX_DE_ROWS.toLocaleString() }} are checked.</p>
         </div>
-        <DEPickerDialog v-if="pickerOpen" :stack="stack" title="Choose the data extension to validate" @pick="(p) => { pickerOpen = false; pickDE({ id: p.de.id, name: p.de.name, customerKey: p.de.key, key: p.de.key }) }" @close="pickerOpen = false" />
         <p v-if="fieldsError" class="text-red-600">{{ fieldsError }}<ReportErrorButton /></p>
         <template v-if="de && fields.length">
           <label class="flex items-center gap-2">Email field
@@ -363,14 +380,14 @@ const openRow = ref(null)
                 <button type="button" class="text-primary hover:underline" @click="newName = nameTaken.suggestion">Use "{{ nameTaken.suggestion }}"</button>
               </p>
               <p class="text-muted-foreground">Fields: {{ newDEFields(fields, emailField).map((f) => f.name).join(', ') }}. Rows are added, not matched.</p>
-              <DEFolderPicker v-model="newFolderId" v-model:path="newFolderPath" :stack="stack" @error="(m) => (error = m)" />
+              <DEFolderPicker v-model="newFolderId" v-model:path="newFolderPath" :stack="stack" height="h-80" @error="(m) => (error = m)" />
             </div>
           </fieldset>
           <div class="flex flex-wrap items-center gap-2">
             <Button size="sm" class="h-8 text-xs" :disabled="busy || !emailField || !!inPlaceProblem || !stack" @click="runDE">
-              <Loader2 v-if="busy" class="h-3.5 w-3.5 mr-1 animate-spin" /><MailCheck v-else class="h-3.5 w-3.5 mr-1" /> Validate the data extension
+              <Loader2 v-if="busy" class="h-3.5 w-3.5 mr-1 animate-spin" /><MailCheck v-else class="h-3.5 w-3.5 mr-1" /> Run email validation
             </Button>
-            <span class="text-muted-foreground">Up to {{ MAX_DE_ROWS.toLocaleString() }} rows, one SFMC call per row. Results are written 500 rows at a time as they come in.</span>
+            <span class="text-muted-foreground">Up to {{ MAX_DE_ROWS.toLocaleString() }} rows. SFMC checks one address per call, so 4 calls run at a time; results are written 500 rows at a time as they come in.</span>
           </div>
         </template>
         <div v-if="deStage === 'reading'" class="flex items-center gap-2 text-muted-foreground"><Loader2 class="h-3.5 w-3.5 animate-spin" /> Reading rows: {{ readCount.toLocaleString() }}</div>
@@ -382,6 +399,7 @@ const openRow = ref(null)
         </div>
       </div>
 
+      <p v-if="busy" class="rounded-md border border-sky-300 bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200" role="status" data-stay-note>Please stay on this screen until the check is done. It runs here: leaving the page or closing the tab stops it.</p>
       <div v-if="busy && progress.total" class="space-y-1 text-xs">
         <div class="flex items-center gap-2">
           <span class="text-muted-foreground">{{ deStage === 'checking' || tab !== 'de' ? 'Checked' : 'Done' }} {{ progress.done.toLocaleString() }} of {{ progress.total.toLocaleString() }}</span>

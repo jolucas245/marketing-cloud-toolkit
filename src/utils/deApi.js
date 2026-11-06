@@ -183,17 +183,22 @@ function fetchFolder(stack, id) {
   return folderCache.get(key)
 }
 
-/** "Data Extensions > Folder > Sub folder" for a category id. */
-export async function fetchDEFolderPath(stack, categoryId) {
-  if (categoryId == null || categoryId === '') return ''
-  const names = []
+/** A category's folders from the top one down: [{ id, name }, ...]. */
+export async function fetchDEFolderChain(stack, categoryId) {
+  if (categoryId == null || categoryId === '') return []
+  const chain = []
   let id = String(categoryId)
   for (let depth = 0; id && id !== '0' && depth < 30; depth++) {
     const folder = await fetchFolder(stack, id)
-    names.unshift(folder.name)
+    chain.unshift({ id, name: folder.name })
     id = folder.parentId != null ? String(folder.parentId) : ''
   }
-  return names.join(' > ')
+  return chain
+}
+
+/** "Data Extensions > Folder > Sub folder" for a category id. */
+export async function fetchDEFolderPath(stack, categoryId) {
+  return (await fetchDEFolderChain(stack, categoryId)).map((f) => f.name).join(' > ')
 }
 
 export function clearDECaches() {

@@ -21,6 +21,9 @@ export function normalizeDENode(de, sourceType, path = []) {
     type: 'de',
     sourceType,
     fieldCount: de.fieldCount ?? null,
+    // true / false when SFMC's list says; null when it does not (feedback: Email validation
+    // lists only sendable data extensions).
+    isSendable: typeof de.isSendable === 'boolean' ? de.isSendable : null,
     categoryId: de.categoryId,
     path,
   }
