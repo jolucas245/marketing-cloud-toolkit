@@ -172,6 +172,8 @@ function toggleWarnings(idx) {
       </div>
     </div>
 
+    <!-- A long wait explained (feedback #1076), under the whole track. -->
+    <p v-if="!completedSummary && stepStatuses[3] === 'running' && stepDetails[3]?.note" class="mt-2 text-[11px] leading-snug text-sky-800 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 rounded px-2.5 py-1.5" role="status" data-long-wait>{{ stepDetails[3].note }}</p>
   </div>
 </template>
 

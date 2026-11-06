@@ -5,7 +5,7 @@
 import { ref } from 'vue'
 import { X } from 'lucide-vue-next'
 
-const VERSION = '2.0.20'
+const VERSION = '2.0.21'
 const open = ref(false)
 const fromQuerySaver = ref(false)
 
@@ -35,6 +35,11 @@ function close() {
       </div>
       <h2 id="whatsnew-title" class="px-5 mt-3 text-lg font-bold">{{ fromQuerySaver ? 'SFMC Query Saver is now Marketing Cloud Toolkit' : 'What\'s new in Marketing Cloud Toolkit' }}</h2>
       <ul v-if="!fromQuerySaver" class="px-5 mt-3 mb-5 space-y-3 text-sm">
+        <li><strong class="block">Setup: Domains and Installed Packages</strong><span class="text-muted-foreground">Sender domains with SPF, DKIM and DMARC explained, From addresses at risk, custom domain certificates, and an alert when an installed package's client secret is about to expire.</span></li>
+        <li><strong class="block">Customize Home</strong><span class="text-muted-foreground">Hide, show and reorder Home's sections and cards. Kept in this browser; nothing is sent.</span></li>
+        <li><strong class="block">Faster plain reads, and search the results</strong><span class="text-muted-foreground">A query that only reads one data extension shows its rows in seconds, without a Query Activity. A Search rows box finds text in any column of the results.</span></li>
+        <li><strong class="block">Old runs cleaned up in SFMC</strong><span class="text-muted-foreground">Data extensions and Query Activities from your Run Query runs are deleted from SFMC after 7 days; the SQL stays in the query's history. Settings > Running queries changes the days or turns it off.</span></li>
+        <li><strong class="block">Email validation and Publication Lists</strong><span class="text-muted-foreground">Pick a sendable data extension right on the page and see its details; one tab for one address or many. Contacts > Publication Lists counts each list's subscribers by status.</span></li>
         <li><strong class="block">Emails and CloudPages, browsed</strong><span class="text-muted-foreground">Content Builder folders, a preview of any email with data from a data extension row or values you type, and the code of each version. Every CloudPage save is kept like email versions, with Code and Compare.</span></li>
         <li><strong class="block">Folders and Concepts</strong><span class="text-muted-foreground">Automations, Journeys and Data Extensions list by folder. The book icon in the top bar explains the terms of the section you are on.</span></li>
         <li><strong class="block">Faster, with fewer calls to SFMC</strong><span class="text-muted-foreground">Folders, lists and automation details are kept in this browser for 30 days and only the changes are read again. Settings can forget them.</span></li>

@@ -9,11 +9,12 @@ export const FEATURE_GROUPS = [
     title: 'Getting around',
     intro: 'Marketing Cloud Toolkit replaces SFMC Query Saver and includes everything SFMC Automation Viewer did. Click the toolbar icon to open it in a new tab.',
     items: [
+      { title: 'Customize Home', since: '2.0.21', how: 'Home > Customize Home', detail: 'Hide or show Home\'s sections and cards, and reorder them by dragging or with the arrows. Kept in this browser (and in backups); Reset to default puts everything back. Nothing is sent.' },
       { title: 'Restart to update', since: '2.0.4', detail: 'When Chrome has downloaded a new version, a card offers to restart Marketing Cloud Toolkit into it.' },
       { title: 'Descriptive file names', since: '2.0.4', detail: 'Downloads are named with the business unit, what they contain, and the date and time.' },
       { title: 'Storage by section', since: '2.0.4', how: 'Settings > Storage', detail: 'What takes the space, by section and business unit. Delete one part, or keep only the newest versions of each email.' },
       { title: 'App sessions started for you', how: 'Automatic (Settings > Connection)', detail: 'When the Toolkit opens and at least one SFMC app already has a session, the apps without one are started in the background, one at a time in a tab that closes itself (at most every 10 minutes). The connection menu shows each app as Ready or Starting, and Start missing does it now.' },
-      { title: 'Sections in the sidebar', detail: 'Home, then Queries (Run Query, Query Builder, Saved queries), Data (Data Extensions, Create DE, Where used, DE storage), Contacts (Contacts, Contact journeys, Email validation), Automation (Automation overview, Automations, Activities, Saved Activities, Templates), Journeys (Journey overview, Journeys, Journey Entry) and Content (Emails and CloudPages, each with a Saved versions tab). Settings is at the bottom. Collapse the sidebar to icons with Collapse; in a narrow window it shows icons only.' },
+      { title: 'Sections in the sidebar', detail: 'Home, then Queries (Run Query, Query Builder, Saved queries), Data (Data Extensions, Create DE, Where used, DE storage), Contacts (Contacts, Contact journeys, Email validation), Automation (Automation overview, Automations, Activities, Saved Activities, Templates), Journeys (Journey overview, Journeys, Journey Entry), Content (Emails and CloudPages, each with a Saved versions tab) and Setup (Domains, since 2.0.21). Settings is at the bottom. Collapse the sidebar to icons with Collapse; in a narrow window it shows icons only.' },
       { title: 'Concepts', since: '2.0.20', how: 'Book icon in the top bar', detail: 'Plain explanations of the terms used in the section you are on, with a search box and All sections.' },
       { title: 'Folders', since: '2.0.20', how: 'Left side of Automations, Journeys, Data Extensions, Emails and CloudPages', detail: 'Open a folder to list what is in it, as in SFMC.' },
       { title: 'Search everything', how: 'Ctrl+K (Cmd+K on a Mac), or Search in the top bar', detail: 'Jump to a section, open a saved query or a saved email, or start a search for data extensions, automations, activities, CloudPages or journey entry events.' },
@@ -63,6 +64,9 @@ export const FEATURE_GROUPS = [
       { title: 'Schema search', since: '2.0.11', how: 'The table button in a panel, or Cmd/Ctrl+Shift+S in the editor', detail: 'Search data extensions (this business unit, Shared and Synchronized) and data views by name, pick one and see its fields with type, length, primary key and required. Click a field to write it at the cursor (with the query\'s alias for that table), or insert the table name (ENT. for Shared) or all fields.' },
       { title: 'Run with the keyboard', since: '2.0.11', how: 'Cmd+Enter (Mac) or Ctrl+Enter in the editor', detail: 'Runs the query, or only the selected text when something is selected.' },
       { title: 'Clean up Toolkit runs', since: '2.0.3', how: 'Settings > Clean up (Queries > Delete Toolkit runs before 2.0.19, Clean up SFMC before 2.0.16)', detail: 'Lists the data extensions and Query activities Run Query created (names starting SFMCQS_) and deletes the ones you tick, after asking. Nothing else is ever listed.' },
+      { title: 'Plain reads skip the Query Activity', since: '2.0.21', detail: 'A query that only reads one data extension (SELECT [TOP n] columns or * FROM one DE, no WHERE, JOIN, ORDER BY or grouping) reads its rows directly, in seconds, then loads the rest up to 50,000, instead of waiting for a Query Activity (feedback #1076). After a minute, a Query Activity run says why it can take long.' },
+      { title: 'Search the results', since: '2.0.21', how: 'Search rows box above the results', detail: 'Finds the text in any column of the loaded rows; works with the column filters, and CSV, Excel and Markdown keep only the matching rows. Esc clears it.' },
+      { title: 'Delete old runs from SFMC', since: '2.0.21', how: 'Settings > Running queries', detail: 'On by default (feedback #1081). Once a day, runs you made in this browser more than 7 days ago (or the days you set) lose their data extension and Query Activity in SFMC; the run stays in the query\'s history with its SQL, marked Cleaned up from SFMC.' },
       { title: 'Data retention on new data extensions', since: '2.0.3', how: 'Settings > Running queries', detail: 'Off by default. Switched on, SFMC deletes each row of a new Run Query data extension after the number of days you set.' },
       { title: 'Export with no rows', since: '2.0.3', detail: 'When a query returns nothing, Copy for AI and MD still give the SQL and the columns, and CSV gives the header.' },
       {
@@ -385,14 +389,24 @@ export const FEATURE_GROUPS = [
     ],
   },
   {
+    id: 'publication-lists',
+    title: 'Publication Lists',
+    intro: 'Contacts > Publication Lists.',
+    items: [
+      { title: 'Subscribers per list by status', since: '2.0.21', detail: 'Every list in the business unit with its Active, Unsubscribed, Held and Bounced subscribers and the total, counted by a query on the _ListSubscribers data view (feedback #1080). Sort, filter and download like any results table.' },
+      { title: 'Runs in the background', since: '2.0.21', how: 'Refresh', detail: 'SFMC runs the count as a Query Activity, which can take minutes: leave the page and the Toolkit says when the counts are ready, even after a reload. One data extension and Query Activity per business unit are reused (SFMCQS_publist_...); the counts stay in that data extension.' },
+    ],
+  },
+  {
     id: 'email-validation',
     title: 'Email validation',
     intro: 'Data > Email validation. Uses SFMC\'s email validation API, one call per address; sends nothing to anyone.',
     items: [
       { title: 'Checks', since: '2.0.18', detail: 'Syntax, mail server (MX record) and List Detective (SFMC\'s list of known bad, role and spam-trap addresses); pick which to run.' },
-      { title: 'One address or a list', since: '2.0.18', detail: 'Type one address, or paste or load up to 5,000. Results show valid or not, the reason and SFMC\'s answer, with a CSV download.' },
+      { title: 'One address or a list', since: '2.0.18', how: 'Email addresses tab', detail: 'Type one address, or paste or load up to 5,000 (one tab for both since 2.0.21; Ctrl+Enter runs it). Results show valid or not, the reason and SFMC\'s answer, with a CSV download.' },
       { title: 'Contacts', since: '2.0.18', how: 'Contacts tab', detail: 'Enter Contact Keys; every email address Contact Builder has for each contact is checked.' },
       { title: 'A data extension', since: '2.0.18', how: 'Data extension tab', detail: 'Pick a data extension and its email field (up to 50,000 rows). Results go into three fields you pick in that data extension (isValidEmail, invalidReason, APIresponse; rows matched by primary key), or into a new data extension with the keys, the email and those three fields.' },
+      { title: 'Pick the data extension on the page', since: '2.0.21', how: 'Data extension tab', detail: 'Folders and search of sendable data extensions, with the picked one\'s rows, sendable relationship, retention, key, folder, dates and fields beside it. A new results data extension goes in the same folder by default, shown open in the folder tree.' },
     ],
   },
   {
@@ -436,6 +450,29 @@ export const FEATURE_GROUPS = [
       { title: 'Every Content Builder save is kept', how: 'Automatic', detail: 'Each save of an email becomes a version. Saves closer together than the time set in Settings count as one.' },
       { title: 'Preview and delete versions', how: 'Click an email', detail: 'Pick any version to preview it with its subject line, and delete versions you do not need.' },
       { title: 'Revert to an earlier version', how: 'Revert to this version, then confirm', detail: 'Writes that version back to Content Builder; reload the email there to see it. Emails saved before version history existed cannot be reverted.' },
+    ],
+  },
+  {
+    id: 'domains',
+    title: 'Domains',
+    intro: 'Setup > Domains: how this account sends mail and serves links, images and pages under your own domains.',
+    items: [
+      { title: 'Sender Authentication Package and Private Domains', since: '2.0.21', detail: 'Each authenticated sender domain with its status, whether it is sendable, and its custom domains (click, image, view, cloud).' },
+      { title: 'SPF, DKIM and DMARC explained', since: '2.0.21', how: 'Turn on DNS checks (Domains page or Settings)', detail: 'Reads each domain\'s public records: whether SPF authorizes Marketing Cloud and how many of its 10 DNS lookups it uses, the DMARC policy (or the parent domain\'s) with its alignment and reports, whether DKIM keys are published, and who hosts its DNS and receives replies. Check a DKIM key by its selector (s= from a sent email). Only domain names are sent, to Cloudflare\'s DNS resolver; off until you turn it on.' },
+      { title: 'From addresses at risk', since: '2.0.21', how: 'From addresses tab', detail: 'Verified From addresses by domain, and what that domain\'s DMARC does to mail sent from it through Marketing Cloud: covered by a SAP or Private Domain, passing through relaxed alignment, or likely refused or sent to spam.' },
+      { title: 'Custom domains and certificates', since: '2.0.21', how: 'Custom domains tab', detail: 'Every custom domain with its DNS and TLS status, days until its certificate expires, business units, SSL slots used, and (with DNS checks) whether its live CNAME still points to Marketing Cloud.' },
+      { title: 'What these mean', since: '2.0.21', how: 'What these mean tab, or Concepts', detail: 'Plain explanations of SAP, Private Domain, SPF, DKIM, DMARC, alignment and custom domains.' },
+    ],
+  },
+  {
+    id: 'installed-packages',
+    title: 'Installed Packages',
+    intro: 'Setup > Installed Packages.',
+    items: [
+      { title: 'Package secrets about to expire', since: '2.0.21', how: 'Automatic', detail: 'When an installed package\'s client secret expires within a week (or has expired), an alert shows at the top of every page and on Home. Dismiss (or the close button on Home) hides both until that secret\'s expiry changes or another secret starts expiring.' },
+      { title: 'All installed package secrets', since: '2.0.21', detail: 'Every installed package with when its client secret expires.' },
+      { title: 'API endpoints', since: '2.0.21', detail: 'This account\'s authentication, REST, SOAP and SFTP addresses and its tenant subdomain, each with Copy.' },
+      { title: 'Automation Studio activities you can use', since: '2.0.21', detail: 'Every activity type Automation Studio offers, whether you have access to it, and your permissions on it (create, run, delete and so on).' },
     ],
   },
   {

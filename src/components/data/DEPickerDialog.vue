@@ -18,7 +18,12 @@ const props = defineProps({
   title: { type: String, default: 'Choose a data extension' },
   withRow: { type: Boolean, default: false },
   requireSendable: { type: Boolean, default: false },
+  // Lists only sendable data extensions (Email validation, user 2026-11-06); a DE whose
+  // sendability the list does not give is checked when picked, as with requireSendable.
+  sendableOnly: { type: Boolean, default: false },
+  notSendableMessage: { type: String, default: 'SFMC previews an email with data only from a sendable data extension: pick a sendable one, or use Type values.' },
 })
+const checkSendable = computed(() => props.requireSendable || props.sendableOnly)
 const emit = defineEmits(['pick', 'close'])
 
 const de = ref(null) // { id, name, key }
@@ -37,12 +42,12 @@ async function chooseDE(node) {
   filter.value = ''
   loading.value = true
   try {
-    if (!de.value.key || props.requireSendable) {
+    if (!de.value.key || checkSendable.value) {
       const d = await fetchDEDetail(props.stack, node.id)
       if (!de.value.key) de.value.key = d?.customerKey || d?.key || ''
       // Unknown (no isSendable in the response) is let through; SFMC then says so itself.
-      if (props.requireSendable && d && d.isSendable === false) {
-        error.value = `${node.name} is not sendable. SFMC previews an email with data only from a sendable data extension: pick a sendable one, or use Type values.`
+      if (checkSendable.value && d && d.isSendable === false) {
+        error.value = `${node.name} is not sendable. ${props.notSendableMessage}`
         return
       }
     }
@@ -78,7 +83,7 @@ watch(() => props.stack, () => { de.value = null; rows.value = [] })
       </div>
       <div class="flex-1 min-h-0 grid" :class="withRow ? '[grid-template-columns:minmax(240px,320px)_1fr] max-[760px]:grid-cols-1' : 'grid-cols-1'">
         <div class="min-h-0 overflow-hidden border-r border-border flex flex-col">
-          <DEBrowser :stack="stack" :selected-ids="de ? [de.id] : []" hide-data-views class="flex-1 min-h-0" @select-de="chooseDE" />
+          <DEBrowser :stack="stack" :selected-ids="de ? [de.id] : []" hide-data-views :sendable-only="sendableOnly" selected-label="selected" class="flex-1 min-h-0" @select-de="chooseDE" />
           <div v-if="!withRow && (loading || error)" class="p-3 text-xs border-t border-border" :class="error ? 'text-red-700 dark:text-red-300' : 'text-muted-foreground'">
             <Loader2 v-if="loading" class="h-3 w-3 animate-spin inline" /> {{ error || 'Reading the data extension' }}
           </div>

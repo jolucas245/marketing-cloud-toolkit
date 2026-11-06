@@ -15,6 +15,7 @@ const PAGES = {
   '/create-de': () => import('../views/data/CreateDEPage.vue'),
   '/contacts': () => import('../views/contacts/ContactsPage.vue'),
   '/email-validation': () => import('../views/data/EmailValidationPage.vue'),
+  '/publication-lists': () => import('../views/contacts/PublicationListsPage.vue'),
   '/contact-journeys': () => import('../views/journey/ContactJourneysPage.vue'),
   '/automations': () => import('../views/automation/AutomationsPage.vue'),
   '/activities': () => import('../views/automation/ActivitiesPage.vue'),
@@ -28,6 +29,8 @@ const PAGES = {
   '/emails/saved': () => import('../views/emails/EmailsPage.vue'),
   '/cloudpages': () => import('../views/content/CloudPagesPage.vue'),
   '/cloudpages/saved': () => import('../views/emails/EmailsPage.vue'),
+  '/domains': () => import('../views/setup/DomainsPage.vue'),
+  '/installed-packages': () => import('../views/setup/InstalledPackagesPage.vue'),
 }
 
 export const routes = [

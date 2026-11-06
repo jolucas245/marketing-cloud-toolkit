@@ -8,6 +8,8 @@ import { useStoredSetting } from './useStoredSetting.js'
 import { SNAPSHOTS_KEY, addSnapshot, pruneSnapshots, typingSnapshotDue } from '../utils/textSnapshots.js'
 import { HISTORY_SETTING, historyAllowed, runsForStorage } from '../utils/history.js'
 import { isAutoName, suggestQueryName } from '../utils/queryNames.js'
+import { directReadPlan, readDirect, projectRow } from '../utils/directRead.js'
+import { showToast } from './useToast.js'
 import {
   fetchDEMetadata, fetchDEFields, buildDEFields,
   createTargetDE, createQueryActivity,
@@ -120,10 +122,14 @@ export function useQueryPanel(options) {
     }
     try {
       const runStack = run.stack || stack.value
-      const data = await fetchDERows(runStack, run.deKey, 1, 2500)
+      // A direct read (feedback #1076) reads its DE again: its rows as they are now.
+      const d = run.direct
+      const data = await fetchDERows(runStack, d ? d.deKey : run.deKey, 1, d?.top != null ? Math.min(2500, Math.max(d.top, 1)) : 2500)
       const items = data.items || []
-      const rows = items.map(item => ({ ...(item.keys || {}), ...(item.values || {}) }))
-      const columns = rows.length > 0 ? Object.keys(rows[0]) : []
+      const rows = d
+        ? items.map((item) => projectRow(item, d.columns)).slice(0, d.top ?? Infinity)
+        : items.map(item => ({ ...(item.keys || {}), ...(item.values || {}) }))
+      const columns = d ? d.columns : rows.length > 0 ? Object.keys(rows[0]) : []
       historyResults.value = {
         ...historyResults.value,
         [id]: { rows, columns, loading: false, error: null, open: true },
@@ -150,16 +156,29 @@ export function useQueryPanel(options) {
 
   const PAGE_SIZE = 2500
 
+  // The last run read its DE directly (feedback #1076): { key, columns, top }. More rows
+  // come from that DE, in the query's columns, up to its TOP. Never deleted by the panel.
+  let direct = null
+  // Reactive copy for the template: Load more / Load all work for direct reads too.
+  const directKey = ref(null)
+  const canLoadMore = computed(() => !!(directKey.value || createdDeKey.value))
+  const rowsKey = () => direct?.key || createdDeKey.value
+  const flatten = (items) => items.map((item) => (direct ? projectRow(item, direct.columns) : { ...(item.keys || {}), ...(item.values || {}) }))
+  const capTotal = (n) => (direct?.top != null ? Math.min(direct.top, n) : n)
+  const addRows = (flat, count) => {
+    const all = [...resultRows.value, ...flat]
+    totalRowCount.value = capTotal(count ?? all.length)
+    resultRows.value = all.slice(0, Math.max(totalRowCount.value, 0))
+  }
+
   async function fetchMoreRows() {
-    if (isFetchingMore.value || !createdDeKey.value) return
+    if (isFetchingMore.value || !rowsKey()) return
     isFetchingMore.value = true
     try {
       const nextPage = Math.floor(resultRows.value.length / PAGE_SIZE) + 1
-      const data = await fetchDERows(stack.value, createdDeKey.value, nextPage, PAGE_SIZE)
-      const items = data.items || []
-      const flat = items.map(item => ({ ...(item.keys || {}), ...(item.values || {}) }))
-      resultRows.value = [...resultRows.value, ...flat]
-      totalRowCount.value = data.count ?? resultRows.value.length
+      const gen = rowsGen
+      const data = await fetchDERows(stack.value, rowsKey(), nextPage, PAGE_SIZE)
+      if (gen === rowsGen) addRows(flatten(data.items || []), data.count)
     } finally {
       isFetchingMore.value = false
     }
@@ -169,23 +188,29 @@ export function useQueryPanel(options) {
   // export the target DE in SFMC.
   const LOAD_ALL_LIMIT = 50000
 
+  // Bumped by every run, so rows still loading for an earlier run are dropped.
+  let rowsGen = 0
+
+  let fetchingGen = -1
+
   async function fetchAllRows() {
-    if (isFetchingMore.value || !createdDeKey.value) return
+    // A load still running for an earlier run does not block this run's.
+    if (!rowsKey() || (isFetchingMore.value && fetchingGen === rowsGen)) return
     isFetchingMore.value = true
+    const gen = fetchingGen = rowsGen
     try {
       let page = Math.floor(resultRows.value.length / PAGE_SIZE) + 1
       while (resultRows.value.length < LOAD_ALL_LIMIT) {
-        const data = await fetchDERows(stack.value, createdDeKey.value, page, PAGE_SIZE)
+        const data = await fetchDERows(stack.value, rowsKey(), page, PAGE_SIZE)
+        if (gen !== rowsGen || pollAborted) break
         const items = data.items || []
         if (!items.length) break
-        const flat = items.map(item => ({ ...(item.keys || {}), ...(item.values || {}) }))
-        resultRows.value = [...resultRows.value, ...flat]
-        totalRowCount.value = data.count ?? resultRows.value.length
+        addRows(flatten(items), data.count)
         if (resultRows.value.length >= totalRowCount.value) break
         page++
       }
     } finally {
-      isFetchingMore.value = false
+      if (fetchingGen === gen) isFetchingMore.value = false
     }
   }
 
@@ -235,6 +260,21 @@ export function useQueryPanel(options) {
     try { writeText(text) } catch { /* extension context gone */ }
   }
   try { window.addEventListener('pagehide', flushSave) } catch { /* no window */ }
+
+  // Runs changed outside this panel (Delete old runs from SFMC, feedback #1081) are taken
+  // in, so the next autosave does not write the deleted ids back.
+  function onStorageChanged(changes, area) {
+    const next = area === 'local' && changes[queryId]?.newValue
+    if (!next || !Array.isArray(next.runs) || !queryRecord.value) return
+    if (JSON.stringify(next.runs) === JSON.stringify(queryRecord.value.runs || [])) return
+    queryRecord.value = { ...queryRecord.value, runs: next.runs }
+    runs.value = next.runs
+    if (isRunning.value) return // a run in progress keeps its own ids
+    if (!next.runs.some((r) => r.runId === currentRunId.value && r.deId)) { createdDeId.value = null; createdDeKey.value = null }
+    if (!next.runs.some((r) => r.runId === currentRunId.value && r.activityId)) createdActivityId.value = null
+  }
+  try { chrome.storage.onChanged.addListener(onStorageChanged) } catch { /* no extension context */ }
+  onUnmounted(() => { try { chrome.storage.onChanged.removeListener(onStorageChanged) } catch { /* gone */ } })
 
   // ── Earlier text (feedback #1028) ─────────────────────────
   // Copies of this panel's SQL from the last 24 hours (utils/textSnapshots.js).
@@ -579,7 +619,54 @@ export function useQueryPanel(options) {
       elapsedSeconds.value = Math.floor((Date.now() - startTime) / 1000)
     }, 1000)
 
+    rowsGen++
+    if (fromStep <= 0) { direct = null; directKey.value = null }
     try {
+      // A plain read of one data extension: read it directly, no Query Activity (#1076).
+      if (fromStep <= 0) {
+        const plan = directReadPlan(runText)
+        const read = plan ? await readDirect(stack.value, plan).catch((e) => { if (e.message?.includes('SESSION_EXPIRED')) throw e; return null }) : null
+        if (read) {
+          direct = { key: read.de.key, columns: read.columns, top: read.top }
+          directKey.value = read.de.key
+          // Nothing was created: the cleanup buttons must not point at an earlier run's objects.
+          createdDeId.value = null; createdDeKey.value = null; createdActivityId.value = null
+          const skipped = 'Skipped: read directly'
+          setStepDetail(0, 'Plain read of one data extension'); setStep(0, 'done')
+          setStepDetail(1, skipped); setStep(1, 'done')
+          setStepDetail(2, skipped); setStep(2, 'done')
+          setStepDetail(3, { text: `Read ${read.de.name}` }); setStep(3, 'done')
+          resultRows.value    = read.rows
+          resultColumns.value = read.columns
+          totalRowCount.value = read.total
+          setStep(4, 'done')
+          clearInterval(elapsedTimer)
+          const totalSec = Math.floor((Date.now() - startTime) / 1000)
+          completedSummary.value = `Read directly from ${read.de.name} in ${totalSec}s · ${read.total.toLocaleString()} rows · no Query Activity · ${sfmcCallCount() - callsAtStart} SFMC calls`
+          isRunDetailsOpen.value = false
+          isResultsOpen.value    = true
+          resultsMode.value      = 'results'
+          const runEntry = {
+            runId: String(Date.now()), runAt: Date.now(), stack: stack.value, queryText: runText,
+            ...(runEditorText != null ? { editorText: runEditorText } : {}),
+            ...(runPreview ? { preview: true } : {}),
+            // The user's own DE: never stored as deId/deKey, so nothing offers to delete it.
+            direct: { deName: read.de.name, deKey: read.de.key, columns: read.columns, top: read.top },
+            deId: null, deKey: null, activityId: null, rowCount: read.rows.length,
+          }
+          currentRunId.value = runEntry.runId
+          runs.value = [runEntry, ...(Array.isArray(runs.value) ? runs.value : Object.values(runs.value))]
+          const updated = { ...queryRecord.value, runs: runsForStorage(runs.value, historyAllowed(keepHistory.value)) }
+          queryRecord.value = updated
+          await new Promise((resolve) => chrome.storage.local.set({ [queryId]: updated }, resolve))
+          // The rest of the rows, up to LOAD_ALL_LIMIT, load on their own (user, 2026-11-06).
+          if (read.total > read.rows.length) {
+            fetchAllRows().catch((e) => showToast(`Could not load the rest of the rows: ${e.message}`, 8000, { kind: 'error' }))
+          }
+          return
+        }
+      }
+
       // Step 0 - Validate
       if (fromStep <= 0) {
         setStep(0, 'running')
@@ -879,6 +966,13 @@ export function useQueryPanel(options) {
   }
 
   async function pollUntilComplete(stackId, activityId, deKey) {
+    // After a minute, say why it can take long (feedback #1076).
+    const pollStart = Date.now()
+    const noteLongWait = () => {
+      if (Date.now() - pollStart >= 60000 && !stepDetails.value[3]?.note) {
+        setStepDetail(3, { note: 'SFMC is still running the query. Query Activities can wait behind other work in this account, and TOP does not make them start sooner. Open the activity from Create Activity to see it in Automation Studio.' })
+      }
+    }
     await new Promise((r) => setTimeout(r, 15000))
     if (pollAborted) throw new Error('Poll aborted')
 
@@ -898,6 +992,7 @@ export function useQueryPanel(options) {
         await new Promise((r) => setTimeout(r, 5000))
         if (pollAborted) throw new Error('Poll aborted')
       }
+      noteLongWait()
       const { isRunning } = await getQueryActivityStatus(stackId, activityId)
       const rows = await tryFetchRows()
       if (rows) return rows
@@ -911,6 +1006,7 @@ export function useQueryPanel(options) {
     for (let i = 0; i < MAX_RUNNING_POLLS; i++) {
       await new Promise((r) => setTimeout(r, 5000))
       if (pollAborted) throw new Error('Poll aborted')
+      noteLongWait()
       const { isRunning } = await getQueryActivityStatus(stackId, activityId)
       const rows = await tryFetchRows()
       if (rows) return rows
@@ -1105,7 +1201,7 @@ export function useQueryPanel(options) {
     sessionExpired, contactBuilderNeeded, isRunDetailsOpen, isResultsOpen, answerPrompt,
     editorHeightPct, showRunStepper, PAGE_SIZE, LOAD_ALL_LIMIT, canInteract,
     onEditorChange, enableNameEditing, saveName, runValidation, runQuery,
-    fetchMoreRows, fetchAllRows, handleDeleteDE, handleDeleteActivity,
+    fetchMoreRows, fetchAllRows, canLoadMore, handleDeleteDE, handleDeleteActivity,
     openDeleteConfirm, handleDeleteRun, copyToClipboard, formatRunDate,
     onResizeStart, toggleHistoryResults, toggleQueryView,
     openSfmcLogin, openAutomationStudio, cleanQueryText, loadQueryRecord, resolveTargetFields,

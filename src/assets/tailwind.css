@@ -2,7 +2,8 @@
 @config "../../tailwind.config.cjs";
 
 @layer base {
-  /* Redesign (feedback #1031): grey neutrals, teal accent, rounder corners. */
+  /* Redesign (feedback #1031): grey neutrals, rounder corners. Primary is Salesforce
+     Lightning brand blue (#0176D3; #1B96FF in dark mode), user request 2026-11-06. */
   :root {
     --background: 220 23% 98%;
     --foreground: 221 39% 11%;
@@ -13,7 +14,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 221 39% 11%;
 
-    --primary: 175 77% 26%;
+    --primary: 207 99% 42%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 14% 96%;
@@ -30,7 +31,7 @@
 
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 175 77% 26%;
+    --ring: 207 99% 42%;
 
     --radius: 0.625rem;
   }
@@ -42,7 +43,7 @@
     --card-foreground: 210 40% 96%;
     --popover: 222 47% 11%;
     --popover-foreground: 210 40% 96%;
-    --primary: 172 66% 50%;
+    --primary: 208 100% 55%;
     --primary-foreground: 222 47% 11%;
     --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 96%;
@@ -54,15 +55,7 @@
     --destructive-foreground: 0 0% 100%;
     --border: 217 33% 25%;
     --input: 217 33% 25%;
-    --ring: 172 66% 50%;
-  }
-
-  /* Unused (no theme offers it): Salesforce blue, the primary from feedback #127
-     until the redesign (#1031). */
-  .theme-sfmc {
-    --primary: 207 97% 42%;
-    --primary-foreground: 0 0% 100%;
-    --ring: 207 97% 42%;
+    --ring: 208 100% 55%;
   }
 
   * {

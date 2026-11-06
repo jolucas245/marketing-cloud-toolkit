@@ -7,8 +7,9 @@ A Chrome extension for Salesforce Marketing Cloud (SFMC), in one full-tab app. I
 - **Journey:** journeys drawn like the Journey Builder canvas with each step's content; journey entry events.
 - **Data:** data extensions (local, Shared and Synchronized) with fields, folder paths, query building, Where used and Excel export; Create DE.
 - **Content:** CloudPages with URLs and code; optional saved versions of Content Builder emails, with revert.
+- **Setup:** Domains (Sender Authentication Package and Private Domains with SPF, DKIM and DMARC explained, From addresses at DMARC risk, custom domains and certificates); Account (API endpoints, installed package secrets with alerts a week before they expire, Automation Studio access).
 
-It uses your existing Marketing Cloud login. It never asks for or stores credentials, has no analytics, and sends SFMC data only to SFMC.
+It uses your existing Marketing Cloud login. It never asks for or stores credentials, has no analytics, and sends SFMC data only to SFMC. Optional DNS checks on the Domains page send domain names (nothing else) to Cloudflare's public DNS resolver.
 
 - Privacy policy: [PRIVACY.md](PRIVACY.md) (hosted at https://marketing-cloud-toolkit.mathes.dev/privacy)
 - Security: [SECURITY.md](SECURITY.md), [docs/security-summary.md](docs/security-summary.md) (permissions, data flows, admin controls)

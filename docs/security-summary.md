@@ -24,6 +24,7 @@ flowchart LR
   SHARE["Share service<br/>Cloudflare Worker + KV<br/>24 h"]
   FB["Feedback service<br/>Cloudflare Worker + D1<br/>180 days"]
   DF["diagramforce.com<br/>(third party)"]
+  DNS["cloudflare-dns.com<br/>(public DNS resolver)"]
 
   UI -- "SFMC_FETCH messages" --> SW
   SW -- "API calls with the user's session" --> SFMC
@@ -35,6 +36,7 @@ flowchart LR
   UI -. "on click, confirmed: name + SQL" .-> SHARE
   UI -. "user-initiated, previewed: message (+ opt-in details, screenshot)" .-> FB
   UI -. "user click: table and column names" .-> DF
+  UI -. "after opt-in: domain names only" .-> DNS
 ```
 
 Solid lines happen as part of normal use. Dotted lines happen only when the user starts them, and Share needs a setting turned on first.
@@ -87,6 +89,7 @@ The service worker accepts from content scripts only the messages those scripts 
 | `sfmc-share-worker.mathes-btech.workers.dev` | Only after the user turns on Share and confirms a share | `{ name, queryText }` |
 | `query-saver-feedback.mathes-btech.workers.dev` | Only when the user sends feedback, after a payload preview | Message, details, kind, page (no IDs), version, optional name and email; opt-in technical details; opt-in screenshot |
 | `diagramforce.com` | Only when the user clicks Open in Diagramforce (new tab, `postMessage`) | Table, column and join names of the query |
+| `cloudflare-dns.com` | Only after the user turns on DNS checks (Domains page or Settings; off by default), when the Domains page is open | DNS names to resolve (sender and custom domains, `_dmarc.`, `_domainkey.` names); no SFMC data, addresses or account details |
 
 The AI features (experimental, on by default, Settings > Experimental turns them off; Google Chrome only) make no network call of their own: they use Chrome's Prompt API (`LanguageModel`), whose model runs on the device; Chrome downloads that model from Google once, outside the extension. Prompts hold the request, SQL, problems found, table/field names and the names and settings shown on the page (automation steps, journey activities, Where used results, Create DE field names), never query results, rows or sample values; email addresses, phone numbers and record IDs are masked (`maskPersonal`) and prompts are capped at 12,000 characters. The user sees the prompt before it runs (`src/utils/aiAssist.js`, `src/composables/useAi.js`, `components/ai/`, `components/workspace/AiAssistDialog.vue`). No permission is needed.
 
@@ -121,6 +124,7 @@ Set through Chrome policy for the extension (schema `public/managed_schema.json`
 | `disableContacts` | No Contacts page; Contact Builder's headers are not read. |
 | `disableDiagramforce` | No Open in Diagramforce. |
 | `disableAiAssist` | No AI features anywhere (Chrome's on-device model). |
+| `disableDnsLookup` | No DNS checks on the Domains page; nothing is sent to `cloudflare-dns.com`. |
 
 ## Supply chain
 

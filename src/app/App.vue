@@ -10,6 +10,11 @@ import ConfirmHost from '@/components/shell/ConfirmHost.vue'
 import ApiConsole from '@/components/shell/ApiConsole.vue'
 import WhatsNew from '@/components/shell/WhatsNew.vue'
 import UpdateBanner from '@/components/shell/UpdateBanner.vue'
+import SecretAlerts from '@/components/shell/SecretAlerts.vue'
+import { refreshSecrets } from '@/composables/useSecretAlerts.js'
+import { cleanUpOldRuns } from '@/utils/runCleanup.js'
+import { resumeSummary } from '@/utils/publicationLists.js'
+import { fetchCurrentBU } from '@/utils/sfmcApi.js'
 import NoticesMenu from '@/components/shell/NoticesMenu.vue'
 import ConceptsButton from '@/components/shell/ConceptsButton.vue'
 import ThemeSwitcher from '@/components/ui/ThemeSwitcher.vue'
@@ -49,6 +54,13 @@ watch(stack, (s) => { if (s) sendToBackground({ type: 'SFMC_WARM_UP', stack: s }
 watch(stack, (s) => { if (s) sendToBackground({ type: 'WATCH_CHECK', stack: s, force: true }).catch(() => undefined) }, { immediate: true })
 // Automation and Journey overview read quietly once the browser is idle (feedback #78).
 watch(stack, (s) => preloadWhenIdle(s), { immediate: true })
+// Installed package secrets expiring within a week show at the top (user, 2026-11-05).
+watch(stack, (s) => { if (s) refreshSecrets(s).catch(() => undefined) }, { immediate: true })
+// Run Query's data extensions and Query activities older than 7 days (Settings) are
+// deleted, once a day per stack, a minute after opening (feedback #1081).
+watch(stack, (s) => { if (s) setTimeout(() => cleanUpOldRuns(s).catch(() => undefined), 60000) }, { immediate: true })
+// Publication list counts still running when the Toolkit was closed are picked up (#1080).
+watch(stack, (s) => { if (s) fetchCurrentBU(s).then((bu) => bu && resumeSummary(s, bu.accountId)).catch(() => undefined) }, { immediate: true })
 // Load everything when connected (feedback #1037): Settings > Connection, off by default.
 let preloadedFor = null
 function maybeLoadEverything(s) {
@@ -114,6 +126,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
     <div class="flex flex-1 min-h-0">
     <AppSidebar />
     <div class="flex-1 flex flex-col min-w-0">
+      <SecretAlerts variant="bar" />
       <MessageBar />
       <main class="flex-1 min-h-0 overflow-auto">
         <!-- These stay alive in the background, so a running query, a half-built join

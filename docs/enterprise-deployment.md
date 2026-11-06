@@ -43,6 +43,7 @@ The extension reads these keys from Chrome's managed storage (`chrome.storage.ma
 | `disableScreenshots` | Feedback never offers a screenshot. |
 | `disableContacts` | No Contacts page, and Contact Builder's request headers are not read. |
 | `disableDiagramforce` | No Open in Diagramforce (which sends table and column names to diagramforce.com). |
+| `disableDnsLookup` | No DNS checks on the Domains page (which send domain names to Cloudflare's public DNS resolver, cloudflare-dns.com). |
 | `disableAiAssist` | No AI features (Ask AI, Fix with AI, Explain, Summarize, Suggest types; Chrome's built-in model, on the computer; nothing is sent over the network). Users can also turn them off in Settings > Experimental. |
 
 A strict setup for a regulated organization:
@@ -54,7 +55,8 @@ A strict setup for a regulated organization:
   "disableFeedbackMetadata": true,
   "disableScreenshots": true,
   "disableContacts": true,
-  "disableDiagramforce": true
+  "disableDiagramforce": true,
+  "disableDnsLookup": true
 }
 ```
 
@@ -104,7 +106,7 @@ Check what a browser received at `chrome://policy` (Show policies with no value 
 
 ## 3. Network allow-lists
 
-The extension needs only Salesforce's domains: `*.exacttarget.com`, `*.marketingcloudapps.com`, `*.marketingcloud.com`, `*.salesforce-marketingcloud.com`. Optional, only when the matching feature is used: `sfmc-share-worker.mathes-btech.workers.dev` (Share), `query-saver-feedback.mathes-btech.workers.dev` (Feedback), `diagramforce.com` (Open in Diagramforce). Blocking the optional three at a proxy is a valid alternative to the policies above.
+The extension needs only Salesforce's domains: `*.exacttarget.com`, `*.marketingcloudapps.com`, `*.marketingcloud.com`, `*.salesforce-marketingcloud.com`. Optional, only when the matching feature is used: `sfmc-share-worker.mathes-btech.workers.dev` (Share), `query-saver-feedback.mathes-btech.workers.dev` (Feedback), `diagramforce.com` (Open in Diagramforce), `cloudflare-dns.com` (DNS checks on the Domains page). Blocking the optional four at a proxy is a valid alternative to the policies above.
 
 ## 4. Versions and pinning
 

@@ -8,6 +8,7 @@ defineProps({
   loadingFolders: { type: Object, required: true }, // Set<string>
   folderChildren: { type: Object, required: true }, // { [id]: node[] }
   inQuery: { type: Object, default: () => new Set() }, // Set<string> of ids already in the query
+  selectedLabel: { type: String, default: 'in query' },
 })
 
 const emit = defineEmits(['toggle', 'select'])
@@ -38,7 +39,7 @@ function onDeDragStart(e, n) {
     >
       <Database class="h-3.5 w-3.5 shrink-0" />
       <span class="truncate">{{ node.name }}</span>
-      <span v-if="inQuery.has(key(node))" class="ml-auto shrink-0 text-[11px]">in query</span>
+      <span v-if="inQuery.has(key(node))" class="ml-auto shrink-0 text-[11px]">{{ selectedLabel }}</span>
     </button>
 
     <!-- Folder -->
@@ -72,7 +73,7 @@ function onDeDragStart(e, n) {
             :expanded="expanded"
             :loading-folders="loadingFolders"
             :folder-children="folderChildren"
-            :in-query="inQuery"
+            :in-query="inQuery" :selected-label="selectedLabel"
             @toggle="emit('toggle', $event)"
             @select="emit('select', $event)"
           />

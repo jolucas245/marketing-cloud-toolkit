@@ -23,3 +23,15 @@ describe('RunStepper question', () => {
     expect(w.text()).not.toContain('Open Contact Builder and retry?')
   })
 })
+
+describe('RunStepper: a long Run explained (feedback #1076)', () => {
+  it('shows the note while Run is running, not once it is done', async () => {
+    const { default: Stepper } = await import('../RunStepper.vue')
+    const note = 'SFMC is still running the query.'
+    const running = ['done', 'done', 'done', 'running', 'pending']
+    const w = mount(Stepper, { props: { stepStatuses: running, stepDetails: [null, null, null, { note }, null], elapsedSeconds: 75 } })
+    expect(w.find('[data-long-wait]').text()).toBe(note)
+    await w.setProps({ stepStatuses: ['done', 'done', 'done', 'done', 'running'] })
+    expect(w.find('[data-long-wait]').exists()).toBe(false)
+  })
+})

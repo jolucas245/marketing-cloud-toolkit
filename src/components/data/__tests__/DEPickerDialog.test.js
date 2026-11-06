@@ -51,3 +51,15 @@ describe('DE picker, sendable only (feedback #1075)', () => {
     expect(rowsRead).toEqual(['PREFS'])
   })
 })
+
+describe('DE picker for Email validation: sendable only (user, 2026-11-06)', () => {
+  it('refuses a DE that is not sendable with the caller\'s message, and passes the filter to the tree', async () => {
+    detail = { isSendable: false }
+    const { default: Picker } = await import('../DEPickerDialog.vue')
+    const w = mount(Picker, { props: { stack: 's12', sendableOnly: true, notSendableMessage: 'Email validation works only on sendable data extensions.' } })
+    await w.find('[data-pick]').trigger('click')
+    await flushPromises()
+    expect(w.text()).toContain('Prefs is not sendable. Email validation works only on sendable data extensions.')
+    expect(w.emitted('pick')).toBeUndefined()
+  })
+})

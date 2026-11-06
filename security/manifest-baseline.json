@@ -16,7 +16,7 @@
   ],
   "optional_host_permissions": [],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; connect-src 'self' https://*.exacttarget.com https://*.marketingcloudapps.com https://*.marketingcloud.com https://*.salesforce-marketingcloud.com https://sfmc-share-worker.mathes-btech.workers.dev https://query-saver-feedback.mathes-btech.workers.dev data: blob:"
+    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; connect-src 'self' https://*.exacttarget.com https://*.marketingcloudapps.com https://*.marketingcloud.com https://*.salesforce-marketingcloud.com https://sfmc-share-worker.mathes-btech.workers.dev https://query-saver-feedback.mathes-btech.workers.dev https://cloudflare-dns.com data: blob:"
   },
   "content_scripts": [
     {
@@ -55,12 +55,16 @@
     "*.marketingcloudapps.com",
     "*.salesforce-marketingcloud.com",
     "cloud-pages.*.marketingcloudapps.com",
+    "cloudflare-dns.com",
     "content-builder.*.marketingcloudapps.com",
+    "custom-domains-ui.*.marketingcloudapps.com",
     "developer.salesforce.com",
     "diagramforce.com",
+    "email-app.*.marketingcloudapps.com",
     "jbinteractions.*.marketingcloudapps.com",
     "mateuszdabrowski.pl",
     "mc-data-ui.*.marketingcloudapps.com",
+    "mc-domainwhitelist-admin-app.*.marketingcloudapps.com",
     "mc.*.exacttarget.com",
     "mc.*.marketingcloudapps.com",
     "mc.exacttarget.com",

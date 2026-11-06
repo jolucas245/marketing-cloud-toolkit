@@ -7,6 +7,105 @@
 
 export const TO_TEST = [
   {
+    version: '2.0.21',
+    status: 'Not released: test builds only',
+    items: [
+      {
+        id: '2.0.21-domains-sfmc', area: 'Setup', title: 'Domains: sender domains and custom domains load', live: true,
+        where: 'Setup > Domains',
+        steps: [
+          'Open Setup > Domains with no Setup page open in SFMC.',
+          'Check the four figures at the top, then each tab.',
+          'If an error says it could not connect, click Retry once, then try Open ... in SFMC to log in.',
+        ],
+        expect: 'SAP and Private Domains, From addresses and custom domains match Setup in SFMC. The email-app and custom-domains-ui calls are assumed to use their own session (not a Bearer token): if they fail, send the error with Report.',
+      },
+      {
+        id: '2.0.21-domains-dns', area: 'Setup', title: 'Domains: DNS checks', live: true,
+        where: 'Setup > Domains > Turn on DNS checks',
+        steps: [
+          'Turn on DNS checks; check SPF, DMARC, DKIM and DNS hosting on each SAP or Private Domain.',
+          'Copy s= from the DKIM-Signature header of an email sent from a SAP domain, enter it under DKIM and click Check key.',
+          'Open From addresses: check the DMARC column and the risk text for a domain that is not a SAP domain.',
+          'Open Custom domains: check Live CNAME.',
+          'Turn DNS checks off in Settings and reload: nothing is looked up.',
+        ],
+        expect: 'Records match public DNS (for example dig TXT _dmarc.<domain>). Only cloudflare-dns.com is called for DNS (API console shows SFMC calls only).',
+      },
+      {
+        id: '2.0.21-results-search', area: 'Queries', title: 'Search every column of the results', live: true,
+        where: 'Run Query results, History > View results, Publication Lists',
+        steps: [
+          'Run a query with a few thousand rows, go to page 3, type part of an email or a city in Search rows: only matching rows show, from page 1, and the count says x of y loaded rows (filtered).',
+          'Open Filters and filter a column too: both apply.',
+          'Download CSV: only the matching rows. Press Esc in the box: every row is back.',
+          'Preview data still has its own Filter loaded rows box, and no second one.',
+        ],
+        expect: 'Search is case-insensitive, covers every column and only the loaded rows.',
+      },
+      {
+        id: '2.0.21-direct-read', area: 'Queries', title: 'Plain reads of one data extension skip the Query Activity', ref: '#1076', live: true,
+        where: 'Run Query',
+        steps: [
+          'Run select TOP 1000 <field> from [<a big DE>]: results come in seconds; the summary says Read directly, no Query Activity.',
+          'Run select * from [<DE>] on a DE with more than 2,500 rows: the rest load on their own, up to 50,000 (Showing x of y counts up); run another query while it loads: no rows from the first DE appear.',
+          'Run the same with a WHERE, ORDER BY, JOIN or a data view: it runs as a Query Activity, as before.',
+          'Open History: the direct read says Read directly from <DE>; View results shows its rows; no delete is offered for that DE.',
+          'Run a slow Query Activity: after a minute the Run step explains the wait.',
+        ],
+        expect: 'Same rows as the Query Activity run would give; the user\'s DE is never offered for deletion.',
+      },
+      {
+        id: '2.0.21-email-validation-de', area: 'Contacts', title: 'Email validation: sendable data extensions, 50,000 rows, stay on screen', live: true,
+        where: 'Contacts > Email validation > Data extension',
+        steps: [
+          'The folder tree is on the page (no dialog): only sendable data extensions are listed, in folders and in search.',
+          'Pick one: the right side shows its rows, Sendable Yes, the send relationship (for example SubscriberKey relates to Subscriber Key), retention, key, folder, dates and its fields. Compare with Contact Builder.',
+          'Pick one with more than 50,000 rows: the page says only the first 50,000 are checked.',
+          'Start a check: the page asks you to stay; try leaving to another page: it asks first, and leaving stops the check.',
+          'Tabs are Email addresses, Data extension and Contacts. On Email addresses, check one address, then several (one per line or commas); Ctrl+Enter or Cmd+Enter in the box runs it. Every tab\'s button says Run email validation.',
+          'For a new results data extension, the folder tree looks like the data extension tree and opens at the picked data extension\'s folder, selected.',
+        ],
+        expect: 'No non-sendable DE in the tree; the details match Contact Builder; the 50,000 message shows before running.',
+      },
+      {
+        id: '2.0.21-publication-lists', area: 'Contacts', title: 'Publication Lists: subscribers per list by status', ref: '#1080', live: true,
+        where: 'Contacts > Publication Lists',
+        steps: [
+          'Open Publication Lists for the first time in a business unit: it says the count is running and you will be told.',
+          'Go to another page and wait: a message says the counts are ready.',
+          'Open Publication Lists again: each list with Active, Unsubscribed, Held, Bounced and Total; compare a list with Email Studio.',
+          'Reload the Toolkit while a count is running: it still finishes and tells you.',
+          'Refresh again: the same SFMCQS_publist data extension and Query Activity are reused (check Automation Studio); delete them in Settings > Clean up, then Refresh: new ones are made.',
+        ],
+        expect: 'Counts match Email Studio; no new SFMCQS_publist objects per refresh; the counts are not kept in the browser (Settings > Storage).',
+      },
+      {
+        id: '2.0.21-run-cleanup', area: 'Queries', title: 'Delete old runs from SFMC (7 days)', ref: '#1081', live: true,
+        where: 'Settings > Running queries > Delete old runs from SFMC; Run Query > History',
+        steps: [
+          'In Settings set Delete runs older than to 1 day; keep a query with a run from more than a day ago (or wait a day after running one).',
+          'Reload the Toolkit and wait a minute: check the API console for the Query Activity and data extension DELETE calls.',
+          'Open that query: its History shows Cleaned up from SFMC for the old run, View results for newer ones; the SQL is still there.',
+          'Check in SFMC that the SFMCQS_ data extension and Query Activity of the old run are gone, and that newer runs are untouched.',
+          'Turn the setting off and reload: nothing is deleted.',
+        ],
+        expect: 'Only runs older than the limit, made in this browser, lose their objects; at most one sweep a day per stack.',
+      },
+      {
+        id: '2.0.21-secret-alerts', area: 'Setup', title: 'Package secret alerts and Installed Packages page', ref: '#1078, #1079', live: true,
+        where: 'Top of every page, Home, Setup > Installed Packages',
+        steps: [
+          'In an account with a package secret expiring within 7 days, open the Toolkit.',
+          'Click Details on the alert at the top: Installed Packages opens and Details is gone from the alert.',
+          'Click Dismiss on the alert at the top; open Home.',
+          'Open Setup > Installed Packages: check the package secrets, API endpoints (Copy) and Automation Studio activities.',
+        ],
+        expect: 'The alert lists only secrets expiring within 7 days or expired; Dismiss hides the top alert, Home still shows it. Installed Packages lists every secret, the endpoints and the activity types with your permissions.',
+      },
+    ],
+  },
+  {
     version: '2.0.20',
     status: 'Not released: test builds only',
     items: [

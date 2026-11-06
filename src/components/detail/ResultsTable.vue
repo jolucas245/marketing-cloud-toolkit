@@ -1,11 +1,12 @@
 <script setup>
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import { computed, ref, watch } from 'vue'
-import { ChevronLeft, ChevronRight, Download, FileText, Copy, Check, Loader2, ArrowUp, ArrowDown, ArrowUpDown, ListFilter, FileSpreadsheet, ChartBar } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, Download, FileText, Copy, Check, Loader2, ArrowUp, ArrowDown, ArrowUpDown, ListFilter, FileSpreadsheet, ChartBar, Search } from 'lucide-vue-next'
 import ColumnValues from '@/components/detail/ColumnValues.vue'
 import { applyValueFilters, valueFiltering } from '@/utils/columnValues.js'
 import { buildResultsMarkdown, MARKDOWN_ROW_LIMIT } from '@/utils/markdownExport.js'
 import { sortRows, filterRows, nextSort } from '@/utils/tableSort.js'
+import { filterRows as searchRows } from '@/utils/deRows.js'
 import { rowsAsTsv, rangeSelect } from '@/utils/rowSelection.js'
 import { downloadWorkbook } from '@/utils/exportDoc.js'
 import { showToast } from '@/composables/useToast.js'
@@ -32,6 +33,9 @@ const props = defineProps({
   selectable: { type: Boolean, default: false },
   // The column values panel offers SFMC queries over the whole DE (Preview data, #1012).
   sfmcValues: { type: Boolean, default: false },
+  // One box that searches every column (user, 2026-11-06). Off where the parent has its
+  // own (Preview data's "Filter loaded rows").
+  searchable: { type: Boolean, default: true },
 })
 const emit = defineEmits(['load-more', 'load-all', 'values-query'])
 
@@ -49,9 +53,11 @@ const colDefs = computed(() => props.columns.map((c) => ({ key: c, label: c })))
 const picks = ref({})
 const dups = ref({})
 const valuesOpen = ref(null)
-const textFiltered = computed(() => filterRows(props.rows, colDefs.value, filters.value))
+const search = ref('')
+const searched = computed(() => (props.searchable ? searchRows(props.rows, props.columns, search.value) : props.rows))
+const textFiltered = computed(() => filterRows(searched.value, colDefs.value, filters.value))
 const valuesFiltering = computed(() => valueFiltering(picks.value, dups.value))
-const filtering = computed(() => Object.values(filters.value).some((v) => String(v || '').trim()) || valuesFiltering.value)
+const filtering = computed(() => !!(props.searchable && search.value.trim()) || Object.values(filters.value).some((v) => String(v || '').trim()) || valuesFiltering.value)
 const viewRows = computed(() => sortRows(applyValueFilters(textFiltered.value, picks.value, dups.value), colDefs.value, sort.value))
 // A column's list counts the rows every other filter keeps.
 const valuesBase = (col) => applyValueFilters(textFiltered.value, picks.value, dups.value, col)
@@ -60,6 +66,7 @@ function clickHeader(col) { sort.value = nextSort(sort.value, col); page.value =
 function toggleValues(col) { valuesOpen.value = valuesOpen.value === col ? null : col }
 function clearValueFilters() { picks.value = {}; dups.value = {} }
 watch(filters, () => { page.value = 0 }, { deep: true })
+watch(search, () => { page.value = 0 })
 watch([picks, dups], () => { page.value = 0 }, { deep: true })
 // Columns that go away take their value filters with them.
 watch(() => props.columns, (cols) => {
@@ -75,6 +82,13 @@ const totalPages = computed(() => Math.max(1, Math.ceil(viewRows.value.length / 
 const visibleRows = computed(() =>
   viewRows.value.slice(page.value * PAGE_SIZE, (page.value + 1) * PAGE_SIZE)
 )
+// Rows filtered or reloaded by the parent (DERowsViewer's filter box) start again from
+// page 1; rows only appended (Load more) keep the page. Feedback #1082: filtering from
+// page 2 left an empty page 2 of 35 matching rows.
+watch(() => props.rows, (rows, before) => {
+  const appended = before && rows.length >= before.length && before.every((r, i) => rows[i] === r)
+  if (!appended) page.value = 0
+})
 
 // Ticked rows, by row object; a reload brings new objects and so clears them.
 const picked = ref(new Set())
@@ -196,6 +210,12 @@ function downloadCSV() {
           </Button>
         </div>
 
+        <label v-if="searchable" class="relative flex items-center">
+          <Search class="pointer-events-none absolute left-2 h-3 w-3 text-muted-foreground" />
+          <input v-model="search" type="search" data-results-search placeholder="Search rows" aria-label="Search the loaded rows, every column"
+            title="Finds the text in any column of the loaded rows" :disabled="columns.length === 0"
+            class="h-7 w-40 rounded-full border border-border bg-background pl-6 pr-2 text-xs text-foreground" @keydown.esc="search = ''" />
+        </label>
         <Button variant="outline" size="sm" class="h-7 rounded-full px-2.5 text-xs gap-1.5" :class="filtersOpen || filtering ? 'bg-accent' : ''" :aria-pressed="filtersOpen"
           :disabled="columns.length === 0" title="A filter box for each column" @click="filtersOpen = !filtersOpen">
           <ListFilter class="h-3 w-3" /> Filters

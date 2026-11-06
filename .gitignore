@@ -11,3 +11,6 @@ workers/**/*.jpg
 workers/**/*.png
 workers/**/*.webp
 workers/**/.shot.json
+
+# read-feedback.sh scratch output (untrusted feedback rows)
+workers/feedback/.rows.json

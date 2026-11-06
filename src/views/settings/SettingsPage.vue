@@ -20,7 +20,9 @@ import { useApiConsole } from '@/composables/useApiConsole.js'
 import { useAi } from '@/composables/useAi.js'
 import { AVAILABILITY_TEXT, isChromeBrowser } from '@/utils/aiAssist.js'
 import { DEFAULT_RETENTION_DAYS, SUGGESTED_RETENTION_DAYS, parseRetentionDays } from '@/utils/sfmcApi.js'
+import { RUN_CLEANUP_SETTING, DEFAULT_RUN_CLEANUP_DAYS, parseRunCleanupDays } from '@/utils/runCleanup.js'
 import { policy, POLICY_NOTE } from '@/utils/policy.js'
+import { DNS_SETTING } from '@/utils/dnsCheck.js'
 import { HISTORY_SETTING } from '@/utils/history.js'
 import { SHARE_SETTING } from '@/utils/share.js'
 import { QUERY_STUDIO_SETTING, QUERY_STUDIO_PERMISSION } from '@/utils/queryStudio.js'
@@ -46,8 +48,17 @@ const { value: reuseQueryDE } = useStoredSetting('_reuseQueryDE', false, (v) => 
 const { value: autoStartSessions } = useStoredSetting('_autoStartSessions', true, (v) => v !== false)
 const { value: preloadOnConnect } = useStoredSetting('_preloadOnConnect', false, (v) => v === true)
 const { value: automationPanel } = useStoredSetting('_automationPanel', true, (v) => v !== false)
+// DNS checks on the Domains page (user, 2026-11-05): off until the user turns them on.
+const { value: dnsLookup } = useStoredSetting(DNS_SETTING, false, (v) => v === true)
 const { value: dashboardPanel } = useStoredSetting('_dashboardPanel', false, (v) => v === true)
 const { value: retentionDays } = useStoredSetting('_queryDERetentionDays', DEFAULT_RETENTION_DAYS, parseRetentionDays)
+// Feedback #1081: delete Run Query's SFMC objects after N days (0 = off).
+const { value: cleanupDays } = useStoredSetting(RUN_CLEANUP_SETTING, DEFAULT_RUN_CLEANUP_DAYS, parseRunCleanupDays)
+const cleanupOn = computed({ get: () => cleanupDays.value > 0, set: (on) => { cleanupDays.value = on ? DEFAULT_RUN_CLEANUP_DAYS : 0 } })
+const cleanupInput = computed({
+  get: () => cleanupDays.value,
+  set: (v) => { const n = Math.round(Number(v)); if (Number.isFinite(n) && n > 0) cleanupDays.value = parseRunCleanupDays(n) },
+})
 
 // Desktop notifications for watched automations: the optional notifications
 // permission plus a setting (feedback #50).
@@ -251,6 +262,19 @@ function setDebounce(e) {
       </div>
       <div class="flex items-start gap-3">
         <div class="flex-1">
+          <div class="text-sm font-medium">Delete old runs from SFMC</div>
+          <p class="text-xs text-muted-foreground">On by default. Once a day, the data extension and Query Activity of each run you made in this browser more than the given number of days ago are deleted from SFMC. The run stays in the query's history with its SQL; its results are gone. Settings > Clean up deletes the rest (other browsers, older versions).</p>
+          <label v-if="cleanupOn" class="mt-2 flex items-center gap-1.5 text-xs">
+            Delete runs older than
+            <input v-model.lazy="cleanupInput" type="number" min="1" max="365" step="1" aria-label="Delete runs older than, in days"
+              class="h-8 w-20 rounded-md border border-border bg-background px-2 text-xs" />
+            days
+          </label>
+        </div>
+        <Switch v-model="cleanupOn" aria-label="Delete old runs from SFMC" />
+      </div>
+      <div class="flex items-start gap-3">
+        <div class="flex-1">
           <div class="text-sm font-medium">Share queries</div>
           <p class="text-xs text-muted-foreground">Shows Share on queries. Sharing sends a query's name and SQL to the Toolkit's share service, where anyone with the link can read it for 24 hours; each share shows what will be sent and asks first. On by default; nothing is sent until you click Share and confirm.</p>
           <p v-if="policy.disableShare" class="text-xs text-amber-700 dark:text-amber-400">{{ POLICY_NOTE }}</p>
@@ -340,6 +364,25 @@ function setDebounce(e) {
         <Switch v-model="dashboardPanel" aria-label="Marketing Cloud Toolkit on the Marketing Cloud Dashboard" />
       </div>
 </section>
+
+    <section class="rounded-lg border border-border bg-card p-4">
+      <h2 class="text-sm font-semibold mb-3">Marketing Cloud account</h2>
+      <div class="flex items-start gap-3">
+        <div class="flex-1">
+          <div class="text-sm font-medium">Installed packages</div>
+          <p class="text-xs text-muted-foreground">Setup > Installed Packages: when each installed package secret expires, this account's API endpoints (REST, SOAP, authentication, SFTP), and which Automation Studio activities you can use. Secrets that expire within a week also show as an alert at the top and on Home.</p>
+        </div>
+        <RouterLink to="/installed-packages" class="text-xs font-medium text-primary hover:underline whitespace-nowrap">Open Installed Packages</RouterLink>
+      </div>
+      <div class="flex items-start gap-3 mt-4">
+        <div class="flex-1">
+          <div class="text-sm font-medium">DNS checks on the Domains page</div>
+          <p class="text-xs text-muted-foreground">Off by default. Reads the public SPF, DKIM, DMARC, name server, MX and CNAME records of your sender and custom domains through Cloudflare's DNS resolver (cloudflare-dns.com). Only domain names are sent; nothing from Marketing Cloud.</p>
+          <p v-if="policy.disableDnsLookup" class="text-xs text-muted-foreground mt-1">{{ POLICY_NOTE }}</p>
+        </div>
+        <Switch :model-value="dnsLookup && !policy.disableDnsLookup" :disabled="policy.disableDnsLookup" aria-label="DNS checks on the Domains page" @update:model-value="dnsLookup = $event" />
+      </div>
+    </section>
 
     <section class="rounded-lg border border-border bg-card p-4">
       <h2 class="text-sm font-semibold mb-3">Experimental</h2>
