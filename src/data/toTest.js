@@ -33,6 +33,42 @@ export const TO_TEST = [
         expect: 'Records match public DNS (for example dig TXT _dmarc.<domain>). Only cloudflare-dns.com is called for DNS (API console shows SFMC calls only).',
       },
       {
+        id: '2.0.21-results-search', area: 'Queries', title: 'Search every column of the results', live: true,
+        where: 'Run Query results, History > View results, Publication Lists',
+        steps: [
+          'Run a query with a few thousand rows, go to page 3, type part of an email or a city in Search rows: only matching rows show, from page 1, and the count says x of y loaded rows (filtered).',
+          'Open Filters and filter a column too: both apply.',
+          'Download CSV: only the matching rows. Press Esc in the box: every row is back.',
+          'Preview data still has its own Filter loaded rows box, and no second one.',
+        ],
+        expect: 'Search is case-insensitive, covers every column and only the loaded rows.',
+      },
+      {
+        id: '2.0.21-direct-read', area: 'Queries', title: 'Plain reads of one data extension skip the Query Activity', ref: '#1076', live: true,
+        where: 'Run Query',
+        steps: [
+          'Run select TOP 1000 <field> from [<a big DE>]: results come in seconds; the summary says Read directly, no Query Activity.',
+          'Run select * from [<DE>] on a DE with more than 2,500 rows: the rest load on their own, up to 50,000 (Showing x of y counts up); run another query while it loads: no rows from the first DE appear.',
+          'Run the same with a WHERE, ORDER BY, JOIN or a data view: it runs as a Query Activity, as before.',
+          'Open History: the direct read says Read directly from <DE>; View results shows its rows; no delete is offered for that DE.',
+          'Run a slow Query Activity: after a minute the Run step explains the wait.',
+        ],
+        expect: 'Same rows as the Query Activity run would give; the user\'s DE is never offered for deletion.',
+      },
+      {
+        id: '2.0.21-email-validation-de', area: 'Contacts', title: 'Email validation: sendable data extensions, 50,000 rows, stay on screen', live: true,
+        where: 'Contacts > Email validation > Data extension',
+        steps: [
+          'The folder tree is on the page (no dialog): only sendable data extensions are listed, in folders and in search.',
+          'Pick one: the right side shows its rows, Sendable Yes, the send relationship (for example SubscriberKey relates to Subscriber Key), retention, key, folder, dates and its fields. Compare with Contact Builder.',
+          'Pick one with more than 50,000 rows: the page says only the first 50,000 are checked.',
+          'Start a check: the page asks you to stay; try leaving to another page: it asks first, and leaving stops the check.',
+          'Tabs are Email addresses, Data extension and Contacts. On Email addresses, check one address, then several (one per line or commas); Ctrl+Enter or Cmd+Enter in the box runs it. Every tab\'s button says Run email validation.',
+          'For a new results data extension, the folder tree looks like the data extension tree and opens at the picked data extension\'s folder, selected.',
+        ],
+        expect: 'No non-sendable DE in the tree; the details match Contact Builder; the 50,000 message shows before running.',
+      },
+      {
         id: '2.0.21-publication-lists', area: 'Contacts', title: 'Publication Lists: subscribers per list by status', ref: '#1080', live: true,
         where: 'Contacts > Publication Lists',
         steps: [

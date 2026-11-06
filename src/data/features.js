@@ -9,6 +9,7 @@ export const FEATURE_GROUPS = [
     title: 'Getting around',
     intro: 'Marketing Cloud Toolkit replaces SFMC Query Saver and includes everything SFMC Automation Viewer did. Click the toolbar icon to open it in a new tab.',
     items: [
+      { title: 'Customize Home', since: '2.0.21', how: 'Home > Customize Home', detail: 'Hide or show Home\'s sections and cards, and reorder them by dragging or with the arrows. Kept in this browser (and in backups); Reset to default puts everything back. Nothing is sent.' },
       { title: 'Restart to update', since: '2.0.4', detail: 'When Chrome has downloaded a new version, a card offers to restart Marketing Cloud Toolkit into it.' },
       { title: 'Descriptive file names', since: '2.0.4', detail: 'Downloads are named with the business unit, what they contain, and the date and time.' },
       { title: 'Storage by section', since: '2.0.4', how: 'Settings > Storage', detail: 'What takes the space, by section and business unit. Delete one part, or keep only the newest versions of each email.' },
@@ -63,6 +64,8 @@ export const FEATURE_GROUPS = [
       { title: 'Schema search', since: '2.0.11', how: 'The table button in a panel, or Cmd/Ctrl+Shift+S in the editor', detail: 'Search data extensions (this business unit, Shared and Synchronized) and data views by name, pick one and see its fields with type, length, primary key and required. Click a field to write it at the cursor (with the query\'s alias for that table), or insert the table name (ENT. for Shared) or all fields.' },
       { title: 'Run with the keyboard', since: '2.0.11', how: 'Cmd+Enter (Mac) or Ctrl+Enter in the editor', detail: 'Runs the query, or only the selected text when something is selected.' },
       { title: 'Clean up Toolkit runs', since: '2.0.3', how: 'Settings > Clean up (Queries > Delete Toolkit runs before 2.0.19, Clean up SFMC before 2.0.16)', detail: 'Lists the data extensions and Query activities Run Query created (names starting SFMCQS_) and deletes the ones you tick, after asking. Nothing else is ever listed.' },
+      { title: 'Plain reads skip the Query Activity', since: '2.0.21', detail: 'A query that only reads one data extension (SELECT [TOP n] columns or * FROM one DE, no WHERE, JOIN, ORDER BY or grouping) reads its rows directly, in seconds, then loads the rest up to 50,000, instead of waiting for a Query Activity (feedback #1076). After a minute, a Query Activity run says why it can take long.' },
+      { title: 'Search the results', since: '2.0.21', how: 'Search rows box above the results', detail: 'Finds the text in any column of the loaded rows; works with the column filters, and CSV, Excel and Markdown keep only the matching rows. Esc clears it.' },
       { title: 'Delete old runs from SFMC', since: '2.0.21', how: 'Settings > Running queries', detail: 'On by default (feedback #1081). Once a day, runs you made in this browser more than 7 days ago (or the days you set) lose their data extension and Query Activity in SFMC; the run stays in the query\'s history with its SQL, marked Cleaned up from SFMC.' },
       { title: 'Data retention on new data extensions', since: '2.0.3', how: 'Settings > Running queries', detail: 'Off by default. Switched on, SFMC deletes each row of a new Run Query data extension after the number of days you set.' },
       { title: 'Export with no rows', since: '2.0.3', detail: 'When a query returns nothing, Copy for AI and MD still give the SQL and the columns, and CSV gives the header.' },
@@ -400,9 +403,10 @@ export const FEATURE_GROUPS = [
     intro: 'Data > Email validation. Uses SFMC\'s email validation API, one call per address; sends nothing to anyone.',
     items: [
       { title: 'Checks', since: '2.0.18', detail: 'Syntax, mail server (MX record) and List Detective (SFMC\'s list of known bad, role and spam-trap addresses); pick which to run.' },
-      { title: 'One address or a list', since: '2.0.18', detail: 'Type one address, or paste or load up to 5,000. Results show valid or not, the reason and SFMC\'s answer, with a CSV download.' },
+      { title: 'One address or a list', since: '2.0.18', how: 'Email addresses tab', detail: 'Type one address, or paste or load up to 5,000 (one tab for both since 2.0.21; Ctrl+Enter runs it). Results show valid or not, the reason and SFMC\'s answer, with a CSV download.' },
       { title: 'Contacts', since: '2.0.18', how: 'Contacts tab', detail: 'Enter Contact Keys; every email address Contact Builder has for each contact is checked.' },
       { title: 'A data extension', since: '2.0.18', how: 'Data extension tab', detail: 'Pick a data extension and its email field (up to 50,000 rows). Results go into three fields you pick in that data extension (isValidEmail, invalidReason, APIresponse; rows matched by primary key), or into a new data extension with the keys, the email and those three fields.' },
+      { title: 'Pick the data extension on the page', since: '2.0.21', how: 'Data extension tab', detail: 'Folders and search of sendable data extensions, with the picked one\'s rows, sendable relationship, retention, key, folder, dates and fields beside it. A new results data extension goes in the same folder by default, shown open in the folder tree.' },
     ],
   },
   {
@@ -465,7 +469,7 @@ export const FEATURE_GROUPS = [
     title: 'Installed Packages',
     intro: 'Setup > Installed Packages.',
     items: [
-      { title: 'Package secrets about to expire', since: '2.0.21', how: 'Automatic', detail: 'When an installed package\'s client secret expires within a week (or has expired), an alert shows at the top of every page and on Home. Dismiss hides it until that secret\'s expiry changes.' },
+      { title: 'Package secrets about to expire', since: '2.0.21', how: 'Automatic', detail: 'When an installed package\'s client secret expires within a week (or has expired), an alert shows at the top of every page and on Home. Dismiss (or the close button on Home) hides both until that secret\'s expiry changes or another secret starts expiring.' },
       { title: 'All installed package secrets', since: '2.0.21', detail: 'Every installed package with when its client secret expires.' },
       { title: 'API endpoints', since: '2.0.21', detail: 'This account\'s authentication, REST, SOAP and SFTP addresses and its tenant subdomain, each with Copy.' },
       { title: 'Automation Studio activities you can use', since: '2.0.21', detail: 'Every activity type Automation Studio offers, whether you have access to it, and your permissions on it (create, run, delete and so on).' },
