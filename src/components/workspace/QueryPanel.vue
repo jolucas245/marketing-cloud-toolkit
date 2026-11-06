@@ -73,7 +73,7 @@ const {
   queryRecord, queryName, isEditingName, editableName, saveStatus, isRunning,
   resultsMode, validationResults, stepStatuses, stepErrors, stepDetails,
   elapsedSeconds, completedSummary, resultRows, resultColumns, totalRowCount,
-  isFetchingMore, fetchMoreRows, fetchAllRows, LOAD_ALL_LIMIT,
+  isFetchingMore, fetchMoreRows, fetchAllRows, canLoadMore, LOAD_ALL_LIMIT,
   createdDeKey, createdActivityId, isDeleting,
   runs, currentRunId, activeTab, historyResults,
   sessionExpired, contactBuilderNeeded, isResultsOpen, editorHeightPct, answerPrompt,
@@ -510,7 +510,7 @@ function openSchema() {
           </div>
           <div v-show="isResultsOpen" class="flex-1 overflow-auto min-h-0" :class="staleResults ? 'opacity-60' : ''">
             <ResultsTable :rows="resultRows" :columns="resultColumns" :filename="panelTitle" :sql="queryText" :totalCount="totalRowCount"
-              :can-load-more="!!createdDeKey" :loading-more="isFetchingMore" :load-all-limit="LOAD_ALL_LIMIT"
+              :can-load-more="canLoadMore" :loading-more="isFetchingMore" :load-all-limit="LOAD_ALL_LIMIT"
               @load-more="fetchMoreRows" @load-all="fetchAllRows" />
             <CleanupActions :deKey="createdDeKey" :activityId="createdActivityId" :isDeleting="isDeleting" @delete-de="handleDeleteDE(currentRunId)" @delete-activity="handleDeleteActivity(currentRunId)" />
           </div>
@@ -557,7 +557,8 @@ function openSchema() {
       <div v-for="run in runs" :key="run.runId" class="p-3 border border-border rounded-xl bg-card">
         <div class="flex items-center justify-between gap-2">
           <span class="font-semibold">{{ formatRunDate(run.runAt) }}</span>
-          <span v-if="!run.deKey" class="text-muted-foreground" :title="run.cleanedAt ? `Its data extension and Query Activity were deleted from SFMC ${formatRunDate(run.cleanedAt)} (Settings > Running queries)` : 'Its data extension was deleted from SFMC'">{{ run.cleanedAt ? 'Cleaned up from SFMC' : 'Results deleted' }}</span>
+          <span v-if="run.direct" class="text-muted-foreground mr-auto ml-2 truncate" :title="`Read directly from ${run.direct.deName}, no Query Activity. View results reads its rows as they are now.`">Read directly from {{ run.direct.deName }}</span>
+          <span v-if="!run.deKey && !run.direct" class="text-muted-foreground" :title="run.cleanedAt ? `Its data extension and Query Activity were deleted from SFMC ${formatRunDate(run.cleanedAt)} (Settings > Running queries)` : 'Its data extension was deleted from SFMC'">{{ run.cleanedAt ? 'Cleaned up from SFMC' : 'Results deleted' }}</span>
           <button v-else class="text-primary hover:underline font-medium" @click="toggleHistoryResults(run)">{{ historyResults[run.runId]?.open ? 'Hide results' : 'View results' }}</button>
         </div>
         <div v-if="historyResults[run.runId]?.open && historyResults[run.runId]?.rows" class="mt-2 max-h-48 overflow-auto rounded-lg border border-border">

@@ -85,3 +85,40 @@ describe('ResultsTable: page after the rows change (feedback #1082)', () => {
     expect(firstCell(w)).toBe('70')
   })
 })
+
+describe('ResultsTable: search every column (user, 2026-11-06)', () => {
+  const data = [
+    { Email: 'ann@acme.com', City: 'Austin' },
+    { Email: 'bob@other.org', City: 'Boston' },
+    { Email: 'cy@acme.com', City: 'Chicago' },
+    ...Array.from({ length: 60 }, (_, i) => ({ Email: `x${i}@filler.net`, City: 'Dallas' })),
+  ]
+  const cells = (w) => w.findAll('tbody tr').map((tr) => tr.findAll('td')[0].text())
+
+  it('keeps the rows with the text in any column, case-insensitive, and back to page 1', async () => {
+    const w = mount(ResultsTable, { props: { rows: data, columns: ['Email', 'City'] } })
+    await w.findAll('button[title="Next page"]')[0].trigger('click')
+    const box = w.find('input[data-results-search]')
+    await box.setValue('ACME')
+    expect(cells(w)).toEqual(['ann@acme.com', 'cy@acme.com'])
+    expect(w.text()).toContain('2 of 63 loaded rows (filtered)')
+    await box.setValue('boston')
+    expect(cells(w)).toEqual(['bob@other.org'])
+    await box.trigger('keydown', { key: 'Escape' })
+    expect(box.element.value).toBe('')
+    expect(cells(w)).toHaveLength(50)
+  })
+
+  it('works with the column filters', async () => {
+    const w = mount(ResultsTable, { props: { rows: data, columns: ['Email', 'City'] } })
+    await w.find('input[data-results-search]').setValue('acme')
+    await w.findAll('button').find((b) => b.text() === 'Filters').trigger('click')
+    await w.find('input[aria-label="Filter City"]').setValue('chi')
+    expect(cells(w)).toEqual(['cy@acme.com'])
+  })
+
+  it('is left out where the page has its own search', () => {
+    const w = mount(ResultsTable, { props: { rows: data, columns: ['Email', 'City'], searchable: false } })
+    expect(w.find('input[data-results-search]').exists()).toBe(false)
+  })
+})

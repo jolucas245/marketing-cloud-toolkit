@@ -187,7 +187,7 @@ onUnmounted(() => { all.value.stop = true; document.removeEventListener('keydown
       <div v-if="error" class="px-4 pt-3"><SfmcErrorNotice :error="error" :retrying="busy" @retry="rows.length ? loadMore() : start()" /></div>
       <p v-if="filter && rows.length" class="px-4 pt-2 text-xs text-muted-foreground">{{ shownRows.length.toLocaleString() }} of the {{ rows.length.toLocaleString() }} loaded rows match. Downloads use the rows and columns shown, or only the ticked rows.</p>
       <div v-if="loading && !rows.length" class="flex items-center gap-2 px-4 py-6 text-sm text-muted-foreground"><Loader2 class="h-4 w-4 animate-spin" /> Reading rows…</div>
-      <ResultsTable v-else selectable sfmc-values :rows="shownRows" :columns="shownColumns" :filename="de.name" file-prefix="de" :total-count="filter ? null : knownTotal" @values-query="valuesQuery" />
+      <ResultsTable v-else selectable sfmc-values :searchable="false" :rows="shownRows" :columns="shownColumns" :filename="de.name" file-prefix="de" :total-count="filter ? null : knownTotal" @values-query="valuesQuery" />
     </div>
   </div>
 </template>
