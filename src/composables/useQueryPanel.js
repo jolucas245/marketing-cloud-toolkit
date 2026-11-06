@@ -236,6 +236,21 @@ export function useQueryPanel(options) {
   }
   try { window.addEventListener('pagehide', flushSave) } catch { /* no window */ }
 
+  // Runs changed outside this panel (Delete old runs from SFMC, feedback #1081) are taken
+  // in, so the next autosave does not write the deleted ids back.
+  function onStorageChanged(changes, area) {
+    const next = area === 'local' && changes[queryId]?.newValue
+    if (!next || !Array.isArray(next.runs) || !queryRecord.value) return
+    if (JSON.stringify(next.runs) === JSON.stringify(queryRecord.value.runs || [])) return
+    queryRecord.value = { ...queryRecord.value, runs: next.runs }
+    runs.value = next.runs
+    if (isRunning.value) return // a run in progress keeps its own ids
+    if (!next.runs.some((r) => r.runId === currentRunId.value && r.deId)) { createdDeId.value = null; createdDeKey.value = null }
+    if (!next.runs.some((r) => r.runId === currentRunId.value && r.activityId)) createdActivityId.value = null
+  }
+  try { chrome.storage.onChanged.addListener(onStorageChanged) } catch { /* no extension context */ }
+  onUnmounted(() => { try { chrome.storage.onChanged.removeListener(onStorageChanged) } catch { /* gone */ } })
+
   // ── Earlier text (feedback #1028) ─────────────────────────
   // Copies of this panel's SQL from the last 24 hours (utils/textSnapshots.js).
   const snapshots = ref([])

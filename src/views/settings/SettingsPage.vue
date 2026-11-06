@@ -20,6 +20,7 @@ import { useApiConsole } from '@/composables/useApiConsole.js'
 import { useAi } from '@/composables/useAi.js'
 import { AVAILABILITY_TEXT, isChromeBrowser } from '@/utils/aiAssist.js'
 import { DEFAULT_RETENTION_DAYS, SUGGESTED_RETENTION_DAYS, parseRetentionDays } from '@/utils/sfmcApi.js'
+import { RUN_CLEANUP_SETTING, DEFAULT_RUN_CLEANUP_DAYS, parseRunCleanupDays } from '@/utils/runCleanup.js'
 import { policy, POLICY_NOTE } from '@/utils/policy.js'
 import { DNS_SETTING } from '@/utils/dnsCheck.js'
 import { HISTORY_SETTING } from '@/utils/history.js'
@@ -51,6 +52,13 @@ const { value: automationPanel } = useStoredSetting('_automationPanel', true, (v
 const { value: dnsLookup } = useStoredSetting(DNS_SETTING, false, (v) => v === true)
 const { value: dashboardPanel } = useStoredSetting('_dashboardPanel', false, (v) => v === true)
 const { value: retentionDays } = useStoredSetting('_queryDERetentionDays', DEFAULT_RETENTION_DAYS, parseRetentionDays)
+// Feedback #1081: delete Run Query's SFMC objects after N days (0 = off).
+const { value: cleanupDays } = useStoredSetting(RUN_CLEANUP_SETTING, DEFAULT_RUN_CLEANUP_DAYS, parseRunCleanupDays)
+const cleanupOn = computed({ get: () => cleanupDays.value > 0, set: (on) => { cleanupDays.value = on ? DEFAULT_RUN_CLEANUP_DAYS : 0 } })
+const cleanupInput = computed({
+  get: () => cleanupDays.value,
+  set: (v) => { const n = Math.round(Number(v)); if (Number.isFinite(n) && n > 0) cleanupDays.value = parseRunCleanupDays(n) },
+})
 
 // Desktop notifications for watched automations: the optional notifications
 // permission plus a setting (feedback #50).
@@ -251,6 +259,19 @@ function setDebounce(e) {
           <p class="text-xs text-muted-foreground">Running the same query again reuses its last target DE and Query Activity instead of creating new ones.</p>
         </div>
         <Switch v-model="reuseQueryDE" aria-label="Reuse the data extension and Query Activity" />
+      </div>
+      <div class="flex items-start gap-3">
+        <div class="flex-1">
+          <div class="text-sm font-medium">Delete old runs from SFMC</div>
+          <p class="text-xs text-muted-foreground">On by default. Once a day, the data extension and Query Activity of each run you made in this browser more than the given number of days ago are deleted from SFMC. The run stays in the query's history with its SQL; its results are gone. Settings > Clean up deletes the rest (other browsers, older versions).</p>
+          <label v-if="cleanupOn" class="mt-2 flex items-center gap-1.5 text-xs">
+            Delete runs older than
+            <input v-model.lazy="cleanupInput" type="number" min="1" max="365" step="1" aria-label="Delete runs older than, in days"
+              class="h-8 w-20 rounded-md border border-border bg-background px-2 text-xs" />
+            days
+          </label>
+        </div>
+        <Switch v-model="cleanupOn" aria-label="Delete old runs from SFMC" />
       </div>
       <div class="flex items-start gap-3">
         <div class="flex-1">

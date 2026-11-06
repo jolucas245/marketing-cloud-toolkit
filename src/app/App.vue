@@ -12,6 +12,7 @@ import WhatsNew from '@/components/shell/WhatsNew.vue'
 import UpdateBanner from '@/components/shell/UpdateBanner.vue'
 import SecretAlerts from '@/components/shell/SecretAlerts.vue'
 import { refreshSecrets } from '@/composables/useSecretAlerts.js'
+import { cleanUpOldRuns } from '@/utils/runCleanup.js'
 import NoticesMenu from '@/components/shell/NoticesMenu.vue'
 import ConceptsButton from '@/components/shell/ConceptsButton.vue'
 import ThemeSwitcher from '@/components/ui/ThemeSwitcher.vue'
@@ -53,6 +54,9 @@ watch(stack, (s) => { if (s) sendToBackground({ type: 'WATCH_CHECK', stack: s, f
 watch(stack, (s) => preloadWhenIdle(s), { immediate: true })
 // Installed package secrets expiring within a week show at the top (user, 2026-11-05).
 watch(stack, (s) => { if (s) refreshSecrets(s).catch(() => undefined) }, { immediate: true })
+// Run Query's data extensions and Query activities older than 7 days (Settings) are
+// deleted, once a day per stack, a minute after opening (feedback #1081).
+watch(stack, (s) => { if (s) setTimeout(() => cleanUpOldRuns(s).catch(() => undefined), 60000) }, { immediate: true })
 // Load everything when connected (feedback #1037): Settings > Connection, off by default.
 let preloadedFor = null
 function maybeLoadEverything(s) {

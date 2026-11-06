@@ -33,6 +33,18 @@ export const TO_TEST = [
         expect: 'Records match public DNS (for example dig TXT _dmarc.<domain>). Only cloudflare-dns.com is called for DNS (API console shows SFMC calls only).',
       },
       {
+        id: '2.0.21-run-cleanup', area: 'Queries', title: 'Delete old runs from SFMC (7 days)', ref: '#1081', live: true,
+        where: 'Settings > Running queries > Delete old runs from SFMC; Run Query > History',
+        steps: [
+          'In Settings set Delete runs older than to 1 day; keep a query with a run from more than a day ago (or wait a day after running one).',
+          'Reload the Toolkit and wait a minute: check the API console for the Query Activity and data extension DELETE calls.',
+          'Open that query: its History shows Cleaned up from SFMC for the old run, View results for newer ones; the SQL is still there.',
+          'Check in SFMC that the SFMCQS_ data extension and Query Activity of the old run are gone, and that newer runs are untouched.',
+          'Turn the setting off and reload: nothing is deleted.',
+        ],
+        expect: 'Only runs older than the limit, made in this browser, lose their objects; at most one sweep a day per stack.',
+      },
+      {
         id: '2.0.21-secret-alerts', area: 'Setup', title: 'Package secret alerts and Installed Packages page', ref: '#1078, #1079', live: true,
         where: 'Top of every page, Home, Setup > Installed Packages',
         steps: [

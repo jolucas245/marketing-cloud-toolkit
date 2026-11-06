@@ -96,6 +96,7 @@ Worker: `background/policy.js`; pages: `utils/policy.js` (`policy`, `isPolicyOn`
 - Share: opt-in `_shareEnabled`, `workers/share`, policy `disableShare`. Team snippets live in SFMC DE `Toolkit_Shared_Snippets`.
 - Watches (`background/watches.js`): watched automations/journeys, toolbar badge.
 - Feedback: in-app modal posts to `workers/feedback`.
+- Run Query cleanup (#1081): `utils/runCleanup.js` deletes SFMC objects of this browser's runs older than `_queryRunCleanupDays` (default 7) once a day per stack; Settings > Clean up handles everything else by SFMCQS_ name.
 
 ## UI conventions
 

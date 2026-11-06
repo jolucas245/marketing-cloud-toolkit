@@ -557,7 +557,8 @@ function openSchema() {
       <div v-for="run in runs" :key="run.runId" class="p-3 border border-border rounded-xl bg-card">
         <div class="flex items-center justify-between gap-2">
           <span class="font-semibold">{{ formatRunDate(run.runAt) }}</span>
-          <button class="text-primary hover:underline font-medium" @click="toggleHistoryResults(run)">{{ historyResults[run.runId]?.open ? 'Hide results' : 'View results' }}</button>
+          <span v-if="!run.deKey" class="text-muted-foreground" :title="run.cleanedAt ? `Its data extension and Query Activity were deleted from SFMC ${formatRunDate(run.cleanedAt)} (Settings > Running queries)` : 'Its data extension was deleted from SFMC'">{{ run.cleanedAt ? 'Cleaned up from SFMC' : 'Results deleted' }}</span>
+          <button v-else class="text-primary hover:underline font-medium" @click="toggleHistoryResults(run)">{{ historyResults[run.runId]?.open ? 'Hide results' : 'View results' }}</button>
         </div>
         <div v-if="historyResults[run.runId]?.open && historyResults[run.runId]?.rows" class="mt-2 max-h-48 overflow-auto rounded-lg border border-border">
           <ResultsTable :rows="historyResults[run.runId].rows" :columns="historyResults[run.runId].columns" filename="run" :sql="run.queryText" />

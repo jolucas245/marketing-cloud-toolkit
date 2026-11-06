@@ -11,7 +11,7 @@ export const BACKUP_VERSION = 1
 // Settings worth carrying over. Session state (stack, CSRF tokens, the old analytics id,
 // "seen" flags) is left out.
 export const BACKUP_SETTINGS = [
-  '_emailSaverEnabled', '_emailSaveDebounce', '_cloudPageSaverEnabled', '_reuseQueryDE', 'cardSize',
+  '_emailSaverEnabled', '_emailSaveDebounce', '_cloudPageSaverEnabled', '_reuseQueryDE', '_queryRunCleanupDays', 'cardSize',
   'sfmcqs_theme', 'sfmcqs_settings', 'lintDisabledRules',
   '_activitySaverEnabled', '_activityMaxVersions',
 ]

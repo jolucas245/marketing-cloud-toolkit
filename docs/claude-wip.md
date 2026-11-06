@@ -19,8 +19,10 @@
   - Reading needs `CLOUDFLARE_ACCOUNT_ID` of the Mathes.btech Cloudflare account (wrangler login sees two accounts; the D1 is in this one).
 - #1076 (query stuck at Run 3 min): code shows SFMC's isrunning still true, likely SFMC queueing. Proposed to user, awaiting answer: fast path reading simple `SELECT [TOP n] cols FROM [DE]` straight from the rowset, and a note on long waits. No live runs allowed. Unverified risks: SFMC errors show as 0 rows; queued over ~60s may return 0 rows; 10 min cap vs SFMC 30.
 - New feedback 2026-11-06:
-  - #1082 Done (uncommitted): the Preview data dialog filters rows outside ResultsTable, which kept its page; ResultsTable now goes back to page 1 when the rows are replaced and keeps the page when rows are only appended. Tests in DERowsViewer.test.js and ResultsTable.test.js.
-  - #1081 On hold: user questions doing it at all, since SFMC retention can delete the DE but not the Query Activity, and run history reads old DEs. Proposed instead: Toolkit-side cleanup keeping the last N runs per query (deletes DE and activity together); awaiting decision.
+  - #1082 Done: the Preview data dialog filters rows outside ResultsTable, which kept its page; ResultsTable now goes back to page 1 when the rows are replaced and keeps the page when rows are only appended. Tests in DERowsViewer.test.js and ResultsTable.test.js.
+  - #1082 committed (faa1a8a).
+  - #1081 Done (uncommitted): not SFMC retention (it cannot delete the Query Activity). `utils/runCleanup.js` deletes the Query Activity and DE of runs made in this browser more than 7 days ago (Settings > Running queries > Delete old runs from SFMC, `_queryRunCleanupDays`, 0 = off), once a day per stack, a minute after the app opens (App.vue). Only SFMCQS_ names, never ids a newer run uses (Reuse DE setting); 404 counts as done; runs stay in history with `cleanedAt` (History shows Cleaned up from SFMC). useQueryPanel takes in run changes from storage so autosave does not restore deleted ids. Needs a live check (To Test 2.0.21-run-cleanup).
+  - #1080: answered user's questions (Marti gave no email); awaiting decision on approach.
   - #1080 idea (Publication Lists viewer): discuss with the user before any work.
 - Added `workers/feedback/.rows.json` to `.gitignore`.
 - Offered (not started, awaiting yes): paste raw email headers on the Domains page to extract every DKIM-Signature (d=, s=), check each key, check alignment with the From domain, and remember the selector per domain.
