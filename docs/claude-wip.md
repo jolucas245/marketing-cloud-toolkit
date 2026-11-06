@@ -17,6 +17,11 @@
   - #1078 Done (uncommitted): Account is now Setup > Installed Packages (`/installed-packages`, `InstalledPackagesPage.vue`), in the sidebar under Setup, secrets section first; Settings link, features.js, toTest.js updated. No `/account` redirect (never released).
   - #1079 Done (uncommitted): cause was the alert bar's Details linking to the page already open. Bar now links to `/installed-packages` and hides Details there; test reproduces it. Feedback rows not marked yet (wait for the user's live check).
   - Reading needs `CLOUDFLARE_ACCOUNT_ID` of the Mathes.btech Cloudflare account (wrangler login sees two accounts; the D1 is in this one).
+- #1076 (query stuck at Run 3 min): code shows SFMC's isrunning still true, likely SFMC queueing. Proposed to user, awaiting answer: fast path reading simple `SELECT [TOP n] cols FROM [DE]` straight from the rowset, and a note on long waits. No live runs allowed. Unverified risks: SFMC errors show as 0 rows; queued over ~60s may return 0 rows; 10 min cap vs SFMC 30.
+- New feedback 2026-11-06:
+  - #1082 Done (uncommitted): the Preview data dialog filters rows outside ResultsTable, which kept its page; ResultsTable now goes back to page 1 when the rows are replaced and keeps the page when rows are only appended. Tests in DERowsViewer.test.js and ResultsTable.test.js.
+  - #1081 On hold: user questions doing it at all, since SFMC retention can delete the DE but not the Query Activity, and run history reads old DEs. Proposed instead: Toolkit-side cleanup keeping the last N runs per query (deletes DE and activity together); awaiting decision.
+  - #1080 idea (Publication Lists viewer): discuss with the user before any work.
 - Added `workers/feedback/.rows.json` to `.gitignore`.
 - Offered (not started, awaiting yes): paste raw email headers on the Domains page to extract every DKIM-Signature (d=, s=), check each key, check alignment with the From domain, and remember the selector per domain.
 - User is restarting the browser; Claude in Chrome may be connected afterwards, which would allow checking the Setup apps' auth live instead of via the test build.

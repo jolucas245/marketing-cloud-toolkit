@@ -75,6 +75,13 @@ const totalPages = computed(() => Math.max(1, Math.ceil(viewRows.value.length / 
 const visibleRows = computed(() =>
   viewRows.value.slice(page.value * PAGE_SIZE, (page.value + 1) * PAGE_SIZE)
 )
+// Rows filtered or reloaded by the parent (DERowsViewer's filter box) start again from
+// page 1; rows only appended (Load more) keep the page. Feedback #1082: filtering from
+// page 2 left an empty page 2 of 35 matching rows.
+watch(() => props.rows, (rows, before) => {
+  const appended = before && rows.length >= before.length && before.every((r, i) => rows[i] === r)
+  if (!appended) page.value = 0
+})
 
 // Ticked rows, by row object; a reload brings new objects and so clears them.
 const picked = ref(new Set())

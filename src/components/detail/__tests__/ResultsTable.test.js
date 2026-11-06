@@ -72,3 +72,16 @@ describe('ResultsTable: column values (feedback #1012)', () => {
     w.unmount()
   })
 })
+
+describe('ResultsTable: page after the rows change (feedback #1082)', () => {
+  const firstCell = (w) => w.find('tbody tr td:last-child').text()
+  it('keeps the page when rows are appended, starts at page 1 when they are replaced', async () => {
+    const w = mount(ResultsTable, { props: { rows: rows.slice(0, 100), columns: ['id'] } })
+    await w.find('button[title="Next page"]').trigger('click')
+    expect(firstCell(w)).toBe('50')
+    await w.setProps({ rows: rows.slice(0, 200) })
+    expect(firstCell(w)).toBe('50')
+    await w.setProps({ rows: rows.slice(70, 105) })
+    expect(firstCell(w)).toBe('70')
+  })
+})

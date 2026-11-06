@@ -40,6 +40,22 @@ describe('DE rows viewer (feedback #117)', () => {
     expect(w.findAll('th').map((t) => t.text()).filter(Boolean)).toEqual(['SubscriberKey'])
   })
 
+  // Feedback #1082: filtering from page 2 showed an empty table (35 of 497 rows matched).
+  it('shows the matching rows when the filter is typed on a later page', async () => {
+    fetched.length = 0
+    const { default: Viewer } = await import('../DERowsViewer.vue')
+    const w = mount(Viewer, { props: { stack: 's13', de: { id: '1', name: 'Subs', customerKey: 'SUBS' } } })
+    await flushPromises()
+    await button(w, 'Load all').trigger('click')
+    await flushPromises()
+    await w.find('button[title="Next page"]').trigger('click')
+    expect(w.text()).toContain('2 / 2')
+    await w.find('input[aria-label="Filter loaded rows"]').setValue('k7')
+    expect(w.text()).toContain('of the 75 loaded rows match')
+    const keys = w.findAll('tbody tr').map((r) => r.text()).filter((t) => /k7/.test(t))
+    expect(keys.length).toBeGreaterThan(0)
+  })
+
   it('loads all from where it is', async () => {
     fetched.length = 0
     const { default: Viewer } = await import('../DERowsViewer.vue')
