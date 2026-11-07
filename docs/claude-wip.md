@@ -6,6 +6,11 @@
 - Nothing is uncommitted; the user closed the work for the day.
 - Shipped in 2.0.21: Setup > Domains and Installed Packages with package secret alerts (#1077 part, #1078, #1079), Preview data filter from a later page (#1082), Run Query cleanup after 7 days (#1081), Contacts > Publication Lists (#1080), plain single-DE reads without a Query Activity plus loading the rest up to 50,000 rows (#1076), search in the results table, Email validation (DE picked on the page with its details, sendable only, 50,000-row limit, stay-on-screen guard, Email addresses tab), DE folder tree look, Customize Home, Salesforce blue as the primary colour.
 
+## Release follow-up
+
+- Tag `v2.0.21` is not pushed: `release.yml` builds the GitHub release from a `## 2.0.21 (date)` section in `CHANGELOG.md`, which still says `## Unreleased (next 2.0.21)` and lists only #1075. The user writes that section (Claude never edits CHANGELOG), then tags.
+- Store zip: `releases/sfmc-toolkit-2.0.21.zip`, SHA-256 7257864c2704b0cc9de3831d6998eac646ce0ea640c7b372c1930663b88099f0, built at 483ab74.
+
 ## Feedback statuses to set
 
 - Claude's D1 write was refused by auto mode on 2026-11-06; the user runs this from `workers/feedback` (with `CLOUDFLARE_ACCOUNT_ID` of the Mathes.btech account):
