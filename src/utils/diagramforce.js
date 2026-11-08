@@ -1,4 +1,4 @@
-// Open in Diagramforce (diagramforce.com, Mateusz Dabrowski's free diagram editor).
+// Open in Diagramforce (diagramforce.com, Mateusz Dąbrowski's free diagram editor).
 // Diagramforce imports a diagram JSON sent over postMessage to a tab opened at
 // #import=postmessage (its documented web integration); this file builds that JSON to
 // the published spec (DIAGRAM_JSON_SPEC.md, appVersion 1.26.4) from the Query Builder model:

@@ -1,7 +1,7 @@
 // Better SQL from the built-in model (feedback #1044). The on-device model is small and
 // takes a few thousand tokens, so it gets only what one request needs:
 // - the core rules, plus the rule topics whose keywords appear in the request or SQL
-//   (data/aiSqlRules.json: written for the Toolkit from Mateusz Dabrowski's SFMC SQL
+//   (data/aiSqlRules.json: written for the Toolkit from Mateusz Dąbrowski's SFMC SQL
 //   guides at mateuszdabrowski.pl, in our own words);
 // - the data views the request talks about ("opened" means _Open), with their real
 //   fields and how they join (utils/dataViews.js);
