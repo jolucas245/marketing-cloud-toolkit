@@ -21,7 +21,7 @@ import { showToast } from '@/composables/useToast.js'
 import { cloudPageChanges, searchCloudPages, resolveCloudPageUrl, fetchCloudPageFolderPath, clearCloudPageCaches, isSystemCloudPage, CP_PAGE_SIZE } from '@/utils/cloudPagesApi.js'
 import { runInBatches } from '@/utils/batchRunner.js'
 import { downloadWorkbook } from '@/utils/exportDoc.js'
-import { formatDateTime, formatDate } from '@/utils/format.js'
+import { formatDateTime, formatDate, plural } from '@/utils/format.js'
 
 const { stack } = useStack()
 const query = ref('')
@@ -194,7 +194,7 @@ const columns = [
       <template v-else-if="searched !== null">
         <p class="mb-2 text-xs text-muted-foreground">{{ total.toLocaleString() }} found{{ folder ? ` in ${folder.name}` : '' }}{{ searched ? ` for "${searched}"` : '' }}, {{ shown.length }} shown.
           <template v-if="listInfo?.mode === 'stored'"> Stored {{ savedAgo(listInfo.savedAt) }}: Search reads only the changes, Refresh reads all.</template>
-          <template v-else-if="listInfo?.mode === 'delta'"> Stored list with {{ listInfo.changed }} change(s) read from SFMC.</template></p>
+          <template v-else-if="listInfo?.mode === 'delta'"> Stored list, {{ listInfo.changed ? `${plural(listInfo.changed, 'change')} read from SFMC` : 'no changes in SFMC since the last read' }}.</template></p>
         <DataTable :columns="columns" :rows="shown" row-key="id" storage-key="cloudpages" empty-text="No CloudPages found.">
           <template #cell-name="{ row }">
             <span class="font-medium">{{ row.name }}</span>

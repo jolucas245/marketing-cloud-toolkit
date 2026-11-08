@@ -17,8 +17,7 @@ import ContentFolderTree from '@/components/content/ContentFolderTree.vue'
 import { cachedList, storedList, saveList } from '@/utils/listCache.js'
 import { savedAgo } from '@/utils/localCache.js'
 import { journeyChanges, searchJourneys, JOURNEY_STATUSES, JOURNEY_PAGE_SIZE } from '@/utils/journeys.js'
-import { statusWords } from '@/utils/format.js'
-import { formatDateTime } from '@/utils/format.js'
+import { formatDateTime, plural, statusWords } from '@/utils/format.js'
 import SfmcErrorNotice from '@/components/results/SfmcErrorNotice.vue'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
 
@@ -138,7 +137,7 @@ const columns = [
       </div>
       <template v-else-if="searched !== null">
         <div class="mb-2 flex flex-wrap items-center gap-2">
-          <p class="text-xs text-muted-foreground flex-1">{{ total.toLocaleString() }} found{{ searched.query ? ` for "${searched.query}"` : '' }}{{ searched.status ? `, status ${searched.status}` : '' }}. <template v-if="listInfo?.mode === 'stored'">Stored {{ savedAgo(listInfo.savedAt) }}: Search reads only the changes.</template><template v-else-if="listInfo?.mode === 'delta'">{{ listInfo.changed }} change(s) read from SFMC.</template>{{ ' ' }}
+          <p class="text-xs text-muted-foreground flex-1">{{ total.toLocaleString() }} found{{ searched.query ? ` for "${searched.query}"` : '' }}{{ searched.status ? `, status ${searched.status}` : '' }}. <template v-if="listInfo?.mode === 'stored'">Stored {{ savedAgo(listInfo.savedAt) }}: Search reads only the changes.</template><template v-else-if="listInfo?.mode === 'delta'">{{ listInfo.changed ? `${plural(listInfo.changed, 'change')} read from SFMC.` : 'No changes in SFMC since the last read.' }}</template>{{ ' ' }}
             <button type="button" class="underline hover:text-foreground" title="Read the whole list again from SFMC (statuses, last runs, deletions)" data-list-refresh @click="search('refresh')">Refresh</button></p>
           <WatchButton v-if="items.length" bulk type="journey" :stack="stack" :items="items.filter((j) => picked.has(j.id))" />
         </div>

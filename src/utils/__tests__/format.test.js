@@ -44,3 +44,12 @@ describe('statusWords (live test, 2026-11-08)', () => {
     expect(statusWords(null)).toBe('')
   })
 })
+
+describe('isNoEndDate (live test, 2026-11-08)', () => {
+  it('treats SFMC\'s 2079 schedule end as no end date', async () => {
+    const { isNoEndDate } = await import('../format.js')
+    expect(isNoEndDate('2079-06-06T06:00:00Z')).toBe(true)
+    expect(isNoEndDate('2026-12-31T00:00:00Z')).toBe(false)
+    expect(isNoEndDate('')).toBe(false)
+  })
+})

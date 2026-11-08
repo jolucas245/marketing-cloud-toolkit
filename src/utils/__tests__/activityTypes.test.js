@@ -76,6 +76,8 @@ describe('links and run data (feedback #35 to #37)', () => {
     expect(describeActivity(43, { targetDataExtension: { name: 'Imp', id: 'i1' } }, 's1').deRefs['Target']).toMatchObject({ name: 'Imp', id: 'i1' })
     // An import into a list has no data extension to link (live test, 2026-11-08).
     expect(describeActivity(43, { destinationObjectTypeId: 13, destinationName: 'Newsletter' }, 's1').deRefs).toEqual({})
+    const list = describeActivity(43, { destinationObjectTypeId: 13, destinationId: 7135 }, 's1')
+    expect(rows(list.main).Target).toBe('List ID 7135')
     expect(describeActivity(9999, { a: 1 }, 's1')).toMatchObject({ deRefs: {}, run: null })
   })
   it('builds Automation Studio and Contact Builder links', async () => {

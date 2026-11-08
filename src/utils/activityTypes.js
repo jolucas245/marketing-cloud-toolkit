@@ -185,7 +185,8 @@ const SPECS = {
   43: {
     link: (d, s) => AS_LINK(s, 'ActivityDetails', 43, d.importDefinitionId),
     main: [['Description', 'description'], ['File spec', 'fileSpec'], ['File naming pattern', 'fileNamingPattern'], ['Field mapping type', 'fieldMappingType'],
-      ['Destination type', (d) => IMPORT_DESTINATIONS[d.destinationObjectTypeId] || d.destinationObjectTypeId], ['Target', (d) => d.destinationName || d.targetDataExtension?.name || d.targetDataExtension],
+      ['Destination type', (d) => IMPORT_DESTINATIONS[d.destinationObjectTypeId] || d.destinationObjectTypeId], // A list target comes with its ID only, no name (live test, 2026-11-08).
+      ['Target', (d) => d.destinationName || d.targetDataExtension?.name || d.targetDataExtension || (Number(d.destinationObjectTypeId) === 13 && d.destinationId ? `List ID ${d.destinationId}` : '')],
       ['Update type', (d) => IMPORT_UPDATE_TYPES[d.updateTypeId] ?? d.updateTypeId]],
     extra: [['Allow errors', 'allowErrors'], ['Customer key', 'customerKey'], ['Created', 'createdDate'], ['Modified', 'modifiedDate'], ['Date format locale', 'dateFormatLocale'],
       ['Delete file', 'deleteFile'], ['Destination ID', 'destinationObjectId'], ['File transfer location ID', 'fileTransferLocationId'], ['File type', 'fileType'],

@@ -32,6 +32,12 @@ export function statusWords(v) {
   return /^[A-Z][a-z]+(?:[A-Z][a-z]+)+$/.test(s) ? s.replace(/(?!^)([A-Z])/g, (c) => ` ${c.toLowerCase()}`) : s
 }
 
+/** SFMC's "no end date" for schedules: 2079-06-06 (the end of its date range). */
+export function isNoEndDate(d) {
+  const t = Date.parse(d || '')
+  return Number.isFinite(t) && new Date(t).getUTCFullYear() >= 2079
+}
+
 export function plural(n, word, many = `${word}s`) {
   const count = Number(n) || 0
   return `${count.toLocaleString()} ${count === 1 ? word : many}`

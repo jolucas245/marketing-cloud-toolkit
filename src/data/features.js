@@ -382,7 +382,7 @@ export const FEATURE_GROUPS = [
   {
     id: 'contacts',
     title: 'Contacts',
-    intro: 'Data > Contacts. Reads Contact Builder; changes nothing.',
+    intro: 'Contacts > Contacts. Reads Contact Builder; changes nothing.',
     items: [
       { title: 'Contact count', since: '2.0.8', detail: 'How many contacts the account has in Contact Builder.' },
       { title: 'Find a contact', since: '2.0.8', how: 'Enter a Contact Key, then Search', detail: 'The contact\'s ID, dates and the attribute values Contact Builder returns.' },
@@ -435,7 +435,7 @@ export const FEATURE_GROUPS = [
   {
     id: 'saved-cloudpages',
     title: 'CloudPage versions',
-    intro: 'Content > Saved CloudPages. Turn saving on or off in Settings > Emails and CloudPages.',
+    intro: 'Content > CloudPages, Saved versions tab. Turn saving on or off in Settings > Emails and CloudPages.',
     items: [
       { title: 'Every CloudPage save is kept', since: '2.0.20', how: 'Automatic', detail: 'Each save of a landing page, web page or code resource becomes a version, the 10 newest per page, in this browser only. Preview a version (scripts off).' },
       { title: 'Code and compare', since: '2.0.20', how: 'Code, or Compare with', detail: 'See the code of any version, or compare two versions: code side by side with changes marked, or the two previews next to each other. Saved Emails has the same.' },

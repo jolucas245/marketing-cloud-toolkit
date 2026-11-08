@@ -5,6 +5,7 @@
 import { sfmcFetch } from './fetchProxy.js'
 import { storageGet } from './chromeAsync.js'
 import { summarizeAutomations, summarizeJourneys } from '../utils/summaries.js'
+import { groupJourneyVersions } from '../utils/journeyVersions.js'
 import { WATCHES_KEY, watchType, automationStatusName } from '../utils/watches.js'
 
 const AS = (stack) => `https://mc.${stack}.marketingcloudapps.com/AutomationStudioFuel3/fuelapi`
@@ -49,17 +50,21 @@ export async function listAutomations(stack) {
   return items
 }
 
-/** Every journey's latest version (up to 2,000). */
+/**
+ * Every journey once, by its live version when it has one (up to 2,000 versions): the
+ * latest version alone counted a published journey with a newer draft as a draft, so
+ * the card said 28 live where Home said 40 (live test, 2026-11-08).
+ */
 export async function listJourneys(stack) {
   const items = []
   for (let page = 1; items.length < MAX_ITEMS; page++) {
-    const params = new URLSearchParams({ $page: String(page), $pageSize: String(PAGE), $orderBy: 'ModifiedDate DESC', mostRecentVersionOnly: 'true' })
+    const params = new URLSearchParams({ $page: String(page), $pageSize: String(PAGE), $orderBy: 'ModifiedDate DESC', mostRecentVersionOnly: 'false' })
     const d = await sfmcFetch({ url: `${JB(stack)}/interactions?${params}` })
     const got = d?.items || []
     items.push(...got)
     if (got.length < PAGE || items.length >= (d?.count ?? Infinity)) break
   }
-  return items
+  return groupJourneyVersions(items).map((g) => g.primary)
 }
 
 /** What the card shows: plain data only (names, counts, ids for links). */

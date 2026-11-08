@@ -69,7 +69,10 @@
   function statusName(v) {
     if (v === null || v === undefined || v === '') return '\u2014';
     var n = Number(v);
-    return Number.isInteger(n) && STATUS[n] !== undefined && String(n) === String(v).trim() ? STATUS[n] : String(v);
+    if (Number.isInteger(n) && STATUS[n] !== undefined && String(n) === String(v).trim()) return STATUS[n];
+    // PausedSchedule -> Paused schedule (as in the Toolkit, live test 2026-11-08).
+    var s = String(v);
+    return /^[A-Z][a-z]+(?:[A-Z][a-z]+)+$/.test(s) ? s.replace(/(?!^)([A-Z])/g, function (c) { return ' ' + c.toLowerCase(); }) : s;
   }
 
   function date(v) {
