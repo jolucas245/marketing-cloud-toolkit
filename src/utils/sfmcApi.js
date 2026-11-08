@@ -1,5 +1,6 @@
 import { createSharedDECatalog } from './sharedDEs.js'
 import { startRequest } from './activityStart.js'
+import { automationStudioId } from './automationIds.js'
 
 // Base URLs - exacttarget.com/cloud/fuelapi for core APIs (injected from ET tab)
 const AS_BASE = (stack) => `https://mc.${stack}.exacttarget.com/cloud/fuelapi`
@@ -86,8 +87,9 @@ export function sfmcFetch(url, method, body = null) {
  * directly (no tab injection) using cookies for exacttarget.com or a minted
  * Bearer token for marketingcloudapps.com (src/background/fetchProxy.js).
  */
-// Calls made from this page, so a run can say how many it used (SQL Studio shows this
-// for rate-limit-conscious users). Includes calls by other panels running at the same time.
+// Calls made from this page. A run counts its own calls by passing a counting `fetch`
+// to the API functions (live test, 2026-11-07: this page-wide count included the calls
+// of runs in other panels).
 let _callCount = 0
 export function sfmcCallCount() { return _callCount }
 
@@ -122,10 +124,10 @@ function proxyFetch(url, method, body) {
  * Returns { id, name, fieldCount } on success.
  * Throws if DE is not found or inaccessible.
  */
-export async function fetchDEMetadata(stack, deName) {
+export async function fetchDEMetadata(stack, deName, fetch = proxyFetch) {
   _logInfo(`Searching for Data Extension by name: "${deName}" - checking it exists and getting field count`)
   const url = `${CM_DATA(stack)}/v1/customobjects/category/0?retrievalType=1&$page=1&$pagesize=25&$orderBy=modifiedDate%20DESC&name=${encodeURIComponent(deName)}`
-  const data = await proxyFetch(url, 'GET', null)
+  const data = await fetch(url, 'GET', null)
   const items = data?.items || []
   const exact = items.find((i) => i.name.toLowerCase() === deName.toLowerCase())
   if (!exact) {
@@ -151,10 +153,10 @@ export async function fetchDEMetadata(stack, deName) {
 /**
  * Fetches field definitions for a Data Extension by its internal ID.
  */
-export async function fetchDEFields(stack, deId) {
+export async function fetchDEFields(stack, deId, fetch = proxyFetch) {
   _logInfo(`Fetching field definitions for DE id: ${deId} - used to infer column types for target DE`)
   const url = `${CM_BASE(stack)}/v1/customobjects/${deId}/fields/`
-  return proxyFetch(url, 'GET', null)
+  return fetch(url, 'GET', null)
 }
 
 const DE_TYPE_MAP = { text: 0, number: 1, date: 2, boolean: 3, email: 4, phone: 5, decimal: 6 }
@@ -219,9 +221,9 @@ export function buildDEFields(typedColumns) {
  * Returns root DE folders (Data Extensions, Shared Items, Recycle Bin, etc.)
  * Response: { entry: [{ id, type, name, parentId, ... }] }
  */
-export async function listDERootFolders(stack) {
+export async function listDERootFolders(stack, fetch = proxyFetch) {
   const url = `${MCA_CM(stack)}/legacy/v1/beta/folder?$where=allowedtypes%20in%20(%27synchronizeddataextension%27,%20%27dataextension%27,%20%27shared_data%27,%20%27salesforcedataextension%27,%20%27recyclebin%27)`
-  return proxyFetch(url, 'GET', null)
+  return fetch(url, 'GET', null)
 }
 
 
@@ -229,18 +231,18 @@ export async function listDERootFolders(stack) {
  * Lists child folders of a given DE folder ID.
  * Response: { entry: [{ id, type, name, parentId, ... }] }
  */
-export async function listDEChildFolders(stack, folderId) {
+export async function listDEChildFolders(stack, folderId, fetch = proxyFetch) {
   const url = `${MCA_CM(stack)}/legacy/v1/beta/folder/${folderId}/children?$top=1000&$skip=0`
-  return proxyFetch(url, 'GET', null)
+  return fetch(url, 'GET', null)
 }
 
 /**
  * Creates a DE folder/category under a given parent.
  * Response: { categoryId, parentCatId, name, catType, objectId }
  */
-async function createDEFolder(stack, name, parentCatId) {
+async function createDEFolder(stack, name, parentCatId, fetch = proxyFetch) {
   const url = `${MCA_CM(stack)}/email/v1/category/`
-  return proxyFetch(url, 'POST', { parentCatId, name, catType: 'dataextension' })
+  return fetch(url, 'POST', { parentCatId, name, catType: 'dataextension' })
 }
 
 /**
@@ -252,7 +254,7 @@ async function createDEFolder(stack, name, parentCatId) {
  * Step 3: neither found → try to create 'QuerySaver'
  * Step 4: creation fails → fall back to the 'Data Extensions' folder ID itself
  */
-export async function getOrCreateDEFolder(stack) {
+export async function getOrCreateDEFolder(stack, fetch = proxyFetch) {
   const cached = _getCached(stack, 'deCategoryId')
   if (cached != null) {
     console.log('[SFMCQS:folders] DE folder ID from cache:', cached)
@@ -262,7 +264,7 @@ export async function getOrCreateDEFolder(stack) {
   // Step 1: get root DE folders and find 'Data Extensions'
   _logInfo('Fetching root DE folder list…')
   console.log('[SFMCQS:folders] listing root DE folders')
-  const rootData = await listDERootFolders(stack)
+  const rootData = await listDERootFolders(stack, fetch)
   console.log('[SFMCQS:folders] root DE folders:', rootData)
   const rootDE = (rootData.entry || []).find(
     (f) => f.name === 'Data Extensions' && f.type === 'dataextension'
@@ -275,7 +277,7 @@ export async function getOrCreateDEFolder(stack) {
   // Step 2: list child folders and look for 'QuerySaver', fall back to 'QueryStudioResults'
   _logInfo(`Fetching child folders of "Data Extensions" (id: ${rootId})…`)
   console.log('[SFMCQS:folders] listing children of folder', rootId)
-  const childData = await listDEChildFolders(stack, rootId)
+  const childData = await listDEChildFolders(stack, rootId, fetch)
   console.log('[SFMCQS:folders] child folders:', childData)
   const children = childData.entry || []
   _logInfo(`Child folders loaded - ${children.length} folder(s) found`)
@@ -304,7 +306,7 @@ export async function getOrCreateDEFolder(stack) {
   _logInfo(`No suitable folder found - creating "QuerySaver" under "Data Extensions" (id: ${rootId})…`)
   console.log('[SFMCQS:folders] no suitable folder found - creating QuerySaver under', rootId)
   try {
-    const created = await createDEFolder(stack, 'QuerySaver', rootId)
+    const created = await createDEFolder(stack, 'QuerySaver', rootId, fetch)
     console.log('[SFMCQS:folders] created QuerySaver folder:', created)
     _logInfo(`"QuerySaver" folder created (id: ${created.categoryId})`)
     _setCached(stack, 'deCategoryId', created.categoryId)
@@ -324,27 +326,27 @@ export async function getOrCreateDEFolder(stack) {
  * Returns all Query Activity folders.
  * Response: { items: [{ categoryId, parentId, name, categoryType }] }
  */
-export async function listQAFolders(stack) {
+export async function listQAFolders(stack, fetch = proxyFetch) {
   _logInfo('Fetching all Query Activity folders - looking for "QuerySaver" folder to place the new activity')
   const url = `${MCA_AS(stack)}/automation/v1/folders/?$filter=categorytype%20eq%20queryactivity`
-  return proxyFetch(url, 'GET', null)
+  return fetch(url, 'GET', null)
 }
 
 /**
  * Creates a Query Activity folder under the given parent.
  * Response: { id, parentId, name, categoryType, ... }
  */
-async function createQAFolder(stack, name, parentId) {
+async function createQAFolder(stack, name, parentId, fetch = proxyFetch) {
   _logInfo(`Creating Query Activity folder "${name}" under parent id: ${parentId}`)
   const url = `${MCA_AS(stack)}/platform-internal/v1/categories/`
-  return proxyFetch(url, 'POST', { name, parentId, categoryType: 'queryactivity', editable: 1, extendable: 1 })
+  return fetch(url, 'POST', { name, parentId, categoryType: 'queryactivity', editable: 1, extendable: 1 })
 }
 
 /**
  * Resolves (or creates) the 'QuerySaver' folder under the root 'Query' folder.
  * Returns the numeric categoryId to use when creating Query Activities.
  */
-export async function getOrCreateQAFolder(stack) {
+export async function getOrCreateQAFolder(stack, fetch = proxyFetch) {
   const cached = _getCached(stack, 'qaCategoryId')
   if (cached != null) {
     console.log('[SFMCQS:folders] QA folder ID from cache:', cached)
@@ -352,7 +354,7 @@ export async function getOrCreateQAFolder(stack) {
   }
 
   console.log('[SFMCQS:folders] getOrCreateQAFolder - listing QA folders')
-  const data = await listQAFolders(stack)
+  const data = await listQAFolders(stack, fetch)
   console.log('[SFMCQS:folders] QA folders response:', data)
   const items = data.items || []
 
@@ -373,7 +375,7 @@ export async function getOrCreateQAFolder(stack) {
 
   // Create 'QuerySaver' under root
   try {
-    const created = await createQAFolder(stack, 'QuerySaver', parentId)
+    const created = await createQAFolder(stack, 'QuerySaver', parentId, fetch)
     console.log('[SFMCQS:folders] created QA folder:', created)
     _logInfo(`"QuerySaver" QA folder created (id: ${created.id})`)
     _setCached(stack, 'qaCategoryId', created.id)
@@ -382,7 +384,7 @@ export async function getOrCreateQAFolder(stack) {
     // Already exists - find it again
     if (err.message && (err.message.includes('exist') || err.message.includes('duplicate') || err.message.includes('400'))) {
       _logInfo('QA folder creation returned duplicate - re-fetching to get existing id')
-      const retryData = await listQAFolders(stack)
+      const retryData = await listQAFolders(stack, fetch)
       const found = (retryData.items || []).find((f) => f.name === 'QuerySaver')
       if (found) {
         _logInfo(`"QuerySaver" QA folder found on retry (id: ${found.categoryId})`)
@@ -406,7 +408,7 @@ export async function getOrCreateQAFolder(stack) {
  * @param {{ name: string, fields: object[], categoryID: number, retentionDays?: number }} payload
  * @returns {Promise<{ id: string, customerKey: string, name: string }>}
  */
-export async function createTargetDE(stack, payload) {
+export async function createTargetDE(stack, payload, fetch = proxyFetch) {
   _logInfo(`Creating target Data Extension "${payload.name}" with ${payload.fields.length} field(s) in folder id: ${payload.categoryID} - this DE will receive query results`)
   const url = `${CM_BASE(stack)}/v1/customobjects/`
   const body = {
@@ -423,13 +425,13 @@ export async function createTargetDE(stack, payload) {
     fields: payload.fields,
   }
   const days = payload.retentionDays
-  if (!(days > 0)) return proxyFetch(url, 'POST', body)
+  if (!(days > 0)) return fetch(url, 'POST', body)
   try {
-    return await proxyFetch(url, 'POST', { ...body, dataRetentionProperties: retentionProperties(days) })
+    return await fetch(url, 'POST', { ...body, dataRetentionProperties: retentionProperties(days) })
   } catch (err) {
     if (!/retention/i.test(err.message)) throw err
     _logInfo(`SFMC refused the ${days}-day data retention (${err.message}); creating the Data Extension without it`)
-    return proxyFetch(url, 'POST', body)
+    return fetch(url, 'POST', body)
   }
 }
 
@@ -464,7 +466,7 @@ export function retentionProperties(days) {
 // Query Activity update types (targetUpdateTypeId); Import activities number theirs differently.
 export const QUERY_UPDATE_TYPES = { 0: 'Overwrite', 1: 'Update', 2: 'Append' }
 
-export async function createQueryActivity(stack, payload) {
+export async function createQueryActivity(stack, payload, fetch = proxyFetch) {
   _logInfo(`Creating Query Activity "${payload.name}" - wraps the SQL query and points to target DE "${payload.targetName}"`)
   const url = `${AS_BASE(stack)}/automation/v1/queries`
   const updateType = QUERY_UPDATE_TYPES[payload.updateType] ? payload.updateType : 0
@@ -482,7 +484,7 @@ export async function createQueryActivity(stack, payload) {
     isFrozen: false,
     ...(payload.categoryId != null ? { categoryId: payload.categoryId } : {}),
   }
-  return proxyFetch(url, 'POST', body)
+  return fetch(url, 'POST', body)
 }
 
 /**
@@ -590,9 +592,9 @@ export async function createDataExtension(stack, body) {
  * needed). SFMC answers with a request id and adds the rows in the background.
  * Not checked live.
  */
-export async function insertDERowsAsync(stack, key, items) {
+export async function insertDERowsAsync(stack, key, items, fetch = proxyFetch) {
   _logInfo(`Adding ${items.length} row(s) to data extension "${key}"`)
-  return proxyFetch(`${AS_BASE(stack)}/data/v1/async/dataextensions/key:${encodeURIComponent(key)}/rows`, 'POST', { items })
+  return fetch(`${AS_BASE(stack)}/data/v1/async/dataextensions/key:${encodeURIComponent(key)}/rows`, 'POST', { items })
 }
 
 /** Adds or updates rows by primary key (async upsert: PUT on the same endpoint). */
@@ -601,9 +603,52 @@ export async function upsertDERowsAsync(stack, key, items) {
   return proxyFetch(`${AS_BASE(stack)}/data/v1/async/dataextensions/key:${encodeURIComponent(key)}/rows`, 'PUT', { items })
 }
 
-export async function deleteAutomation(stack, id) {
+/**
+ * Deletes an automation the way Automation Studio's own Delete button does, by its list
+ * ID (REST GUIDs are converted). DELETE automation/v1/automations/{id} answers 404 and
+ * leaves the automation in place (live test, 2026-11-08).
+ */
+export async function deleteAutomation(stack, id, fetch = proxyFetch) {
   _logInfo(`Deleting automation (id: ${id})`)
-  await proxyFetch(`${AS_BASE(stack)}/automation/v1/automations/${encodeURIComponent(id)}`, 'DELETE', null)
+  await fetch(`${MCA_AS(stack)}/legacy/v1/beta/automation/Delete/${encodeURIComponent(automationStudioId(id))}`, 'DELETE', null)
+}
+
+// ── Run Query through an automation (live test, 2026-11-08) ──
+// A Query Activity started on its own never says why it failed; one inside an
+// automation does, in the run log (translatedMsg, e.g. "Conversion failed when
+// converting the nvarchar value 'Leo' to data type int."). Run Query uses this only
+// after a run failed: run times are set by SFMC's queue either way (52 to 169 seconds
+// for a new automation on s10, 11 to 46 for the activity on its own).
+
+/**
+ * An automation with one step running one Query Activity. Run Once needs a starting
+ * source: SFMC refuses it for an automation without one ("automation type: unspecified
+ * is not valid to be used in run once"). A Schedule source with no schedule set
+ * (startSource typeId 1, as Automation Studio saves it) allows Run Once and never runs
+ * on its own.
+ */
+export async function createRunAutomation(stack, { name, activityId, activityName }, fetch = proxyFetch) {
+  _logInfo(`Creating automation "${name}" to run the Query Activity once`)
+  return fetch(`${AS_BASE(stack)}/automation/v1/automations`, 'POST', {
+    name,
+    description: 'Created by Marketing Cloud Toolkit to run a query once. Deleted after the run.',
+    startSource: { typeId: 1 },
+    steps: [{ name: 'Run', step: 1, activities: [{ name: activityName, objectTypeId: 300, activityObjectId: activityId, displayOrder: 1 }] }],
+  })
+}
+
+export async function runAutomationOnce(stack, id, fetch = proxyFetch) {
+  _logInfo(`Starting automation (id: ${id}) once`)
+  return fetch(`${AS_BASE(stack)}/automation/v1/automations/${encodeURIComponent(id)}/actions/runallonce`, 'POST', {})
+}
+
+/** The automation's newest run record (the run log Automation Studio reads), or null before it shows. */
+export async function fetchLatestAutomationRun(stack, id, fetch = proxyFetch, now = new Date()) {
+  const day = (ms) => new Date(now.getTime() + ms).toISOString().slice(0, 10)
+  const url = `${AS_BASE(stack)}/legacy/v1/beta/automations/automation/instance/?definition_id=${encodeURIComponent(automationStudioId(id))}`
+    + `&$top=1&begin_date=${day(-86400000)}&end_date=${day(86400000)}&order_by=${encodeURIComponent('StartTime desc')}&to_server_time=1`
+  const data = await fetch(url, 'GET', null)
+  return (data?.entry || data?.items || [])[0] || null
 }
 
 /** ID of the root "Data Extensions" folder. */
@@ -621,10 +666,10 @@ export async function getQueryRootFolderId(stack) {
 
 // ── Run step 3a: Start Query Activity ────────────────────
 
-export async function startQueryActivity(stack, queryDefinitionId) {
+export async function startQueryActivity(stack, queryDefinitionId, fetch = proxyFetch) {
   _logInfo(`Starting Query Activity (id: ${queryDefinitionId}) - SFMC will now execute the SQL and populate the target DE`)
   const url = `${AS_BASE(stack)}/automation/v1/queries/${queryDefinitionId}/actions/start/`
-  await proxyFetch(url, 'POST', {})
+  await fetch(url, 'POST', {})
 }
 
 /** Run once for a data extract, import, file transfer or script (utils/activityStart.js). */
@@ -636,18 +681,18 @@ export async function startActivity(stack, typeId, id) {
 
 // ── Run step 3b: Poll status ──────────────────────────────
 
-export async function getQueryActivityStatus(stack, queryDefinitionId) {
+export async function getQueryActivityStatus(stack, queryDefinitionId, fetch = proxyFetch) {
   _logInfo(`Polling query run status (id: ${queryDefinitionId}) - checking if SFMC has finished executing`)
   const url = `${AS_BASE(stack)}/automation/v1/queries/${queryDefinitionId}/actions/isrunning/`
-  return proxyFetch(url, 'GET', null)
+  return fetch(url, 'GET', null)
 }
 
 // ── Run step 4: Fetch results ─────────────────────────────
 
-export async function fetchDERows(stack, deKey, page = 1, pageSize = 2500) {
+export async function fetchDERows(stack, deKey, page = 1, pageSize = 2500, fetch = proxyFetch) {
   _logInfo(`Fetching result rows from DE "${deKey}" - page ${page}, up to ${pageSize} rows`)
   const url = `${AS_BASE(stack)}/data/v1/customobjectdata/key/${encodeURIComponent(deKey)}/rowset?$page=${page}&$pagesize=${pageSize}`
-  return proxyFetch(url, 'GET', null)
+  return fetch(url, 'GET', null)
 }
 
 // ── Cleanup: Delete DE ────────────────────────────────────
@@ -675,14 +720,14 @@ export async function listQueryActivities(stack, pageSize = 200) {
  * Used as a proxy to call the validate endpoint.
  * Throws if no activities exist.
  */
-export async function getAnyQueryActivityId(stack) {
+export async function getAnyQueryActivityId(stack, fetch = proxyFetch) {
   _logInfo('Fetching any existing Query Activity - needed as a proxy to call the SFMC SQL validation endpoint')
   // Fetch recent activities and prefer a non-SFMCQS one.
   // SFMCQS_Act activities reference deleted target DEs - SFMC validates
   // the stored queryText of the proxy activity, so stale SFMCQS activities
   // produce false "DE not found" errors.
   const url = `${MCA_AS(stack)}/automation/v1/queries/?$page=1&$pageSize=25&$orderBy=modifiedDate%20desc&retrievalType=1`
-  const data = await proxyFetch(url, 'GET', null)
+  const data = await fetch(url, 'GET', null)
   const items = data.items || []
   if (!items.length) throw new Error('NO_ACTIVITIES')
   const preferred = items.find(i => !i.name?.startsWith('SFMCQS_')) ?? items[0]
@@ -694,10 +739,10 @@ export async function getAnyQueryActivityId(stack) {
  * Requires an existing queryDefinitionId as a proxy entry point.
  * Response: { queryValid, errors: [{ message }], warnings: [{ message }] }
  */
-export async function validateQueryText(stack, queryDefinitionId, sql) {
+export async function validateQueryText(stack, queryDefinitionId, sql, fetch = proxyFetch) {
   _logInfo(`Validating SQL query text using proxy activity id: ${queryDefinitionId} - checking for syntax errors`)
   const url = `${MCA_AS(stack)}/automation/v1/queries/${queryDefinitionId}/actions/validate/`
-  return proxyFetch(url, 'POST', { text: sql })
+  return fetch(url, 'POST', { text: sql })
 }
 
 // ── Cleanup: Delete Query Activity ───────────────────────
@@ -753,7 +798,7 @@ export async function searchDEsGlobal(stack, name, page = 1, pageSize = 25) {
  * text), Contact Builder's host is asked the same, then with `$search` (matches from
  * the start of a word, as the Data Extensions page does). Results are matched here.
  */
-export async function searchLocalDEsByName(stack, name, pageSize = 25) {
+export async function searchLocalDEsByName(stack, name, pageSize = 25, fetch = proxyFetch) {
   const term = String(name || '').trim()
   if (!term) return { items: [] }
   const has = (d) => String(d?.name || '').toLowerCase().includes(term.toLowerCase())
@@ -769,7 +814,7 @@ export async function searchLocalDEsByName(stack, name, pageSize = 25) {
   let answered = false
   for (const url of attempts) {
     try {
-      const data = await proxyFetch(url, 'GET', null)
+      const data = await fetch(url, 'GET', null)
       answered = true
       const items = (data?.items || []).filter(has)
       if (items.length) return { ...data, items }

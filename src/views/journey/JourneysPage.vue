@@ -137,7 +137,7 @@ const columns = [
       </div>
       <template v-else-if="searched !== null">
         <div class="mb-2 flex flex-wrap items-center gap-2">
-          <p class="text-xs text-muted-foreground flex-1">{{ total.toLocaleString() }} found{{ searched.query ? ` for "${searched.query}"` : '' }}{{ searched.status ? `, status ${searched.status}` : '' }}. <template v-if="listInfo?.mode === 'stored'">Stored {{ savedAgo(listInfo.savedAt) }}: Search reads only the changes.</template><template v-else-if="listInfo?.mode === 'delta'">{{ listInfo.changed }} change(s) read from SFMC.</template>
+          <p class="text-xs text-muted-foreground flex-1">{{ total.toLocaleString() }} found{{ searched.query ? ` for "${searched.query}"` : '' }}{{ searched.status ? `, status ${searched.status}` : '' }}. <template v-if="listInfo?.mode === 'stored'">Stored {{ savedAgo(listInfo.savedAt) }}: Search reads only the changes.</template><template v-else-if="listInfo?.mode === 'delta'">{{ listInfo.changed }} change(s) read from SFMC.</template>{{ ' ' }}
             <button type="button" class="underline hover:text-foreground" title="Read the whole list again from SFMC (statuses, last runs, deletions)" data-list-refresh @click="search('refresh')">Refresh</button></p>
           <WatchButton v-if="items.length" bulk type="journey" :stack="stack" :items="items.filter((j) => picked.has(j.id))" />
         </div>

@@ -40,7 +40,8 @@ describe('Create DE samples (feedback #94)', () => {
   })
 
   it('guesses types from values', () => {
-    expect(guessField(['1', '22', '-3'])).toMatchObject({ type: 'Number', isNullable: false })
+    // Fields are never required from the sample alone (live test, 2026-11-07).
+    expect(guessField(['1', '22', '-3'])).toMatchObject({ type: 'Number', isNullable: true })
     expect(guessField(['1.5', '22.25', ''])).toMatchObject({ type: 'Decimal', length: 18, scale: 2, isNullable: true })
     expect(guessField(['00123', '00456']).type).toBe('Text')
     expect(guessField(['14165551234', '14165551235']).type).toBe('Text')

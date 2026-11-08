@@ -1,7 +1,7 @@
 // Share a query (security review, 2026-10-28). Sharing sends the query's name and SQL
 // to the share service (workers/share), which keeps them for 24 hours and shows them
-// to anyone who opens the link. Off unless the user turns it on in Settings, never
-// when the admin policy disableShare is on, and every share is confirmed in
+// to anyone who opens the link. On by default since feedback #1021 (Settings turns it
+// off), never when the admin policy disableShare is on, and every share is confirmed in
 // ShareQueryDialog with the exact text that will be sent. Nothing else is sent: no
 // results, no SFMC names, no account details.
 import { policy } from './policy.js'

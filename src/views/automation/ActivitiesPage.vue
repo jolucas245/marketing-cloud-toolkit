@@ -41,10 +41,26 @@ const showAllFields = ref(false)
 const visibleCount = ref(RESULTS_PAGE_SIZE)
 
 // Filters come back from the list without their definition; fetch it on demand.
+// Imports come back without their target name (destinationName is only in the
+// details, live test 2026-11-07), so those are fetched for the loaded page.
 const filterDetails = ref({})
+const importDetails = ref({})
 
 const descs = computed(() => items.value.map((it) => describeActivity(searched.value.type.objectTypeId,
-  filterDetails.value[it.filterActivityId] || it, stack.value)))
+  filterDetails.value[it.filterActivityId] || (it.importDefinitionId && importDetails.value[it.importDefinitionId]) || it, stack.value)))
+
+async function loadImportDetails() {
+  if (searched.value?.type.objectTypeId !== 43) return
+  const s = stack.value
+  const missing = items.value.filter((it) => it.importDefinitionId && !importDetails.value[it.importDefinitionId])
+  for (const it of missing) {
+    try {
+      const d = await fetchActivityDetails(s, { objectTypeId: 43, activityObjectId: it.importDefinitionId })
+      if (s !== stack.value || !d) return
+      importDetails.value = { ...importDetails.value, [it.importDefinitionId]: { ...it, ...d } }
+    } catch { /* keep the list item */ }
+  }
+}
 
 function pickType(t) {
   type.value = t
@@ -65,6 +81,8 @@ async function search() {
     searched.value = { type: type.value, query: query.value.trim(), all: false }
     visibleCount.value = RESULTS_PAGE_SIZE
     filterDetails.value = {}
+    importDetails.value = {}
+    loadImportDetails()
   } catch (e) {
     error.value = searchError(e, `search ${type.value.label} activities`)
   } finally {
@@ -83,6 +101,8 @@ async function fetchAll() {
     searched.value = { type: type.value, query: '', all: true }
     visibleCount.value = RESULTS_PAGE_SIZE
     filterDetails.value = {}
+    importDetails.value = {}
+    loadImportDetails()
     if (r.capped) showToast(`Showing the first ${r.items.length.toLocaleString()} of ${r.total.toLocaleString()}.`)
   } catch (e) {
     error.value = searchError(e, `fetch ${type.value.label} activities`)
@@ -100,6 +120,7 @@ async function loadMore() {
     const r = await searchActivities(stack.value, searched.value.type.endpoint, searched.value.query, page.value + 1)
     items.value = [...items.value, ...r.items]
     page.value++
+    loadImportDetails()
   } catch (e) {
     showToast(`Could not load more: ${e.message}`)
   } finally {

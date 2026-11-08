@@ -25,7 +25,14 @@ const fields = ref([])        // [{ name, type, isPrimaryKey }]
 const loadingFields = ref(false)
 const fieldError = ref('')
 const fieldFilter = ref('')
-const note = ref('')
+// A line under the buttons: { text, tone: 'ok' | 'warn' | 'error' }. Every note used
+// to be red, so "Joined as dc." read as an error (live test, 2026-11-07).
+const note = ref(null)
+const NOTE_CLASS = {
+  ok:    'text-emerald-700 dark:text-emerald-400',
+  warn:  'text-amber-700 dark:text-amber-400',
+  error: 'text-red-600 dark:text-red-400',
+}
 const searchInput = ref(null)
 let timer = null
 let seq = 0
@@ -63,7 +70,7 @@ async function pick(t) {
   fields.value = []
   fieldError.value = ''
   fieldFilter.value = ''
-  note.value = ''
+  note.value = null
   const mine = ++fieldSeq
   if (t.kind === 'dataview') {
     fields.value = (DATA_VIEW_FIELDS[t.name.toUpperCase()] || []).map((f) => ({ name: f.name, label: DV_TYPES[f.type] || '' }))
@@ -111,14 +118,16 @@ function insertName() {
 async function joinToQuery() {
   if (!props.editor?.joinTable || !picked.value) return
   const r = await props.editor.joinTable({ name: sqlTableName(picked.value) }, fields.value)
-  note.value = r.error || (r.matched ? `Joined as ${r.alias}.` : `Joined as ${r.alias}; set its ON condition.`)
+  if (r.error) note.value = { text: r.error, tone: 'error' }
+  else if (r.matched) note.value = { text: `Joined as ${r.alias}.`, tone: 'ok' }
+  else note.value = { text: `Joined as ${r.alias}; set its ON condition.`, tone: 'warn' }
 }
 
 async function insertAll() {
   if (!props.editor || !picked.value) return
-  note.value = ''
+  note.value = null
   const r = await props.editor.insertAllFields(sqlTableName(picked.value))
-  if (!r?.ok) note.value = r?.error || 'Could not insert the fields.'
+  if (!r?.ok) note.value = { text: r?.error || 'Could not insert the fields.', tone: 'error' }
 }
 
 function focus() {
@@ -172,7 +181,7 @@ defineExpose({ focus })
           <button class="rounded border border-border px-1.5 py-0.5 hover:border-primary hover:text-primary flex items-center gap-1" title="Write every field (see Insert all fields)" @click="insertAll"><ListPlus class="h-3 w-3" /> All fields</button>
           <button class="rounded border border-border px-1.5 py-0.5 hover:border-primary hover:text-primary flex items-center gap-1" :disabled="loadingFields" title="Add a LEFT JOIN for this table to the query, with the ON condition from the data view rules or a shared key field" @click="joinToQuery"><GitMerge class="h-3 w-3" /> Join</button>
         </div>
-        <p v-if="note" class="text-red-600 mb-1">{{ note }}</p>
+        <p v-if="note" class="mb-1" :class="NOTE_CLASS[note.tone]" :role="note.tone === 'error' ? 'alert' : 'status'" data-note>{{ note.text }}</p>
         <input
           v-if="fields.length > 8"
           v-model="fieldFilter"

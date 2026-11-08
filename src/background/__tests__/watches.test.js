@@ -3,14 +3,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const fetched = []
 let status = 6
 let journeyStatus = 'Published'
+let defRunStatus = 'Complete'
 vi.mock('../fetchProxy.js', () => ({
   sfmcFetch: async ({ url }) => {
     // The current BU (feedback #1026) is not counted with the watch checks.
     if (url.includes('accounts/@current')) return { accountId: 100, name: 'Parent' }
     if (url.includes('/missing')) throw Object.assign(new Error('SFMC API error 404: {"message":"Not Found"}'), { status: 404 })
     fetched.push(url)
+    if (url.includes('automation/instance/')) return { entry: [{ status: 'Error' }] }
     if (url.includes('jbinteractions')) return { id: 'j2', key: 'k1', name: 'Welcome', status: journeyStatus, version: 2, modifiedDate: '2026-10-19T10:00:00' }
-    return { name: 'Daily load', status, lastRunTime: '2026-10-19T10:00:00', lastRunStatus: 'Complete' }
+    return { name: 'Daily load', status, lastRunTime: '2026-10-19T10:00:00', lastRunStatus: defRunStatus }
   },
 }))
 
@@ -29,7 +31,7 @@ function fakeChrome() {
 }
 
 describe('checkWatches (feedback #50)', () => {
-  beforeEach(() => { vi.resetModules(); fetched.length = 0; status = 6 })
+  beforeEach(() => { vi.resetModules(); fetched.length = 0; status = 6; defRunStatus = 'Complete' })
 
   it('records a baseline, then turns a pause into a notice and a badge', async () => {
     const { data, badge } = fakeChrome()
@@ -85,5 +87,31 @@ describe('watches in other business units (feedback #1026)', () => {
     expect(w['s4:a2'].checkedAt).toBeUndefined()
     expect(w['s4:missing']).toMatchObject({ notFound: true })
     expect(w['s4:missing'].error).toBeUndefined()
+  })
+})
+
+describe('last run status of a watch (live test, 2026-11-07)', () => {
+  beforeEach(() => { vi.resetModules(); fetched.length = 0; status = 6; defRunStatus = null })
+
+  it('reads the status from the run log around the run day when none is known', async () => {
+    const { data } = fakeChrome()
+    data.toolkit_watches = { 's4:A1': { stack: 's4', id: 'A1', name: 'Daily load', on: { paused: true, activated: true, runs: false, fails: true },
+      last: { status: 6, statusName: 'Scheduled', lastRunTime: '2026-10-19T10:00:00', lastRunStatus: null } } }
+    const { checkWatches } = await import('../watches.js')
+    await checkWatches('s4', { force: true })
+    expect(data.toolkit_watches['s4:A1'].last.lastRunStatus).toBe('Error')
+    const log = fetched.find((u) => u.includes('automation/instance/'))
+    expect(log).toContain('begin_date=2026-10-18')
+    expect(log).toContain('end_date=2026-10-20')
+  })
+
+  it('keeps a known status for the same run without asking the run log', async () => {
+    const { data } = fakeChrome()
+    data.toolkit_watches = { 's4:A1': { stack: 's4', id: 'A1', name: 'Daily load', on: { paused: true, activated: true, runs: false, fails: true },
+      last: { status: 6, statusName: 'Scheduled', lastRunTime: '2026-10-19T10:00:00', lastRunStatus: 'Error' } } }
+    const { checkWatches } = await import('../watches.js')
+    await checkWatches('s4', { force: true })
+    expect(data.toolkit_watches['s4:A1'].last.lastRunStatus).toBe('Error')
+    expect(fetched.some((u) => u.includes('automation/instance/'))).toBe(false)
   })
 })

@@ -57,6 +57,23 @@ export function blankSettings() {
   }
 }
 
+// Fields SFMC accepts for the send relationship (Text, EmailAddress, Number).
+export const SEND_FIELD_TYPES = ['Text', 'EmailAddress', 'Number']
+const KEY_FIELD = /^(subscriber|contact)[ _]?key$|^(subscriber|contact)[ _]?id$/i
+
+/**
+ * The field to relate to Subscriber Key when Sendable is turned on: a field named like
+ * SubscriberKey or ContactKey first, then an EmailAddress field, then the first one allowed.
+ * (Live test, 2026-11-07: a sample with SubscriberKey and EmailAddress picked EmailAddress.)
+ */
+export function defaultSendField(fields) {
+  const allowed = (fields || []).filter((f) => SEND_FIELD_TYPES.includes(f.type))
+  const pick = allowed.find((f) => KEY_FIELD.test(String(f.name).trim()))
+    || allowed.find((f) => f.type === 'EmailAddress')
+    || allowed[0]
+  return pick ? pick.name : ''
+}
+
 /** Problems with one field ('' when fine), given every field for the name check. */
 export function fieldProblem(f, all = []) {
   const name = String(f.name ?? '').trim()

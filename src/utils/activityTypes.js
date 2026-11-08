@@ -10,6 +10,9 @@
 
 import { versionsKeyFor } from './activityVersions.js'
 import { startTarget } from './activityStart.js'
+import { automationStudioId } from './automationIds.js'
+
+export { automationStudioId }
 
 export const ACTIVITY_TYPES = {
   33: 'SMS', 42: 'Send Email', 43: 'Import File', 45: 'Group Refresh', 53: 'File Transfer',
@@ -23,6 +26,10 @@ export const ACTIVITY_TYPES = {
 export const activityTypeLabel = (id) => ACTIVITY_TYPES[id] || `Type ${id}`
 
 export const UPDATE_TYPES = { 1: 'Add Only', 2: 'Update Only', 3: 'Add and Update', 4: 'Overwrite' }
+// Import activity updateTypeId (ImportDefinitionUpdateType). 0, 1 and 4 checked against
+// Automation Studio's Data Action on s10 (2026-11-07); 2, 3 and 5 follow the enum's
+// documented order (UpdateButDoNotAdd, Merge, ColumnBased).
+export const IMPORT_UPDATE_TYPES = { 0: 'Add and Update', 1: 'Add Only', 2: 'Update Only', 3: 'Merge', 4: 'Overwrite', 5: 'Column based' }
 export const IMPORT_DESTINATIONS = { 13: 'List', 310: 'Data Extension', 584: 'Mobile Subscription', 613: 'Mobile Push' }
 
 const AS_BASE = (stack) => `https://mc.${stack}.marketingcloudapps.com/AutomationStudioFuel3/fuelapi`
@@ -47,11 +54,11 @@ export function automationStudioUrl(stack) {
 }
 
 /**
- * One automation in Automation Studio (feedback #35). The `#Instance/<id>` route is
- * what Automation Studio shows when an automation is open; not yet checked live.
+ * One automation in Automation Studio (feedback #35), by REST GUID or list ID. The route
+ * needs the list ID (see automationStudioId).
  */
 export function automationUrl(stack, id) {
-  return id ? `${automationStudioUrl(stack)}%23Instance/${encodeURIComponent(id)}` : automationStudioUrl(stack)
+  return id ? `${automationStudioUrl(stack)}%23Instance/${encodeURIComponent(automationStudioId(id))}` : automationStudioUrl(stack)
 }
 
 /** A data extension in Contact Builder (needs its ID). */
@@ -76,6 +83,15 @@ function rest(details, used) {
   return Object.entries(details || {})
     .filter(([k]) => !used.has(k) && !STEP_FIELDS.has(k))
     .map(([k, v]) => [humanize(k), formatValue(v)])
+}
+
+// Why only the automation step is shown. _fromStep is 'error' when SFMC refused the
+// details (a deleted Query activity gave 404 and was wrongly said to have no API,
+// live test 2026-11-07), true when the type has no details API.
+function stepNote(d) {
+  if (!d._fromStep) return null
+  if (d._fromStep === 'error') return 'SFMC did not return the details of this activity (see the error); this is what the automation step holds. A 404 usually means the activity was deleted.'
+  return 'SFMC has no API for the details of this activity type; this is what the automation step holds.'
 }
 
 function kvTable(title, obj, extra = false) {
@@ -105,7 +121,7 @@ function build(details, typeId, stack, spec) {
     typeLabel: activityTypeLabel(typeId),
     title: d.name || activityTypeLabel(typeId),
     link: spec.link ? spec.link(d, stack) : null,
-    note: d._fromStep && !spec.noNote ? 'SFMC has no API for the details of this activity type; this is what the automation step holds.' : null,
+    note: spec.noNote ? null : stepNote(d),
     main,
     extra: [...extra, ...rest(d, used)],
     code: codeText ? { label: spec.code.label, text: String(codeText), lang: spec.code.lang } : null,
@@ -169,13 +185,13 @@ const SPECS = {
   43: {
     link: (d, s) => AS_LINK(s, 'ActivityDetails', 43, d.importDefinitionId),
     main: [['Description', 'description'], ['File spec', 'fileSpec'], ['File naming pattern', 'fileNamingPattern'], ['Field mapping type', 'fieldMappingType'],
-      ['Destination type', (d) => IMPORT_DESTINATIONS[d.destinationObjectTypeId] || d.destinationObjectTypeId], ['Target data extension', (d) => d.targetDataExtension?.name ?? d.targetDataExtension],
-      ['Update type', (d) => UPDATE_TYPES[d.updateTypeId] || d.updateTypeId]],
+      ['Destination type', (d) => IMPORT_DESTINATIONS[d.destinationObjectTypeId] || d.destinationObjectTypeId], ['Target data extension', (d) => d.destinationName || d.targetDataExtension?.name || d.targetDataExtension],
+      ['Update type', (d) => IMPORT_UPDATE_TYPES[d.updateTypeId] ?? d.updateTypeId]],
     extra: [['Allow errors', 'allowErrors'], ['Customer key', 'customerKey'], ['Created', 'createdDate'], ['Modified', 'modifiedDate'], ['Date format locale', 'dateFormatLocale'],
       ['Delete file', 'deleteFile'], ['Destination ID', 'destinationObjectId'], ['File transfer location ID', 'fileTransferLocationId'], ['File type', 'fileType'],
       ['Notification email', 'notificationEmailAddress'], ['Send email notification', 'sendEmailNotification'], ['Subscriber import type ID', 'subscriberImportTypeId'],
       ['Max file age (hours)', 'maxFileAgeHours'], ['Max import frequency (hours)', 'maxImportFrequencyHours'], ['Standard quoted strings', 'standardQuotedStrings']],
-    alsoUsed: ['destinationObjectTypeId', 'targetDataExtension', 'updateTypeId', 'fieldMappings', 'importDefinitionId'],
+    alsoUsed: ['destinationObjectTypeId', 'targetDataExtension', 'destinationName', 'updateTypeId', 'fieldMappings', 'importDefinitionId'],
     deRefs: (d) => ({ 'Target data extension': typeof d.targetDataExtension === 'object' && d.targetDataExtension
       ? { name: d.targetDataExtension.name, id: d.targetDataExtension.id, key: d.targetDataExtension.customerKey ?? d.targetDataExtension.key }
       : { name: typeof d.targetDataExtension === 'string' ? d.targetDataExtension : '' } }),
@@ -216,7 +232,7 @@ export function describeActivity(objectTypeId, details, stack) {
     typeLabel: activityTypeLabel(objectTypeId),
     title: d.name || activityTypeLabel(objectTypeId),
     link: null,
-    note: d._fromStep ? 'SFMC has no API for the details of this activity type; this is what the automation step holds.' : null,
+    note: stepNote(d),
     main: all,
     extra: [],
     code: null,

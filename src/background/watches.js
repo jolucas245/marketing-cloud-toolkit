@@ -36,12 +36,18 @@ async function journeySnap(stack, w) {
 async function snapshot(stack, w) {
   const d = await sfmcFetch({ url: `${AS(stack)}/automation/v1/automations/${encodeURIComponent(w.id)}` })
   const snap = { status: d?.status ?? null, lastRunTime: d?.lastRunTime ?? null, lastRunStatus: d?.lastRunStatus ?? null, name: d?.name || w.name }
-  // A new run without a status on the definition: read it from the run log.
-  if (snap.lastRunTime && snap.lastRunTime !== w.last?.lastRunTime && !snap.lastRunStatus) {
+  // The same run as last time: keep the status already known.
+  if (!snap.lastRunStatus && snap.lastRunTime && snap.lastRunTime === w.last?.lastRunTime) snap.lastRunStatus = w.last?.lastRunStatus ?? null
+  // Still no status (a new run, or a watch started where the list's status was not
+  // known): read it from the run log around the run's own day, not only the last 7
+  // days (live test, 2026-11-07: a March run stayed without its Error status).
+  if (snap.lastRunTime && !snap.lastRunStatus) {
     try {
-      const day = (t) => new Date(t).toISOString().slice(0, 10)
+      const at = Date.parse(snap.lastRunTime)
+      const t = Number.isNaN(at) ? Date.now() : at
+      const day = (ms) => new Date(ms).toISOString().slice(0, 10)
       const runs = await sfmcFetch({ url: `${AS(stack)}/legacy/v1/beta/automations/automation/instance/?definition_id=${encodeURIComponent(w.id)}&$top=1`
-        + `&begin_date=${day(Date.now() - 7 * 86400000)}&end_date=${day(Date.now())}&order_by=${encodeURIComponent('StartTime desc')}&to_server_time=1` })
+        + `&begin_date=${day(t - 86400000)}&end_date=${day(t + 86400000)}&order_by=${encodeURIComponent('StartTime desc')}&to_server_time=1` })
       const r = (runs?.entry || runs?.items || [])[0]
       snap.lastRunStatus = r?.status ?? r?.statusName ?? r?.StatusName ?? null
     } catch { /* keep it without a status */ }

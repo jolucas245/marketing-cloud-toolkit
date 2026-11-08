@@ -16,6 +16,15 @@ describe('Content > Emails (feedback #1054)', () => {
     expect(emailSearchBody().query).toEqual({ property: 'assetType.id', simpleOperator: 'in', values: [207, 208, 209] })
   })
 
+  it('requires every word of a search, since contains matches any one word (live test, 2026-11-07)', () => {
+    const match = emailSearchBody({ text: ' Email  Preview Test ' }).query.rightOperand
+    const words = (q) => (q.logicalOperator === 'AND' ? [...words(q.leftOperand), ...words(q.rightOperand)] : [q.value])
+    expect(match.leftOperand.leftOperand.leftOperand).toEqual({ property: 'name', simpleOperator: 'contains', value: 'Email' })
+    expect(words(match.leftOperand)).toEqual(['Email', 'Preview', 'Test'])
+    expect(words(match.rightOperand.leftOperand)).toEqual(['Email', 'Preview', 'Test'])
+    expect(match.rightOperand.rightOperand).toEqual({ property: 'customerKey', simpleOperator: 'equal', value: 'Email  Preview Test' })
+  })
+
   it('reads list rows and the legacy email ID', () => {
     const r = toEmailRow({ id: 5, name: 'W', category: { id: 9, name: 'F' }, assetType: { displayName: 'HTML Email' }, views: { subjectline: { content: 'Hi' } }, legacyData: { legacyId: 123 } })
     expect(r).toMatchObject({ id: 5, folderId: '9', folderName: 'F', subject: 'Hi', type: 'HTML Email', legacyId: 123 })

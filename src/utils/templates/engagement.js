@@ -128,7 +128,7 @@ export const automationRunLog = {
   ],
   before: ['Uses the _AutomationInstance and _AutomationActivityInstance data views, which cover this business unit.'],
   after: (o) => [
-    `Schedule "${o.automationName}" daily in Automation Studio.`,
+    `Set a daily schedule for "${o.automationName}" in Automation Studio.`,
     `Find failures by filtering "${o.prefix}" on AutomationInstanceStatus, and "${o.prefix} - Activities" on ActivityInstanceStatus.`,
   ],
   plan(o) {
@@ -159,7 +159,7 @@ export const crmUnsubscribes = {
   ],
   before: [],
   after: (o) => [
-    `Schedule "${o.automationName}" daily in Automation Studio.`,
+    `Set a daily schedule for "${o.automationName}" in Automation Studio.`,
     `Send "${o.deName}" to your CRM: for Salesforce, add a Salesforce Data activity (or a Data Extract and File Transfer for others) after the query in the same automation.`,
   ],
   plan(o) {

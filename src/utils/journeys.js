@@ -15,9 +15,11 @@ const JB = (stack) => `https://jbinteractions.${stack}.marketingcloudapps.com/fu
 
 export const JOURNEY_STATUSES = ['Draft', 'Published', 'ScheduledToPublish', 'Paused', 'Stopped', 'Unpublished', 'Deleted']
 
-export async function searchJourneys(stack, { query = '', status = '', page = 1, categoryId = null } = {}) {
+// `allVersions`: every version of each journey, not only the newest (which may be a
+// Draft while an older version is Published; live test, 2026-11-07).
+export async function searchJourneys(stack, { query = '', status = '', page = 1, categoryId = null, allVersions = false } = {}) {
   const params = new URLSearchParams({
-    $page: String(page), $pageSize: String(JOURNEY_PAGE_SIZE), $orderBy: 'ModifiedDate DESC', mostRecentVersionOnly: 'true',
+    $page: String(page), $pageSize: String(JOURNEY_PAGE_SIZE), $orderBy: 'ModifiedDate DESC', mostRecentVersionOnly: allVersions ? 'false' : 'true',
   })
   if (query.trim()) params.set('nameOrDescription', query.trim())
   if (status) params.set('status', status)
@@ -27,6 +29,33 @@ export async function searchJourneys(stack, { query = '', status = '', page = 1,
   const data = await sfmcFetch(`${JB(stack)}/interactions?${params}`, 'GET')
   const items = data?.items || []
   return { items, total: data?.count ?? items.length }
+}
+
+// Statuses of a version that contacts can be in, best first. A journey's "current"
+// version is the newest of these, else its newest version.
+const LIVE_STATUSES = ['Published', 'ScheduledToPublish', 'Paused', 'Finishing', 'Sent']
+const liveRank = (status) => { const i = LIVE_STATUSES.indexOf(String(status || '')); return i < 0 ? LIVE_STATUSES.length : i }
+
+/** The version to show for a journey: the published (or otherwise live) one, else the newest. */
+export function primaryVersion(versions) {
+  return [...(versions || [])].sort((a, b) => liveRank(a.status) - liveRank(b.status) || (Number(b.version) || 0) - (Number(a.version) || 0))[0] || null
+}
+
+/**
+ * List items of every version (`allVersions`) grouped per journey, in the order the
+ * journeys first appear: [{ id, key, name, versions (newest first), primary }].
+ */
+export function groupJourneyVersions(items) {
+  const groups = new Map()
+  for (const j of items || []) {
+    if (!groups.has(j.id)) groups.set(j.id, { id: j.id, key: j.key, name: j.name, versions: [] })
+    groups.get(j.id).versions.push(j)
+  }
+  return [...groups.values()].map((g) => {
+    g.versions.sort((a, b) => (Number(b.version) || 0) - (Number(a.version) || 0))
+    const primary = primaryVersion(g.versions)
+    return { ...g, name: primary?.name || g.name, primary }
+  })
 }
 
 /**
@@ -51,6 +80,52 @@ export async function fetchJourney(stack, id, version) {
     return sfmcFetch(url(null), 'GET')
   }
 }
+
+// ── Send classification, sender and delivery profile names ──
+// An email step stores only their IDs. Journey Builder's email activity reads the
+// names from messaging-internal (sendClassifications/{id}, senderProfiles); the same
+// paths answer on the Journey Builder host the Toolkit already uses (live test, 2026-11-07).
+const MSG = (stack) => `https://jbinteractions.${stack}.marketingcloudapps.com/fuelapi/messaging-internal/v1`
+const PROFILE_LISTS = { sendClassifications: 'sendClassifications', senderProfiles: 'senderProfiles', deliveryProfiles: 'deliveryProfiles' }
+const lc = (v) => String(v ?? '').toLowerCase()
+
+async function readAll(fetch, url) {
+  const items = []
+  for (let page = 1; page <= 10; page++) {
+    const data = await fetch(`${url}?$page=${page}&$pagesize=100`, 'GET')
+    const list = data?.items || []
+    items.push(...list)
+    if (list.length < 100 || items.length >= Number(data?.count || 0)) break
+  }
+  return items
+}
+
+/**
+ * Names of the send classifications, sender profiles and delivery profiles, as
+ * { sendClassifications, senderProfiles, deliveryProfiles }: Maps of lower-case ID to
+ * the item. A list that can't be read is an empty Map (the step then shows the ID);
+ * when none can be read it throws.
+ */
+export async function fetchSendNames(stack, fetch = sfmcFetch) {
+  const keys = Object.keys(PROFILE_LISTS)
+  const lists = await Promise.allSettled(keys.map((k) => readAll(fetch, `${MSG(stack)}/${PROFILE_LISTS[k]}`)))
+  // None readable (no session, say): an error, so sendNames() tries again next time.
+  if (lists.every((r) => r.status === 'rejected')) throw lists[0].reason
+  return Object.fromEntries(keys.map((k, i) => [k, new Map((lists[i].status === 'fulfilled' ? lists[i].value : []).map((x) => [lc(x.id), x]))]))
+}
+
+const sendNameCache = new Map() // stack → Promise, for the life of the page
+export function sendNames(stack, fetch = sfmcFetch) {
+  if (!sendNameCache.has(stack)) {
+    const p = fetchSendNames(stack, fetch)
+    p.catch(() => sendNameCache.delete(stack))
+    sendNameCache.set(stack, p)
+  }
+  return sendNameCache.get(stack)
+}
+
+/** True when a journey has an email step (the only steps that need the names). */
+export const hasEmailStep = (journey) => (journey?.activities || []).some((a) => /^EMAIL(V2)?$/i.test(a?.type || ''))
 
 export function journeyBuilderUrl(stack, journey) {
   return `https://mc.${stack}.exacttarget.com/cloud/#app/Journey%20Builder/%23${encodeURIComponent(journey.id)}/${journey.version || 1}`
@@ -327,9 +402,9 @@ export function describeCriteria(xml) {
 
 /**
  * Display data for ActivityCard (see utils/activityTypes.js). `nameOf(key)` names
- * the step a path leads to.
+ * the step a path leads to; `names` is fetchSendNames() for an email step's profiles.
  */
-export function describeJourneyNode(node, nameOf = (k) => k) {
+export function describeJourneyNode(node, nameOf = (k) => k, names = null) {
   const a = node.raw || {}
   const t = String(node.type || '').toUpperCase()
   const c = ca(a)
@@ -353,8 +428,20 @@ export function describeJourneyNode(node, nameOf = (k) => k) {
   } else if (t === 'EMAILV2' || t === 'EMAIL') {
     const ts = c.triggeredSend || {}
     main.push(['Email', formatValue(ts.emailName || a.metaData?.emailName || a.name)], ['Subject', formatValue(ts.emailSubject)],
-      ['Preheader', formatValue(ts.preHeader)], ['Email ID', formatValue(ts.emailId)], ['Send classification', formatValue(ts.sendClassificationId)],
-      ['Sender profile', formatValue(ts.senderProfileId)], ['Delivery profile', formatValue(ts.deliveryProfileId)])
+      ['Preheader', formatValue(ts.preHeader)], ['Email ID', formatValue(ts.emailId)])
+    // Names when they were read (fetchSendNames), else the IDs, labelled as IDs (live test, 2026-11-07).
+    for (const [label, field, list] of [['Send classification', 'sendClassificationId', 'sendClassifications'], ['Sender profile', 'senderProfileId', 'senderProfiles'], ['Delivery profile', 'deliveryProfileId', 'deliveryProfiles']]) {
+      const id = ts[field]
+      if (!id) continue
+      const item = names?.[list]?.get(lc(id))
+      if (item?.name) {
+        const fromText = item.fromEmail ? (item.fromName && item.fromName !== item.fromEmail ? `${item.fromName} <${item.fromEmail}>` : item.fromEmail) : ''
+        main.push([label, list === 'senderProfiles' && fromText && fromText !== item.name ? `${item.name} (from ${fromText})` : item.name])
+        extra.push([`${label} ID`, String(id)])
+      } else {
+        main.push([`${label} ID`, String(id)])
+      }
+    }
     tables.push(kvTable('Send settings', ts, true))
   } else if (/WAIT/.test(t)) {
     const duration = waitDurationLabel(c)
@@ -423,7 +510,7 @@ export function journeyOverviewRows(j) {
   ].filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])
 }
 
-export function journeyDoc(journey, graph, layout, diagram = null) {
+export function journeyDoc(journey, graph, layout, diagram = null, names = null) {
   const ordered = [...graph.nodes].filter((n) => n.type !== 'EXIT')
     .sort((a, b) => (layout.pos.get(a.key)?.lane - layout.pos.get(b.key)?.lane) || (layout.pos.get(a.key)?.depth - layout.pos.get(b.key)?.depth))
   const blocks = [{ type: 'h', level: 2, text: 'Overview' }, { type: 'kv', rows: journeyOverviewRows(journey) },
@@ -432,7 +519,7 @@ export function journeyDoc(journey, graph, layout, diagram = null) {
     { type: 'h', level: 2, text: 'Steps' }]
   const nameOf = (k) => graph.nodes.find((x) => x.key === k)?.name || k
   for (const n of ordered) {
-    const d = describeJourneyNode(n, nameOf)
+    const d = describeJourneyNode(n, nameOf, names)
     const next = graph.edges.filter((e) => e.from === n.key).map((e) => {
       const to = graph.nodes.find((x) => x.key === e.to)
       return `${e.label ? `${e.label}: ` : ''}${to?.type === 'EXIT' ? 'Exit' : to?.name || e.to}`

@@ -35,7 +35,7 @@ const scheduleRows = computed(() => {
   const end = s.endDate || s.endTime
   if (end) rows.push(['Ending', /2079|9999/.test(String(end)) ? 'Never' : formatDateTime(end)])
   if (s.timezoneName) rows.push(['Time zone', s.timezoneName])
-  if (s.scheduledTime) rows.push(['Next run', formatDateTime(s.scheduledTime)])
+  if (formatDateTime(s.scheduledTime)) rows.push(['Next run', formatDateTime(s.scheduledTime)])
   return rows
 })
 const scheduleStatus = computed(() => String(props.details?.schedule?.scheduleStatus || '').toLowerCase())

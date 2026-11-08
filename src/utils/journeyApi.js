@@ -3,6 +3,7 @@
 // service worker starts that session when needed (src/background/sessions.js).
 import { sfmcFetch } from './sfmcApi.js'
 import { formatValue } from './activityTypes.js'
+import { formatDateTime } from './format.js'
 
 export const EVENT_TYPES = {
   EmailAudience: 'Data Extension (Email Audience)',
@@ -42,39 +43,52 @@ export function filterEventDefinitions(items, f = {}, now = new Date()) {
     (!f.scheduledFrom || (it.schedule?.endDateTime && new Date(it.schedule.endDateTime) >= today)))
 }
 
-export function eventIconUrl(stack, item) {
-  const icon = item?.iconUrl
-  if (!icon) return null
-  if (/^https:\/\//.test(icon)) return icon
-  return `https://jbinteractions.${stack}.marketingcloudapps.com/${String(icon).replace(/^\/+/, '')}`
-}
-
 const kv = (title, obj) => (obj && typeof obj === 'object' && Object.keys(obj).length
   ? { title, columns: ['Property', 'Value'], rows: Object.entries(obj).map(([k, v]) => [k, formatValue(v)]) }
   : null)
 
-/** Display data for ActivityCard (see utils/activityTypes.js). */
-export function describeEventDefinition(it, stack) {
+// Icon kind (components/results/ActivityIcon.vue) per entry type. Journey Builder's own
+// icons are white glyphs drawn for its coloured tiles, so on the card's light header
+// they showed as an empty box, and the Salesforce ones answer 404 (live test, 2026-11-07).
+const AUDIENCE_TYPES = new Set(['EmailAudience', 'ContactAudience', 'AutomationAudience'])
+export const eventIconType = (it) => (AUDIENCE_TYPES.has(it?.type) || it?.category === 'Audience' ? 'audience' : 'journey')
+
+// The all-zero GUID SFMC sends when an event has no automation (API events, for example).
+const isEmptyGuid = (v) => /^0{8}-0{4}-0{4}-0{4}-0{12}$/.test(String(v || ''))
+export const eventAutomationId = (it) => (it?.automationId && !isEmptyGuid(it.automationId) ? it.automationId : null)
+
+const dateValue = (v) => formatValue(formatDateTime(v))
+
+/**
+ * Display data for ActivityCard (see utils/activityTypes.js).
+ * interactionCount and publishedInteractionCount count journey versions, not journeys:
+ * a journey with versions 1 (Unpublished), 2 (Published) and 3 (Draft) gives 3 and 1
+ * (live test, 2026-11-07). createdBy and modifiedBy are user IDs; SFMC gives no cheap
+ * way to name them from here, so they are labelled as IDs.
+ */
+export function describeEventDefinition(it) {
   const published = Number(it.publishedInteractionCount) || 0
+  const automationId = eventAutomationId(it)
   return {
     typeLabel: EVENT_TYPES[it.type] || it.type || 'Event',
     title: it.name || it.eventDefinitionKey || 'Event definition',
-    icon: eventIconUrl(stack, it),
+    icon: null,
+    iconType: eventIconType(it),
     link: null,
     main: [
       ['Event definition key', formatValue(it.eventDefinitionKey)],
       ['Data extension', formatValue(it.dataExtensionName)],
-      ['Journey status', published ? `Active (${published} published ${published === 1 ? 'journey' : 'journeys'})` : 'Not active'],
-      ['Journeys using it', formatValue(it.interactionCount)],
+      ['Journey status', published ? `Active (${published} published ${published === 1 ? 'version' : 'versions'})` : 'Not active'],
+      ['Journey versions using it', formatValue(it.interactionCount)],
       ['Category', formatValue(it.category)],
       ['Mode', formatValue(it.mode)],
-      ['Automation ID', formatValue(it.automationId)],
-      ['Created', formatValue(it.createdDate)], ['Created by', formatValue(it.createdBy)],
-      ['Modified', formatValue(it.modifiedDate)], ['Modified by', formatValue(it.modifiedBy)],
+      ...(automationId ? [['Automation ID', automationId]] : []),
+      ['Created', dateValue(it.createdDate)], ['Modified', dateValue(it.modifiedDate)],
     ],
     extra: [
       ['Description', formatValue(it.description)], ['Type', formatValue(it.type)], ['Data extension ID', formatValue(it.dataExtensionId)],
-      ['ID', formatValue(it.id)], ['Source application extension ID', formatValue(it.sourceApplicationExtensionId)],
+      ['ID', formatValue(it.id)], ['Created by (user ID)', formatValue(it.createdBy)], ['Modified by (user ID)', formatValue(it.modifiedBy)],
+      ['Source application extension ID', formatValue(it.sourceApplicationExtensionId)],
       ['Platform object', formatValue(it.isPlatformObject)], ['Visible in picker', formatValue(it.isVisibleInPicker)],
       ['Arguments: criteria', formatValue(it.arguments?.criteria)], ['Arguments: serialized object type', formatValue(it.arguments?.serializedObjectType)],
       ['Arguments: event definition ID', formatValue(it.arguments?.eventDefinitionId)],

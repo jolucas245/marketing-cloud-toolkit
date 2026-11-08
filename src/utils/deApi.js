@@ -50,12 +50,15 @@ export function toDE(item, sourceType = null) {
  * What to send to SFMC's search, and how to check a name here. SFMC's search finds
  * nothing for text with spaces or dashes ("Master - Backup", feedback #22), so for
  * more than one word it gets the longest word and the whole text is matched here.
- * Brackets around the text ([Master - Backup]) are ignored.
+ * Brackets around the text ([Master - Backup]) are ignored. Text with an underscore is
+ * also matched here, since SFMC treats _ as a wildcard.
  */
 export function deSearchTerms(query) {
   const q = String(query || '').trim().replace(/^\[(.*)\]$/, '$1').trim()
   const words = q.split(/[^A-Za-z0-9_]+/).filter(Boolean)
-  if (!q || (words.length === 1 && words[0] === q)) return { term: q, filter: null }
+  // SFMC reads _ in `name=%text%` as a one-character wildcard ("Demo_" found "DemoDE",
+  // live test 2026-11-07), so text with _ is also matched here.
+  if (!q || (words.length === 1 && words[0] === q && !q.includes('_'))) return { term: q, filter: null }
   const term = [...words].sort((a, b) => b.length - a.length)[0] || ''
   const needle = q.toLowerCase()
   return { term, filter: (name) => String(name || '').toLowerCase().includes(needle) }

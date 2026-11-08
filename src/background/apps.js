@@ -15,6 +15,15 @@ export const STACK_RE = /^s?\d+$/
 // MM-DD-YYYY, the date format the storage history call takes.
 const mdY = (t) => { const d = new Date(t); return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}-${d.getFullYear()}` }
 
+// Session start settings shared by the Setup apps (live test, 2026-11-07): a quick
+// landing gets 6 s (the SSO hop answers in about 1.5 s), the Setup page that embeds the
+// app 15 s (the whole Marketing Cloud shell loads first). A failed start is not
+// repeated within 10 s, so the page's automatic reconnect does not run it a second time.
+const SETUP_SESSION = {
+  landingTimeoutMs: (url) => (url.includes('/cloud/#app/Setup/') ? 15000 : 6000),
+  retryGapMs: 10000,
+}
+
 export const SFMC_APPS = [
   {
     id: 'automationStudio',
@@ -79,11 +88,14 @@ export const SFMC_APPS = [
     probeUrl: (s) => `https://jbinteractions.${s}.marketingcloudapps.com/fuelapi/interaction/v1/eventDefinitions?$page=1&$pagesize=1`,
     landings: (s) => [`https://mc.${s}.exacttarget.com/cloud/#app/Journey%20Builder`],
   },
-  // Setup's apps (Domains and Installed Packages pages, user, 2026-11-05): the calls SFMC's
-  // Setup screens make, from the user's network log. Assumed to use their own session
-  // cookies like CloudPages (not the MCA Bearer token), with the app's root and then
-  // Setup as landings; not yet checked against a live org through the extension.
-  // On demand: started only when one of their calls needs a session.
+  // Setup's apps (Domains and Installed Packages pages, user, 2026-11-05). Checked live on
+  // s10 (live test, 2026-11-07): each is a cookie session (no Bearer token), started the
+  // way SFMC's Setup starts it: core SSO.aspx?appId=... auto-posts to the app's /login.
+  // Neither the app's root (email-app: 401 "Please log in") nor #app/Setup (it only
+  // starts mc-setup) creates one. Landings: the app's SSO hop (about 1.5 s), then the
+  // Setup page that embeds the app (about 8 to 11 s), in case an app id differs.
+  // On demand: started only when one of their calls needs a session. A failed start is
+  // not repeated by the page's automatic reconnect right after it (see sessions.js).
   {
     id: 'emailApp',
     onDemand: true,
@@ -91,7 +103,12 @@ export const SFMC_APPS = [
     matches: (url) => url.hostname.startsWith('email-app.'),
     bearer: false,
     probeUrl: (s) => `https://email-app.${s}.marketingcloudapps.com/fuelapi/messaging/v1/domainverification?$page=1&$pagesize=1`,
-    landings: (s) => [`https://email-app.${s}.marketingcloudapps.com/`, `https://mc.${s}.exacttarget.com/cloud/#app/Setup`],
+    landings: (s) => [
+      `https://mc.${s}.exacttarget.com/cloud/tools/SSO.aspx?appId=6df293a1-4fdc-41cd-aa08-89efc793c33c&env=default&legacy=1&deepLink=/%23/admin/domainverification`,
+      `https://mc.${s}.exacttarget.com/cloud/#app/Setup/FromAddressManagement`,
+    ],
+    ...SETUP_SESSION,
+    sessionHint: 'Open Setup > Feature Settings > Email Studio > From Address Management in Marketing Cloud: if it does not load there either, your user cannot view sender authentication.',
   },
   {
     id: 'customDomains',
@@ -100,7 +117,10 @@ export const SFMC_APPS = [
     matches: (url) => url.hostname.startsWith('custom-domains-ui.'),
     bearer: false,
     probeUrl: (s) => `https://custom-domains-ui.${s}.marketingcloudapps.com/fuelapi/internal/v1/ssl/customdomains/?$page=1&$pageSize=1`,
-    landings: (s) => [`https://custom-domains-ui.${s}.marketingcloudapps.com/`, `https://mc.${s}.exacttarget.com/cloud/#app/Setup`],
+    // This app signs in from its own root (its /login does the hop; about 2.6 s live).
+    landings: (s) => [`https://custom-domains-ui.${s}.marketingcloudapps.com/`, `https://mc.${s}.exacttarget.com/cloud/#app/Setup/CustomDomains`],
+    ...SETUP_SESSION,
+    sessionHint: 'Open Setup > Security > Domain SSL Certificates in Marketing Cloud: if it does not load there either, your user cannot view custom domains.',
   },
   {
     id: 'domainAllowlist',
@@ -109,7 +129,12 @@ export const SFMC_APPS = [
     matches: (url) => url.hostname.startsWith('mc-domainwhitelist-admin-app.'),
     bearer: false,
     probeUrl: (s) => `https://mc-domainwhitelist-admin-app.${s}.marketingcloudapps.com/fuelapi/platform/v1/endpoints`,
-    landings: (s) => [`https://mc-domainwhitelist-admin-app.${s}.marketingcloudapps.com/`, `https://mc.${s}.exacttarget.com/cloud/#app/Setup`],
+    landings: (s) => [
+      `https://mc.${s}.exacttarget.com/cloud/tools/SSO.aspx?appId=FF14944B-7CDB-4FF1-82DB-40F022C2C2DC&restToken=1`,
+      `https://mc.${s}.exacttarget.com/cloud/#app/Setup/DomainWhitelist`,
+    ],
+    ...SETUP_SESSION,
+    sessionHint: 'Open Setup > Security > Domain Allowlist in Marketing Cloud: if it does not load there either, your user cannot view the account endpoints.',
   },
 ]
 

@@ -1,12 +1,12 @@
 <script setup>
 // One leftover in Settings > Clean up: tick box, kind icon, name, why it can go, date and age.
-import { Workflow, Database } from 'lucide-vue-next'
+import { Workflow, Database, Play } from 'lucide-vue-next'
 import { formatDateTime } from '@/utils/format.js'
 import { relativeAge } from './cleanupView.js'
 
 defineProps({
   item: { type: Object, required: true },
-  kind: { type: String, required: true }, // 'activity' | 'de'
+  kind: { type: String, required: true }, // 'automation' | 'activity' | 'de'
   checked: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
   age: { type: Number, default: null },
@@ -30,18 +30,20 @@ defineEmits(['toggle'])
     />
     <span
       class="h-[34px] w-[34px] shrink-0 rounded-xl flex items-center justify-center"
-      :class="kind === 'activity' ? 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300' : 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300'"
+      :class="kind === 'automation' ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300' : kind === 'activity' ? 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300' : 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300'"
       aria-hidden="true"
     >
-      <Workflow v-if="kind === 'activity'" class="h-[17px] w-[17px]" />
+      <Play v-if="kind === 'automation'" class="h-[17px] w-[17px]" />
+      <Workflow v-else-if="kind === 'activity'" class="h-[17px] w-[17px]" />
       <Database v-else class="h-[17px] w-[17px]" />
     </span>
     <span class="flex-1 min-w-0 flex flex-col gap-1">
       <span class="flex items-center gap-2 flex-wrap">
         <code class="font-mono text-[13px] text-foreground [overflow-wrap:anywhere]">{{ item.name }}</code>
-        <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-muted text-muted-foreground whitespace-nowrap">{{ kind === 'activity' ? 'Query activity' : 'Data extension' }}</span>
+        <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-muted text-muted-foreground whitespace-nowrap">{{ kind === 'automation' ? 'Automation' : kind === 'activity' ? 'Query activity' : 'Data extension' }}</span>
       </span>
-      <span v-if="kind === 'activity'" class="flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
+      <span v-if="kind === 'automation'" class="text-xs text-muted-foreground">Ran one query for Run Query; its deletion after the run did not go through</span>
+      <span v-else-if="kind === 'activity'" class="flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
         <template v-if="reason.target">
           Writes to <code class="font-mono text-[11px] text-foreground/80 [overflow-wrap:anywhere]">{{ reason.target }}</code>
           <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-muted whitespace-nowrap">{{ reason.targetListed ? 'DE also listed' : 'DE not in this list' }}</span>

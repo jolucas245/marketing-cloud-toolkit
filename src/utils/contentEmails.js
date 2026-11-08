@@ -43,6 +43,13 @@ export function clearEmailCaches() { folderCache.clear() }
 export const fetchEmailFolders = (stack, parentId = '0', fetch = sfmcFetch) => fetchContentFolders(stack, parentId, { fetch })
 
 // ── Emails ───────────────────────────────────────────────
+// Content Builder's `contains` matches any one word: "Email Preview Test" found 47 emails,
+// one of them with all three words (live test, 2026-11-07). Each word is required instead.
+function everyWord(property, text) {
+  return text.split(/\s+/).filter(Boolean).map((value) => ({ property, simpleOperator: 'contains', value }))
+    .reduce((a, b) => ({ leftOperand: a, logicalOperator: 'AND', rightOperand: b }))
+}
+
 /** Query body: email assets, optionally in one folder and matching a text. */
 export function emailSearchBody({ text = '', folderId = null, page = 1, pageSize = EMAIL_PAGE_SIZE, since = null } = {}) {
   let query = { property: 'assetType.id', simpleOperator: 'in', values: EMAIL_ASSET_TYPE_IDS }
@@ -54,10 +61,10 @@ export function emailSearchBody({ text = '', folderId = null, page = 1, pageSize
   const t = String(text || '').trim()
   if (t) {
     const match = {
-      leftOperand: { property: 'name', simpleOperator: 'contains', value: t },
+      leftOperand: everyWord('name', t),
       logicalOperator: 'OR',
       rightOperand: {
-        leftOperand: { property: 'views.subjectline.content', simpleOperator: 'contains', value: t },
+        leftOperand: everyWord('views.subjectline.content', t),
         logicalOperator: 'OR',
         rightOperand: { property: 'customerKey', simpleOperator: 'equal', value: t },
       },

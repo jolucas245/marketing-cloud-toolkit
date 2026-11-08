@@ -74,7 +74,7 @@ async function load(force = false) {
     ;(details.value.steps || []).forEach((step, si) => (step.activities || []).forEach((a, ai) => {
       const raw = stored.value.activities?.[key(si, ai)]
       acts[key(si, ai)] = raw?.error
-        ? { status: 'error', error: raw.error, desc: describeActivity(a.objectTypeId, { ...a, _fromStep: true }, stack.value) }
+        ? { status: 'error', error: raw.error, desc: describeActivity(a.objectTypeId, { ...a, _fromStep: 'error' }, stack.value) }
         : { status: 'ok', desc: describeActivity(a.objectTypeId, raw?.details ?? { ...a, _fromStep: true }, stack.value) }
     }))
     // The running bar asks SFMC only when the stored copy says it is running.
@@ -115,7 +115,7 @@ async function load(force = false) {
       acts[k] = { status: 'ok', desc: describeActivity(a.objectTypeId, r.value, stack.value) }
     } catch (e) {
       activities[k] = { error: e.message }
-      acts[k] = { status: 'error', error: e.message, desc: describeActivity(a.objectTypeId, { ...a, _fromStep: true }, stack.value) }
+      acts[k] = { status: 'error', error: e.message, desc: describeActivity(a.objectTypeId, { ...a, _fromStep: 'error' }, stack.value) }
     }
   })
   const rec = await writeCache(autoKey, JSON.parse(JSON.stringify({ details: details.value, notifications: notifications.value, activities })))

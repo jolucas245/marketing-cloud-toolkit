@@ -15,7 +15,7 @@ import StatusBadge from '@/components/results/StatusBadge.vue'
 import SfmcErrorNotice from '@/components/results/SfmcErrorNotice.vue'
 import { useStack, whenStack } from '@/composables/useStack.js'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
-import { searchJourneys, journeyGraph, layoutJourney } from '@/utils/journeys.js'
+import { searchJourneys, groupJourneyVersions, journeyGraph, layoutJourney } from '@/utils/journeys.js'
 import DownloadMenu from '@/components/results/DownloadMenu.vue'
 import { journeySvg } from '@/utils/journeySvg.js'
 import { pageCacheKey, readPageCache, writePageCache } from '@/utils/pageCache.js'
@@ -42,7 +42,9 @@ watch(jQuery, (q) => {
   if (!q.trim()) { jResults.value = []; return }
   timer = setTimeout(async () => {
     jSearching.value = true
-    try { jResults.value = (await searchJourneys(stack.value, { query: q.trim() })).items.slice(0, 20) }
+    // Every version, grouped per journey: the newest version alone showed "Draft" for a
+    // journey whose older version is Published (live test, 2026-11-07).
+    try { jResults.value = groupJourneyVersions((await searchJourneys(stack.value, { query: q.trim(), allVersions: true })).items).slice(0, 20) }
     catch (e) { error.value = searchError(e, 'search journeys') }
     finally { jSearching.value = false }
   }, 300)
@@ -191,8 +193,12 @@ const statusClass = (s) => (/fail|error/i.test(s) ? 'text-red-600' : /complete|s
           <Input v-model="jQuery" class="h-8 text-xs" placeholder="Search journeys by name" aria-label="Search journeys" />
           <div v-if="jQuery.trim()" class="max-h-40 overflow-y-auto border border-border rounded p-1">
             <div v-if="jSearching" class="flex items-center gap-1 p-1 text-muted-foreground"><Loader2 class="h-3 w-3 animate-spin" /> Searching...</div>
-            <button v-for="j in jResults" :key="j.id" type="button" class="w-full flex items-center gap-1.5 px-1 py-1 rounded text-left hover:bg-muted" @click="journey = { id: j.id, key: j.key, name: j.name, version: j.version }; jQuery = ''">
-              <RouteIcon class="h-3 w-3 shrink-0" /><span class="truncate flex-1">{{ j.name }}</span><StatusBadge :status="j.status" />
+            <button v-for="j in jResults" :key="j.id" type="button" class="w-full flex items-center gap-1.5 px-1 py-1 rounded text-left hover:bg-muted"
+              :title="j.versions.map((v) => `Version ${v.version}: ${v.status}`).join('\n')"
+              @click="journey = { id: j.id, key: j.key, name: j.name, version: j.primary?.version }; jQuery = ''">
+              <RouteIcon class="h-3 w-3 shrink-0" /><span class="truncate flex-1">{{ j.name }}</span>
+              <span v-if="j.versions.length > 1" class="shrink-0 text-[10px] text-muted-foreground">{{ j.versions.filter((v) => v !== j.primary).map((v) => `v${v.version} ${v.status}`).join(', ') }}</span>
+              <span class="shrink-0 text-[10px] text-muted-foreground">v{{ j.primary?.version }}</span><StatusBadge :status="j.primary?.status" />
             </button>
             <div v-if="!jSearching && !jResults.length" class="p-1 text-muted-foreground italic">No matches</div>
           </div>

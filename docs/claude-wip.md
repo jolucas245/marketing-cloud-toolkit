@@ -6,6 +6,17 @@
 - Nothing is uncommitted; the user closed the work for the day.
 - Shipped in 2.0.21: Setup > Domains and Installed Packages with package secret alerts (#1077 part, #1078, #1079), Preview data filter from a later page (#1082), Run Query cleanup after 7 days (#1081), Contacts > Publication Lists (#1080), plain single-DE reads without a Query Activity plus loading the rest up to 50,000 rows (#1076), search in the results table, Email validation (DE picked on the page with its details, sendable only, 50,000-row limit, stay-on-screen guard, Email addresses tab), DE folder tree look, Customize Home, Salesforce blue as the primary colour.
 
+## Medium series and live-test fixes (2026-11-07)
+
+- 32 article drafts in `docs/medium/` (plan in `README.md`, screenshots in `images/`), all written; each ends with "Notes for Mathes". Not committed; the author reviews first. Medium drafts not created yet (needs the author's Medium login in the controlled browser).
+- Screenshots: Mathes Sandbox (s10, MID 515010937) via Puppeteer-controlled Chrome for Testing with `dist/` loaded (launch outside the Bash sandbox; branded Chrome no longer loads unpacked extensions). Rule from the author: no client DEs or assets in screenshots. Fictional DEs in folder "0 - Demo": Demo_Customers (40, sendable on SubscriberKey), Demo_Orders (80), Demo_Products (12), Demo_Newsletter_Signups (30, 5 bad addresses).
+- Bug fixes on branch `fixes-from-live-testing` (uncommitted, not yet verified in a rebuilt extension): Create DE send field and required defaults; DE search `_` wildcard; SFMC placeholder dates and UNTIL 2079; import target name and update types (0 Add and Update, 1 Add Only, 4 Overwrite, checked against Automation Studio); step-only note for refused details; watch last-run status; Run history health chips (averageTime is seconds); plurals and spacing; template "daily"; features.js and Settings text; DE picker dialog overflow; Home secrets card capped at 5; email search requires every word (SFMC `contains` matches any word); build-query-from-fields joins on any shared column and dedupes names.
+- Also fixed by helpers (unit-tested, full suite 190 files / 1596 tests passing twice, build OK, manifest guard OK): Run Query engine (unique names, failure marker, per-run call count, field-name case, BU on save, "under a second"), editor/results UI (US date sort, Join note tone and aliases, schema panel height, SFMC-only autocomplete, tooltip width, Likely cause in Validate), Automation Studio list-ID links and frame-following summary tab, Setup app sessions (SSO.aspx landings), journey versions, entry cards and email step names.
+- Next: relaunch the controlled browser (the author closed it twice; ask first), reload the rebuilt extension, live-verify every fix (each helper listed its live check), delete probe objects SFMCQS_*_probe_* via Settings > Clean up, update articles that describe fixed behaviour, retake affected screenshots. Nothing committed yet.
+- Author's decisions (2026-11-08): keep the marker; show SFMC's reason for a failed run; keep Publication Lists starting on first visit.
+- Done 2026-11-08 (live-verified on s10): failed runs show SFMC's reason via a rerun in a temporary automation (conversion error checked; divide by zero gives only "system error"); result DEs without primary key or required fields (UNION ALL now 80 rows, was 40); deleteAutomation fixed (Templates rollback used the 404 endpoint); Clean up lists and deletes SFMCQS_run_ automations. Probe automations SFMCQS_diag_probe_* all deleted.
+- Still to live-verify: the other fixes from 2026-11-07 (Setup pages, Automation Studio links, journeys, Create DE defaults, search fixes), then update articles and screenshots (Day 2/3 failure message, Day 8 Clean up, Day 19, 21, 17, 22-25, 30, 31).
+
 ## Release follow-up
 
 - Tag `v2.0.21` is not pushed: `release.yml` builds the GitHub release from a `## 2.0.21 (date)` section in `CHANGELOG.md`, which still says `## Unreleased (next 2.0.21)` and lists only #1075. The user writes that section (Claude never edits CHANGELOG), then tags.
@@ -27,7 +38,6 @@
   - Setup apps (email-app, custom-domains-ui, mc-domainwhitelist-admin-app): cookie session or Bearer token (`bearer: true` in `src/background/apps.js`)?
   - secretexpirations with a single slash after `fuelapi`.
   - Run cleanup (To Test 2.0.21-run-cleanup); Publication Lists when the SFMC run fails (old counts could look like success).
-- Known risks in Run Query: a failed SFMC run is not read, so it can look like 0 rows; a queued run longer than about 60 s may return 0 rows; the 10-minute poll cap is shorter than SFMC's 30-minute limit.
 - Flaky test: 1 of 9 full runs on 2026-11-06 failed one test, name not captured. Next time: `npx vitest run --reporter=verbose 2>&1 | grep -B2 -A20 FAIL`.
 - Offered, not started: paste raw email headers on the Domains page to extract each DKIM-Signature (d=, s=), check keys and alignment, remember the selector per domain.
 - Open gaps: `docs/release-process.md` (referenced by `release.yml`) is missing; store listing data-use text for DNS checks.

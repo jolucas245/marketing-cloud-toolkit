@@ -7,9 +7,11 @@
 //              code?: { text, lang }, activityObjectId?, automations?, pivot? }
 import { sfmcFetch } from '../sfmcApi.js'
 import { describeActivity, activityTypeLabel, activityEndpoint, UPDATE_TYPES } from '../activityTypes.js'
-import { formatDateTime } from '../format.js'
+import { formatDateTime, plural } from '../format.js'
 import { runInBatches } from '../batchRunner.js'
 import { SOURCES, assetGroup } from './sources.js'
+import { eventAutomationId } from '../journeyApi.js'
+import { primaryVersion } from '../journeys.js'
 import {
   norm, matchQuery, matchField, tablesInSql, codeRefsToDE, mentionsName, contentBlockRefs, assetText, assetPlacesBlock,
   findValues, findPathMentions, collectProfileRefs, lineageEdges, lineageTree, deRefsInCode,
@@ -40,15 +42,37 @@ function activityItem(stack, typeId, details, extra = {}) {
   }
 }
 
-function journeyItem(j, reasons) {
+// The journeys source lists every version of each journey (live test, 2026-11-07: a
+// Draft version 3 hid the Published version 2). One item per journey, for the matching
+// versions: it opens the published (or otherwise live) one, else the newest, and lists
+// the others with their status.
+function journeyItem(j, reasons, others = []) {
   return {
     key: `j:${j.id}`,
     kind: 'Journey',
     title: j.name || j.key || j.id,
     badges: [{ text: j.status || '', tone: 'status' }],
-    lines: [...reasons, [j.version ? `Version ${j.version}` : '', modified(j.modifiedDate)].filter(Boolean).join(' · ')].filter(Boolean),
-    route: `/journeys/${encodeURIComponent(j.id)}`,
+    lines: [...reasons, [j.version ? `Version ${j.version}` : '', modified(j.modifiedDate)].filter(Boolean).join(' · '),
+      others.length ? `Also in ${others.map((o) => `version ${o.version}${o.status ? ` (${o.status})` : ''}`).join(', ')}` : ''].filter(Boolean),
+    route: `/journeys/${encodeURIComponent(j.id)}${j.version ? `?version=${encodeURIComponent(j.version)}` : ''}`,
+    journeyId: j.id,
+    version: j.version ?? null,
+    status: j.status || '',
   }
+}
+
+/** Items for matching journey versions: `matches` is [[journeyVersion, reasons]]. */
+function journeyItems(matches) {
+  const byId = new Map()
+  for (const [j, reasons] of matches) {
+    if (!byId.has(j.id)) byId.set(j.id, [])
+    byId.get(j.id).push({ j, reasons })
+  }
+  return [...byId.values()].map((list) => {
+    const main = primaryVersion(list.map((m) => m.j))
+    const others = list.map((m) => m.j).filter((j) => j !== main).sort((a, b) => (Number(b.version) || 0) - (Number(a.version) || 0))
+    return journeyItem(main, list.find((m) => m.j === main).reasons, others)
+  })
 }
 
 function assetItem(a, lines, badges = []) {
@@ -174,13 +198,13 @@ async function analyseDE(target, ctx) {
   const eventMatches = (events?.items || []).filter((e) => isDE(e.dataExtensionId, e.dataExtensionName, null))
   sections.push(section('events', 'Journey entry events', eventMatches.map((e) => ({
     key: `e:${e.id}`, kind: 'Entry event', title: e.name || e.eventDefinitionKey, badges: [{ text: 'Entry source', tone: 'read' }],
-    lines: [`Key ${e.eventDefinitionKey}`, Number(e.publishedInteractionCount) ? `${e.publishedInteractionCount} published journeys` : 'In no published journey'],
+    lines: [`Key ${e.eventDefinitionKey}`, Number(e.publishedInteractionCount) ? `In ${plural(e.publishedInteractionCount, 'published journey version')}` : 'In no published journey'],
     pivot: { kind: 'event', event: e },
   })), { source: events }))
 
   const journeys = await ctx.get('journeys')
   const eventKeys = new Set(eventMatches.map((e) => norm(e.eventDefinitionKey)))
-  const journeyItems = []
+  const journeyMatches = []
   for (const j of journeys?.items || []) {
     const reasons = []
     const trig = (j.triggers || []).find((t) => eventKeys.has(norm(t.metaData?.eventDefinitionKey || t.configurationArguments?.eventDefinitionKey)))
@@ -188,9 +212,9 @@ async function analyseDE(target, ctx) {
     if (findValues(j.activities, ids).length) reasons.push('Named in an activity (such as Update Contact)')
     const paths = findPathMentions({ activities: j.activities, goals: j.goals, exits: j.exits }, de.name)
     if (paths.length) reasons.push('In split, goal or exit criteria')
-    if (reasons.length) journeyItems.push(journeyItem(j, [reasons.join('; ')]))
+    if (reasons.length) journeyMatches.push([j, [reasons.join('; ')]])
   }
-  sections.push(section('journeys', 'Journeys', journeyItems, { source: journeys, note: journeys?.errors ? `${journeys.errors} journeys could not be read.` : '' }))
+  sections.push(section('journeys', 'Journeys', journeyItems(journeyMatches), { source: journeys, note: journeys?.errors ? `${plural(journeys.errors, 'journey version')} could not be read.` : '' }))
 
   const assets = await ctx.get('assets')
   const byGroup = {}
@@ -240,8 +264,8 @@ async function analyseField(target, ctx) {
 
   if (!de.dataView) {
     const journeys = await ctx.get('journeys')
-    const jItems = (journeys?.items || []).filter((j) => findPathMentions({ activities: j.activities, goals: j.goals, exits: j.exits }, de.name, field).length)
-      .map((j) => journeyItem(j, ['In split, goal or exit criteria']))
+    const jItems = journeyItems((journeys?.items || []).filter((j) => findPathMentions({ activities: j.activities, goals: j.goals, exits: j.exits }, de.name, field).length)
+      .map((j) => [j, ['In split, goal or exit criteria']]))
     sections.push(section('journeys', 'Journeys', jItems, { source: journeys }))
 
     const assets = await ctx.get('assets')
@@ -381,14 +405,20 @@ async function analyseEvent(target, ctx) {
   sections.push(section('source', 'Entry source', e.dataExtensionName ? [{
     key: 'de', kind: 'Data extension', title: e.dataExtensionName, badges: [{ text: 'Entry source', tone: 'read' }], lines: [], pivot: { kind: 'de', de: { id: e.dataExtensionId, name: e.dataExtensionName } },
   }] : [], { empty: 'No data extension (an API or Salesforce event, for example).' }))
-  if (e.automationId) {
-    sections.push(section('automation', 'Automation that fires it', [{ key: 'au', kind: 'Automation', title: e.automationId, badges: [], lines: [], route: `/automations/${encodeURIComponent(e.automationId)}` }]))
+  const automationId = eventAutomationId(e)
+  if (automationId) {
+    // Its name (live test, 2026-11-07: the ID was shown); the ID when it can't be read.
+    const auto = await sfmcFetch(`${AS(ctx.stack)}/automation/v1/automations/${encodeURIComponent(automationId)}`, 'GET').catch(() => null)
+    sections.push(section('automation', 'Automation that fires it', [{
+      key: 'au', kind: 'Automation', title: auto?.name || `Automation ${automationId}`, badges: [],
+      lines: auto?.name ? [`ID ${automationId}`] : ['Its name could not be read.'], route: `/automations/${encodeURIComponent(automationId)}`,
+    }]))
   }
   const journeys = await ctx.get('journeys')
   const items = (journeys?.items || []).filter((j) => (j.triggers || []).some((t) =>
     norm(t.metaData?.eventDefinitionKey || t.configurationArguments?.eventDefinitionKey) === norm(e.eventDefinitionKey) ||
-    findValues(t, [e.id, e.eventDefinitionKey]).length)).map((j) => journeyItem(j, []))
-  sections.push(section('journeys', 'Journeys', items, { source: journeys }))
+    findValues(t, [e.id, e.eventDefinitionKey]).length)).map((j) => [j, []])
+  sections.push(section('journeys', 'Journeys', journeyItems(items), { source: journeys }))
   return { sections }
 }
 
@@ -402,9 +432,9 @@ async function analyseEmail(target, ctx) {
   const items = []
   for (const j of journeys?.items || []) {
     const hits = (j.activities || []).filter((x) => findValues(x.configurationArguments || x, ids, /email/i).length)
-    if (hits.length) items.push(journeyItem(j, [`In ${hits.map((x) => x.name || 'an email activity').join(', ')}`]))
+    if (hits.length) items.push([j, [`In ${hits.map((x) => x.name || 'an email activity').join(', ')}`]])
   }
-  sections.push(section('journeys', 'Journeys', items, { source: journeys }))
+  sections.push(section('journeys', 'Journeys', journeyItems(items), { source: journeys }))
   const sends = await ctx.get('emailsends')
   const sendItems = (sends?.items || []).filter((s) => findValues(s.definition, ids, /email/i).length)
     .map((s) => ({ key: `42:${s.activityObjectId}`, kind: 'Send Email activity', title: s.name || 'Send Email', badges: [], lines: [], activityObjectId: s.activityObjectId }))
@@ -465,7 +495,15 @@ async function analyseProfiles(target, ctx) {
     groups.set(norm(ref.id), g)
   }
   const journeys = await ctx.get('journeys')
-  for (const j of journeys?.items || []) for (const ref of collectProfileRefs(j.activities, keyRe)) put(ref, journeyItem(j, []))
+  const journeyRefs = new Map() // profile id → { ref, matches }
+  for (const j of journeys?.items || []) {
+    for (const ref of collectProfileRefs(j.activities, keyRe)) {
+      const e = journeyRefs.get(norm(ref.id)) || { ref, matches: [] }
+      if (!e.matches.some(([x]) => x === j)) e.matches.push([j, []])
+      journeyRefs.set(norm(ref.id), e)
+    }
+  }
+  for (const { ref, matches } of journeyRefs.values()) for (const item of journeyItems(matches)) put(ref, item)
   const sends = await ctx.get('emailsends')
   const sendItems = []
   for (const s of sends?.items || []) {

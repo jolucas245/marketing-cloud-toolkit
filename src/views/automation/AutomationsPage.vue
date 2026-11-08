@@ -157,7 +157,7 @@ const columns = [
       </div>
       <template v-else-if="searched !== null">
         <div class="mb-2 flex flex-wrap items-center gap-2">
-          <p class="text-xs text-muted-foreground flex-1">{{ total.toLocaleString() }} found{{ searched ? ` for "${searched}"` : '' }}.{{ entries.length < total ? ` Download covers the ${entries.length} shown; load more to include more.` : '' }} <template v-if="listInfo?.mode === 'stored'">Stored {{ savedAgo(listInfo.savedAt) }}: Search reads only the changes.</template><template v-else-if="listInfo?.mode === 'delta'">{{ listInfo.changed }} change(s) read from SFMC.</template>
+          <p class="text-xs text-muted-foreground flex-1">{{ total.toLocaleString() }} found{{ searched ? ` for "${searched}"` : '' }}.{{ entries.length < total ? ` Download covers the ${entries.length} shown; load more to include more.` : '' }} <template v-if="listInfo?.mode === 'stored'">Stored {{ savedAgo(listInfo.savedAt) }}: Search reads only the changes.</template><template v-else-if="listInfo?.mode === 'delta'">{{ listInfo.changed }} change(s) read from SFMC.</template>{{ ' ' }}
             <button type="button" class="underline hover:text-foreground" title="Read the whole list again from SFMC (statuses, last runs, deletions)" data-list-refresh @click="search('refresh')">Refresh</button></p>
           <ProgressBar v-if="docProgress" :value="docProgress.done" :max="docProgress.total" label="Loading" show-count class="w-56" />
           <WatchButton v-if="entries.length" bulk :stack="stack" :items="entries.filter((a) => picked.has(a.id))" />

@@ -14,7 +14,7 @@ import DownloadMenu from '@/components/results/DownloadMenu.vue'
 import WatchButton from '@/components/automation/WatchButton.vue'
 import { openInSfmc } from '@/utils/sfmcLinks.js'
 import { useStack } from '@/composables/useStack.js'
-import { fetchJourney, journeyGraph, layoutJourney, describeJourneyNode, journeyOverviewRows, journeyBuilderUrl, journeyDoc, nodeEmailId, fetchJourneyEmailAsset } from '@/utils/journeys.js'
+import { fetchJourney, journeyGraph, layoutJourney, describeJourneyNode, journeyOverviewRows, journeyBuilderUrl, journeyDoc, nodeEmailId, fetchJourneyEmailAsset, sendNames, hasEmailStep } from '@/utils/journeys.js'
 import { compile } from '@/utils/emailCompiler.js'
 import { journeySvg } from '@/utils/journeySvg.js'
 import AiButton from '@/components/ai/AiButton.vue'
@@ -87,7 +87,18 @@ const graph = computed(() => (journey.value ? journeyGraph(journey.value) : { no
 const layout = computed(() => layoutJourney(graph.value))
 const selectedNode = computed(() => graph.value.nodes.find((n) => n.key === selected.value) || null)
 const nameOf = (k) => graph.value.nodes.find((n) => n.key === k)?.name || k
-const selectedDesc = computed(() => (selectedNode.value ? describeJourneyNode(selectedNode.value, nameOf) : null))
+// Send classification, sender and delivery profile names for email steps (live test,
+// 2026-11-07: they showed as IDs). Read once per stack; until then the IDs show.
+const profileNames = ref(null)
+watch([journey, stack], async ([j, s]) => {
+  if (!j || !s || !hasEmailStep(j) || profileNames.value?.stack === s) return
+  try {
+    const read = await sendNames(s)
+    if (stack.value === s) profileNames.value = { stack: s, names: read }
+  } catch { /* the IDs stay */ }
+}, { immediate: true })
+const names = computed(() => (profileNames.value?.stack === stack.value ? profileNames.value.names : null))
+const selectedDesc = computed(() => (selectedNode.value ? describeJourneyNode(selectedNode.value, nameOf, names.value) : null))
 
 // Email preview for an email node, from its Content Builder asset.
 const preview = ref({ status: 'idle' }) // idle | loading | ok | none | error
@@ -106,11 +117,11 @@ watch(selectedNode, async (n) => {
   }
 })
 
-const getDoc = () => journeyDoc(journey.value, graph.value, layout.value, journeySvg(graph.value, layout.value, orientation.value))
+const getDoc = () => journeyDoc(journey.value, graph.value, layout.value, journeySvg(graph.value, layout.value, orientation.value), names.value)
 // Summarize with AI (feedback #1029, experimental): the download's text, without the picture.
 const ai = useAi()
 const summaryOpen = ref(false)
-const summaryPrompt = (extra) => buildAiTaskPrompt('journey', { text: docText(journeyDoc(journey.value, graph.value, layout.value, '')) + (extra.trim() ? `\n\nAlso answer: ${extra.trim()}` : '') })
+const summaryPrompt = (extra) => buildAiTaskPrompt('journey', { text: docText(journeyDoc(journey.value, graph.value, layout.value, '', names.value)) + (extra.trim() ? `\n\nAlso answer: ${extra.trim()}` : '') })
 </script>
 
 <template>

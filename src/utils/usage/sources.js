@@ -162,22 +162,40 @@ async function listAutomations(stack, progress, stop) {
   return { items, total, capped: items.length < total }
 }
 
-const listJourneys = (stack, progress, stop) => pagesOf(async (p) => {
-  const params = new URLSearchParams({ $page: String(p + 1), $pageSize: String(PAGE), $orderBy: 'ModifiedDate DESC', mostRecentVersionOnly: 'true' })
-  const data = await sfmcFetch(`${JB(stack)}/interactions?${params}`, 'GET')
-  const items = data?.items || []
-  return { items, total: data?.count ?? items.length }
-}, (d, t) => progress(d, t, 'listing'), stop)
+// Every version of every journey, not only the newest: an entry event or a DE used by
+// the Published version 2 of a journey whose version 3 is a Draft was otherwise
+// reported against the Draft only (live test, 2026-11-07). Versions of one journey are
+// kept together, newest first.
+export const journeyVersionKey = (j) => `${j.id}#${j.version ?? ''}`
+export function groupVersions(items) {
+  const order = new Map()
+  items.forEach((j, i) => { if (!order.has(j.id)) order.set(j.id, i) })
+  return [...items].sort((a, b) => order.get(a.id) - order.get(b.id) || (Number(b.version) || 0) - (Number(a.version) || 0))
+}
+const listJourneys = async (stack, progress, stop) => {
+  const r = await pagesOf(async (p) => {
+    const params = new URLSearchParams({ $page: String(p + 1), $pageSize: String(PAGE), $orderBy: 'ModifiedDate DESC', mostRecentVersionOnly: 'false' })
+    const data = await sfmcFetch(`${JB(stack)}/interactions?${params}`, 'GET')
+    const items = data?.items || []
+    return { items, total: data?.count ?? items.length }
+  }, (d, t) => progress(d, t, 'listing'), stop)
+  return { ...r, items: groupVersions(r.items) }
+}
 
 async function readJourneys(stack, list, reuse, { progress, stop }) {
   const todo = list.items.filter((j) => !reuse(j))
   const done = new Map()
+  const newest = new Map()
+  for (const j of list.items) newest.set(j.id, Math.max(newest.get(j.id) ?? -Infinity, Number(j.version) || 0))
   await runInBatches(todo, 10, async (j) => {
     const d = await fetchJourney(stack, j.id, j.version).catch(() => null)
-    done.set(j.id, d ? { ...j, ...d } : { ...j, _error: true })
+    // fetchJourney falls back to the newest version on a 404: right for the newest
+    // version only; an older version would otherwise carry another version's steps.
+    const sameVersion = d && (d.version == null || Number(d.version) === Number(j.version) || (Number(j.version) || 0) === newest.get(j.id))
+    done.set(journeyVersionKey(j), sameVersion ? { ...j, ...d, version: j.version, status: j.status } : { ...j, _error: true })
   }, { shouldStop: stop, onProgress: (d, t) => progress(d, t, todo.length < list.items.length ? `reading ${t} changed` : 'reading activities') })
   if (stop()) throw new StoppedError()
-  const items = list.items.map((j) => reuse(j) || done.get(j.id) || { ...j, _error: true })
+  const items = list.items.map((j) => reuse(j) || done.get(journeyVersionKey(j)) || { ...j, _error: true })
   return { items, total: list.total, capped: list.capped, errors: items.filter((j) => j._error).length, read: todo.length }
 }
 
@@ -265,9 +283,9 @@ export const SOURCES = {
     // Definitions are read again only for journeys that are new or changed (date or version).
     async refresh(saved, { stack, progress, stop }) {
       const list = await listJourneys(stack, progress, stop)
-      const old = new Map(saved.items.filter((j) => !j._error).map((j) => [j.id, j]))
+      const old = new Map(saved.items.filter((j) => !j._error).map((j) => [journeyVersionKey(j), j]))
       const reuse = (j) => {
-        const prev = old.get(j.id)
+        const prev = old.get(journeyVersionKey(j))
         return prev && j.modifiedDate && prev.modifiedDate === j.modifiedDate && prev.version === j.version ? prev : null
       }
       const { read, ...value } = await readJourneys(stack, list, reuse, { progress, stop })

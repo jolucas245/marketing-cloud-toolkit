@@ -56,6 +56,8 @@ export function saveBuilderRecord({ id, sql, state }) {
         url: existing?.url || '',
         source: 'builder',
         builderState: buildBuilderState(state),
+        // Kept across autosaves, so Saved queries can show it under its business unit (live test, 2026-11-07).
+        ...(existing?.businessUnit ? { businessUnit: existing.businessUnit } : {}),
       }
       chrome.storage.local.set({ [recordId]: record }, () => resolve(recordId))
     })

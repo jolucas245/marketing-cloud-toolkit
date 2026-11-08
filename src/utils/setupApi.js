@@ -1,9 +1,11 @@
 // SFMC Setup data (user, 2026-11-05): sender authentication domains, custom (SSL)
 // domains, the account's API endpoints and installed package secret expirations.
-// The calls are the ones SFMC's own Setup screens make, from the user's network log
-// on s12. Hosts email-app, custom-domains-ui and mc-domainwhitelist-admin-app are
-// apps in background/apps.js (covered by the *.marketingcloudapps.com permission);
-// secret expirations is a core call. Not yet checked through the extension.
+// The calls are the ones SFMC's own Setup screens make (user's network log on s12;
+// checked live on s10, live test, 2026-11-07): From Address Management uses email-app,
+// Domain SSL Certificates custom-domains-ui, Domain Allowlist mc-domainwhitelist-admin-app,
+// each with its own session cookie (no Bearer token). Those hosts are apps in
+// background/apps.js (covered by the *.marketingcloudapps.com permission), which also
+// start their sessions the way Setup does. Secret expirations is a core call.
 import { sfmcFetch } from './sfmcApi.js'
 
 const EMAIL_APP = (stack) => `https://email-app.${stack}.marketingcloudapps.com/fuelapi/messaging/v1`

@@ -75,3 +75,64 @@ describe('Automation Summary tab after the extension is updated', () => {
     expect([...body.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Reload this page'])
   })
 })
+
+// Opening an automation inside Automation Studio changes its frame's URL; the shell does not
+// always copy that into the address, but the frame reports it (live test, 2026-11-07).
+describe('Automation Summary tab follows Automation Studio\'s frame', () => {
+  const ROOT = 'https://mc.s10.exacttarget.com/cloud/#app/Automation%20Studio/AutomationStudioFuel3/'
+  const FRAME = 'https://mc.s10.marketingcloudapps.com'
+  const urlChange = (url) => JSON.stringify({ msg: 'urlChange', url, checkpoint: false, from: 'canvas-5d9cad85', version: '4.1.3' })
+  const post = (dom, data, origin = FRAME) => dom.window.dispatchEvent(new dom.window.MessageEvent('message', { data, origin }))
+
+  it('shows when the frame opens an automation although the address stays on the list', async () => {
+    const { dom, sent, host } = page(ROOT)
+    expect(host()).toBeNull()
+    post(dom, urlChange(`${FRAME}/AutomationStudioFuel3/?hub=1#Instance/OEduOWIwNmcyVWlZSXBNUDlPUGtkQToyNTow`))
+    expect(host()).toBeTruthy()
+    host().shadowRoot.querySelector('.tab').click()
+    await tick()
+    expect(sent[0]).toEqual({ type: 'AUTOMATION_SUMMARY', stack: 's10', id: 'OEduOWIwNmcyVWlZSXBNUDlPUGtkQToyNTow' })
+    // Back to the list inside the frame: the tab goes.
+    post(dom, urlChange(`${FRAME}/AutomationStudioFuel3/?hub=1#`))
+    expect(host()).toBeNull()
+  })
+  it('loads the new automation when the frame moves to another one with the panel open', async () => {
+    const { dom, sent, host } = page(ROOT)
+    post(dom, urlChange(`${FRAME}/AutomationStudioFuel3/?hub=1#Instance/A1`))
+    host().shadowRoot.querySelector('.tab').click()
+    await tick()
+    post(dom, urlChange(`${FRAME}/AutomationStudioFuel3/?hub=1#Instance/B2`))
+    await tick()
+    expect(sent.filter((m) => m.type === 'AUTOMATION_SUMMARY').map((m) => m.id)).toEqual(['A1', 'B2'])
+  })
+  it('trusts the frame over an address that still names the previous automation', () => {
+    const { dom, host } = page(`${ROOT}%23Instance/A1`)
+    expect(host()).toBeTruthy()
+    post(dom, urlChange(`${FRAME}/AutomationStudioFuel3/?hub=1#`))
+    expect(host()).toBeNull()
+  })
+  it('ignores messages from other origins and other apps, and anything but urlChange', () => {
+    const { dom, host } = page(ROOT)
+    post(dom, urlChange(`${FRAME}/AutomationStudioFuel3/#Instance/A1`), 'https://evil.example')
+    post(dom, urlChange(`${FRAME}/AutomationStudioFuel3/#Instance/A1`), 'https://mc.s10.exacttarget.com')
+    post(dom, urlChange('https://mc.s10.marketingcloudapps.com/contactsmeta/#Instance/A1'))
+    post(dom, JSON.stringify({ msg: 'registerAppMenu', url: `${FRAME}/AutomationStudioFuel3/#Instance/A1` }))
+    post(dom, 'not json urlChange')
+    post(dom, { msg: 'urlChange', url: 42 })
+    expect(host()).toBeNull()
+    // An object (not a string) is read too.
+    post(dom, { msg: 'urlChange', url: `${FRAME}/AutomationStudioFuel3/#Instance/A1` })
+    expect(host()).toBeTruthy()
+  })
+  it('forgets the frame once the address leaves Automation Studio', () => {
+    const { dom, host } = page(ROOT)
+    post(dom, urlChange(`${FRAME}/AutomationStudioFuel3/?hub=1#Instance/A1`))
+    expect(host()).toBeTruthy()
+    dom.reconfigure({ url: 'https://mc.s10.exacttarget.com/cloud/#app/Email/C12/Default.aspx' })
+    dom.window.dispatchEvent(new dom.window.HashChangeEvent('hashchange'))
+    expect(host()).toBeNull()
+    dom.reconfigure({ url: ROOT })
+    dom.window.dispatchEvent(new dom.window.HashChangeEvent('hashchange'))
+    expect(host()).toBeNull()
+  })
+})

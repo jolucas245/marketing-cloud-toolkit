@@ -15,10 +15,14 @@ import {
   createTargetDE, createQueryActivity,
   startQueryActivity, getQueryActivityStatus, fetchDERows,
   deleteDE, deleteQueryActivity, getOrCreateDEFolder, getOrCreateQAFolder,
-  getAnyQueryActivityId, validateQueryText, listQueryActivities, listQAFolders,
-  DEFAULT_TEXT_LENGTH, fetchCurrentBU,
-  parseRetentionDays, sfmcCallCount,
+  getAnyQueryActivityId, validateQueryText, listQueryActivities, listQAFolders, searchLocalDEsByName,
+  DEFAULT_TEXT_LENGTH, fetchCurrentBU, insertDERowsAsync, sfmcFetch,
+  parseRetentionDays, createRunAutomation, runAutomationOnce, fetchLatestAutomationRun, deleteAutomation,
 } from '../utils/sfmcApi.js'
+import {
+  runNames, isNameClash, markerField, markerRow, resultRows as toResultRows, resultColumns as toResultColumns,
+  waitForRun, waitForAutomationRun, formatRunTime, RunFailedError,
+} from '../utils/queryRun.js'
 
 export function useQueryPanel(options) {
   // Query history: a run's SQL is stored only while history is on (utils/history.js).
@@ -27,15 +31,10 @@ export function useQueryPanel(options) {
   const stack = computed(() => unref(stackInput))
   const canInteract = computed(() => !!stack.value)
 
-  // Format: SFMCQS_sql_YYYYMMDD_[unix_seconds]  (no dots allowed by SFMC)
-  function sfmcSafeName(prefix = 'sql') {
-    const now = new Date()
-    const ymd = now.getFullYear().toString()
-      + String(now.getMonth() + 1).padStart(2, '0')
-      + String(now.getDate()).padStart(2, '0')
-    const secs = Math.floor(Date.now() / 1000)
-    return `SFMCQS_${prefix}_${ymd}_${secs}`.replace(/\./g, '')
-  }
+  // SFMC calls of the current run: every API call of a run goes through runFetch
+  // (live test, 2026-11-07: the page-wide count included runs in other panels).
+  let runCalls = 0
+  const runFetch = (url, method, body) => { runCalls++; return sfmcFetch(url, method, body) }
 
   // ── Core state ────────────────────────────────────────────
   const queryRecord = ref(null)
@@ -70,8 +69,13 @@ export function useQueryPanel(options) {
 
   const resultRows      = ref([])
   const resultColumns   = ref([])
-  // Columns of the target DE this run created, shown when a run returns no rows (feedback #31).
+  // Field names of the target DE this run created: the result's column names (SFMC's
+  // rowset gives them in lower case, live test, 2026-11-07), also when a run returns no
+  // rows (feedback #31).
   let targetFieldNames = []
+  // The target DE has the run marker column (utils/queryRun.js), and its fields.
+  let targetHasMarker = false
+  let targetFields = []
   const totalRowCount   = ref(0)
   const isFetchingMore  = ref(false)
 
@@ -128,8 +132,8 @@ export function useQueryPanel(options) {
       const items = data.items || []
       const rows = d
         ? items.map((item) => projectRow(item, d.columns)).slice(0, d.top ?? Infinity)
-        : items.map(item => ({ ...(item.keys || {}), ...(item.values || {}) }))
-      const columns = d ? d.columns : rows.length > 0 ? Object.keys(rows[0]) : []
+        : toResultRows(items, run.fields).rows
+      const columns = d ? d.columns : toResultColumns(run.fields, rows)
       historyResults.value = {
         ...historyResults.value,
         [id]: { rows, columns, loading: false, error: null, open: true },
@@ -163,7 +167,7 @@ export function useQueryPanel(options) {
   const directKey = ref(null)
   const canLoadMore = computed(() => !!(directKey.value || createdDeKey.value))
   const rowsKey = () => direct?.key || createdDeKey.value
-  const flatten = (items) => items.map((item) => (direct ? projectRow(item, direct.columns) : { ...(item.keys || {}), ...(item.values || {}) }))
+  const flatten = (items) => (direct ? items.map((item) => projectRow(item, direct.columns)) : toResultRows(items, targetFieldNames).rows)
   const capTotal = (n) => (direct?.top != null ? Math.min(direct.top, n) : n)
   const addRows = (flat, count) => {
     const all = [...resultRows.value, ...flat]
@@ -237,7 +241,9 @@ export function useQueryPanel(options) {
       queryName.value = updated.name
     }
     queryRecord.value = updated
-    return new Promise((resolve) => chrome.storage.local.set({ [queryId]: updated }, resolve))
+    const saved = new Promise((resolve) => chrome.storage.local.set({ [queryId]: updated }, resolve))
+    tagBusinessUnit()
+    return saved
   }
   function onEditorChange(newText) {
     queryText.value  = newText
@@ -486,14 +492,21 @@ export function useQueryPanel(options) {
     writeBusinessUnit({ [key]: null, [`${key}Stack`]: null })
   }
 
-  // Records the business unit a query first runs in, for the BU badge and filter.
-  // Never blocks or fails the run.
+  // Records the business unit a query is first saved or run in, for the BU badge and the
+  // Saved queries filter: on creation, on the first save and on the first run (live test,
+  // 2026-11-07: a panel never run had none, so "queries from <current BU>" hid it).
+  // Never blocks or fails a save or a run.
+  let taggingBU = false
   function tagBusinessUnit() {
-    if (queryRecord.value.businessUnit?.name || !stack.value) return
+    if (!queryRecord.value || queryRecord.value.businessUnit?.name || !stack.value || taggingBU) return
+    taggingBU = true
     fetchCurrentBU(stack.value)
       .then((bu) => { if (bu && !queryRecord.value.businessUnit?.name) writeBusinessUnit(bu) })
       .catch(() => {})
+      .finally(() => { taggingBU = false })
   }
+  // A panel created before the stack is known is tagged once it is.
+  watch(stack, (s) => { if (s && newRecord) tagBusinessUnit() })
 
   function shortError(err) {
     return String(err?.message || err || 'unknown error').slice(0, 160)
@@ -582,6 +595,8 @@ export function useQueryPanel(options) {
   // The SQL of the current run: the editor's text, or only the selected part when
   // run with Cmd/Ctrl+Enter on a selection (feedback #75). Retry keeps it.
   let runText = ''
+  // { deName, actName } of the current run (utils/queryRun.js runNames).
+  let runObjectNames = null
   // Preview with TOP 10 (feedback #1028): the run's SQL differs from the editor's, so the
   // run keeps the editor text it came from for the "edited since this run" check.
   let runEditorText = null
@@ -597,7 +612,7 @@ export function useQueryPanel(options) {
     isRunning.value        = true
     resultsMode.value      = 'running'
     completedSummary.value = null
-    const callsAtStart     = sfmcCallCount()
+    runCalls               = 0
     stepStatuses.value     = Array(5).fill('pending')
     stepErrors.value       = Array(5).fill(null)
     stepDetails.value      = Array(5).fill(null)
@@ -625,7 +640,8 @@ export function useQueryPanel(options) {
       // A plain read of one data extension: read it directly, no Query Activity (#1076).
       if (fromStep <= 0) {
         const plan = directReadPlan(runText)
-        const read = plan ? await readDirect(stack.value, plan).catch((e) => { if (e.message?.includes('SESSION_EXPIRED')) throw e; return null }) : null
+        const api = { searchLocalDEsByName: (st, name, size) => searchLocalDEsByName(st, name, size, runFetch), fetchDERows: (st, key, page, size) => fetchDERows(st, key, page, size, runFetch) }
+        const read = plan ? await readDirect(stack.value, plan, { api }).catch((e) => { if (e.message?.includes('SESSION_EXPIRED')) throw e; return null }) : null
         if (read) {
           direct = { key: read.de.key, columns: read.columns, top: read.top }
           directKey.value = read.de.key
@@ -641,8 +657,7 @@ export function useQueryPanel(options) {
           totalRowCount.value = read.total
           setStep(4, 'done')
           clearInterval(elapsedTimer)
-          const totalSec = Math.floor((Date.now() - startTime) / 1000)
-          completedSummary.value = `Read directly from ${read.de.name} in ${totalSec}s · ${read.total.toLocaleString()} rows · no Query Activity · ${sfmcCallCount() - callsAtStart} SFMC calls`
+          completedSummary.value = `Read directly from ${read.de.name} in ${formatRunTime(Date.now() - startTime)} · ${read.total.toLocaleString()} rows · no Query Activity · ${runCalls} SFMC calls`
           isRunDetailsOpen.value = false
           isResultsOpen.value    = true
           resultsMode.value      = 'results'
@@ -676,8 +691,8 @@ export function useQueryPanel(options) {
           return
         }
         try {
-          const qaId   = await getAnyQueryActivityId(stack.value)
-          const result = await validateQueryText(stack.value, qaId, cleanQueryText(runText))
+          const qaId   = await getAnyQueryActivityId(stack.value, runFetch)
+          const result = await validateQueryText(stack.value, qaId, cleanQueryText(runText), runFetch)
           if (!result.queryValid) {
             const msg = (result.errors ?? []).map(e => e.message).join('; ') || 'Query is invalid'
             throw new Error(msg)
@@ -715,6 +730,11 @@ export function useQueryPanel(options) {
           createdDeName.value    = reuseRun.deName || null
           createdActivityId.value = reuseRun.activityId
           createdActivityName.value = reuseRun.activityName || null
+          // Runs from before field names and the marker were kept (live test, 2026-11-07)
+          // show the rowset's names and cannot tell a failed run.
+          targetFieldNames = Array.isArray(reuseRun.fields) ? reuseRun.fields : []
+          targetFields = []
+          targetHasMarker = reuseRun.marker === true
           setStep(1, 'done')
           setStepDetail(1, { text: `↩ Reusing DE · ${(reuseRun.deKey || '').slice(0, 20)}`, href: reuseRun.deUrl || null })
           setStep(2, 'done')
@@ -726,7 +746,9 @@ export function useQueryPanel(options) {
       // Step 1 - Create target DE
       if (fromStep <= 1) {
         setStep(1, 'running')
-        const deName      = sfmcSafeName('sql')
+        // Unique per run, shared by the DE and the Query Activity (live test, 2026-11-07).
+        runObjectNames = runNames()
+        let deName = runObjectNames.deName
 
         // ── Resolve DE folder (contactsmeta API) ──
         // The folder ID is cached on the query record together with its stack; a
@@ -736,7 +758,7 @@ export function useQueryPanel(options) {
         if (!deCategoryID) {
           deCategoryID = await withContactBuilderRetry(1,
             'The Data Extension folder could not be read.',
-            () => getOrCreateDEFolder(stack.value))
+            () => getOrCreateDEFolder(stack.value, runFetch))
           if (deCategoryID == null) return
           cacheFolder('deFolderId', deCategoryID)
         }
@@ -744,32 +766,50 @@ export function useQueryPanel(options) {
         const target = await resolveTargetFields(runText)
         const renames = target.renames
         activitySql = target.activitySql
-        const fields = target.fields
-        targetFieldNames = fields.map((f) => f.name)
+        // The results must hold exactly what the query returns: no primary key (SFMC
+        // keeps one row per key and drops the rest without an error: a UNION ALL of 40
+        // rows twice showed 40 rows, live test 2026-11-08) and no required field (a LEFT
+        // JOIN gives NULLs).
+        const resultFields = target.fields.map((f) => ({ ...f, isPrimaryKey: false, isNullable: true }))
+        // The run marker column tells a failed run from an empty result (utils/queryRun.js).
+        const marker = markerField(resultFields)
+        const fields = marker ? [...resultFields, marker] : resultFields
+        targetFieldNames = target.fields.map((f) => f.name)
+        targetFields = fields
+        targetHasMarker = !!marker
 
         // createTargetDE POSTs to core (exacttarget.com) and may need a CSRF token that
         // is only captured passively from real core traffic (see CLAUDE.md "Core CSRF
         // has no known silent-bootstrap path"). Loading Contact Builder produces that
         // traffic, so on failure the user is asked whether to open it and retry.
         const days = await retentionDays()
-        const createDE = (categoryID) => createTargetDE(stack.value, { name: deName, fields, categoryID, retentionDays: days })
+        const createDE = (categoryID) => createTargetDE(stack.value, { name: deName, fields, categoryID, retentionDays: days }, runFetch)
         let deResult
         try {
           deResult = await createDE(deCategoryID)
         } catch (createErr) {
-          if (cachedDeFolderId) {
-            // The cached folder may be gone or belong to another business unit.
-            clearCachedFolder('deFolderId')
-            deCategoryID = await withContactBuilderRetry(1,
-              'The Data Extension folder could not be read.',
-              () => getOrCreateDEFolder(stack.value))
-            if (deCategoryID == null) return
-            cacheFolder('deFolderId', deCategoryID)
+          if (createErr.message?.includes('SESSION_EXPIRED')) throw createErr
+          if (isNameClash(createErr)) {
+            // A taken name is not a session problem, so no Contact Builder advice (live
+            // test, 2026-11-07): try once more with new names; a second failure is the step's error.
+            runObjectNames = runNames()
+            deName = runObjectNames.deName
+            deResult = await createDE(deCategoryID)
+          } else {
+            if (cachedDeFolderId) {
+              // The cached folder may be gone or belong to another business unit.
+              clearCachedFolder('deFolderId')
+              deCategoryID = await withContactBuilderRetry(1,
+                'The Data Extension folder could not be read.',
+                () => getOrCreateDEFolder(stack.value, runFetch))
+              if (deCategoryID == null) return
+              cacheFolder('deFolderId', deCategoryID)
+            }
+            deResult = await withContactBuilderRetry(1,
+              `Creating the Data Extension failed (${shortError(createErr)}).`,
+              () => createDE(deCategoryID))
+            if (deResult == null) return
           }
-          deResult = await withContactBuilderRetry(1,
-            `Creating the Data Extension failed (${shortError(createErr)}).`,
-            () => createDE(deCategoryID))
-          if (deResult == null) return
         }
         createdDeId.value   = deResult.id
         createdDeKey.value  = deResult.customerKey
@@ -785,27 +825,33 @@ export function useQueryPanel(options) {
       // Step 2 - Create query activity
       if (fromStep <= 2) {
         setStep(2, 'running')
-        const actName      = sfmcSafeName('act')
+        let actName = (runObjectNames ||= runNames()).actName
         let qaCategoryId = cachedFolder('qaFolderId')
         if (!qaCategoryId) {
-          qaCategoryId = await getOrCreateQAFolder(stack.value)
+          qaCategoryId = await getOrCreateQAFolder(stack.value, runFetch)
           cacheFolder('qaFolderId', qaCategoryId)
         }
         const createActivity = (categoryId) => retryWhileTableMissing(2, () => createQueryActivity(stack.value, {
           name: actName, queryText: activitySql ?? cleanQueryText(runText),
           targetName: createdDeKey.value, targetKey: createdDeKey.value,
           targetId: createdDeId.value, categoryId,
-        }))
+        }, runFetch))
         let actResult
         try {
           actResult = await createActivity(qaCategoryId)
         } catch (actErr) {
-          if (!queryRecord.value.businessUnit?.qaFolderId || isTableMissing(actErr)) throw actErr
-          // The cached Query Activity folder may be gone or belong to another business unit.
-          clearCachedFolder('qaFolderId')
-          qaCategoryId = await getOrCreateQAFolder(stack.value)
-          cacheFolder('qaFolderId', qaCategoryId)
-          actResult = await createActivity(qaCategoryId)
+          if (isNameClash(actErr)) {
+            // Same name as another run's activity (live test, 2026-11-07): new name, once.
+            actName = runNames().actName
+            actResult = await createActivity(qaCategoryId)
+          } else {
+            if (!queryRecord.value.businessUnit?.qaFolderId || isTableMissing(actErr)) throw actErr
+            // The cached Query Activity folder may be gone or belong to another business unit.
+            clearCachedFolder('qaFolderId')
+            qaCategoryId = await getOrCreateQAFolder(stack.value, runFetch)
+            cacheFolder('qaFolderId', qaCategoryId)
+            actResult = await createActivity(qaCategoryId)
+          }
         }
         createdActivityId.value   = actResult.queryDefinitionId
         createdActivityName.value = actName
@@ -818,8 +864,16 @@ export function useQueryPanel(options) {
       let earlyFetchResult = null
       if (fromStep <= 3) {
         setStep(3, 'running')
-        await retryWhileTableMissing(3, () => startQueryActivity(stack.value, createdActivityId.value))
-        earlyFetchResult = await pollUntilComplete(stack.value, createdActivityId.value, createdDeKey.value)
+        const marked = targetHasMarker && await placeRunMarker(createdDeKey.value)
+        await retryWhileTableMissing(3, () => startQueryActivity(stack.value, createdActivityId.value, runFetch))
+        try {
+          earlyFetchResult = await pollUntilComplete(stack.value, createdActivityId.value, createdDeKey.value, marked)
+        } catch (err) {
+          // SFMC does not say why a Query Activity started on its own failed; the same
+          // activity run once inside an automation does (live test, 2026-11-08).
+          if (!(err instanceof RunFailedError)) throw err
+          throw await failureReason(err)
+        }
         setStep(3, 'done')
       }
 
@@ -831,23 +885,21 @@ export function useQueryPanel(options) {
           items      = earlyFetchResult.items
           totalCount = earlyFetchResult.totalCount
         } else {
-          const data = await fetchDERows(stack.value, createdDeKey.value, 1, 2500)
+          const data = await fetchDERows(stack.value, createdDeKey.value, 1, 2500, runFetch)
           items      = data.items || []
           totalCount = data.count ?? items.length
         }
-        const flatRows = items.map(item => ({ ...(item.keys || {}), ...(item.values || {}) }))
-        resultRows.value    = flatRows
-        resultColumns.value = flatRows.length > 0 ? Object.keys(flatRows[0]) : [...targetFieldNames]
-        totalRowCount.value = totalCount
+        // Keyed and ordered by the target DE's field names (live test, 2026-11-07).
+        const { rows, markerSeen } = toResultRows(items, targetFieldNames)
+        resultRows.value    = rows
+        resultColumns.value = toResultColumns(targetFieldNames, rows)
+        totalRowCount.value = Math.max(0, totalCount - (markerSeen ? 1 : 0))
         setStep(4, 'done')
       }
 
       clearInterval(elapsedTimer)
-      const totalSec = Math.floor((Date.now() - startTime) / 1000)
-      const m = Math.floor(totalSec / 60)
-      const s = totalSec % 60
       completedSummary.value =
-        `Completed in ${m > 0 ? `${m}m ` : ''}${s}s · ${(totalRowCount.value ?? resultRows.value.length).toLocaleString()} rows · ${sfmcCallCount() - callsAtStart} SFMC calls`
+        `Completed in ${formatRunTime(Date.now() - startTime)} · ${(totalRowCount.value ?? resultRows.value.length).toLocaleString()} rows · ${runCalls} SFMC calls`
       isRunDetailsOpen.value = false
       isResultsOpen.value    = true
       resultsMode.value = 'results'
@@ -867,6 +919,9 @@ export function useQueryPanel(options) {
         activityName: createdActivityName.value,
         activityUrl:  `https://mc.${stack.value}.exacttarget.com/cloud/#app/Automation%20Studio/AutomationStudioFuel3/%23ActivityDetails/300/${createdActivityId.value}`,
         rowCount:     resultRows.value.length,
+        // The target DE's field names (result columns) and whether it has the run marker.
+        fields:       [...targetFieldNames],
+        ...(targetHasMarker ? { marker: true } : {}),
       }
       currentRunId.value = runEntry.runId
       runs.value = [runEntry, ...(Array.isArray(runs.value) ? runs.value : Object.values(runs.value))]
@@ -901,8 +956,8 @@ export function useQueryPanel(options) {
     const fieldMap = {}
     for (const sourceName of sourceDeNames) {
       try {
-        const meta       = await fetchDEMetadata(stack.value, sourceName)
-        const fieldsData = await fetchDEFields(stack.value, meta.id)
+        const meta       = await fetchDEMetadata(stack.value, sourceName, runFetch)
+        const fieldsData = await fetchDEFields(stack.value, meta.id, runFetch)
         for (const f of (fieldsData?.fields || [])) {
           fieldMap[f.name.toLowerCase()] = f
         }
@@ -965,54 +1020,112 @@ export function useQueryPanel(options) {
     return { fields, renames, activitySql: wrapped }
   }
 
-  async function pollUntilComplete(stackId, activityId, deKey) {
-    // After a minute, say why it can take long (feedback #1076).
-    const pollStart = Date.now()
-    const noteLongWait = () => {
-      if (Date.now() - pollStart >= 60000 && !stepDetails.value[3]?.note) {
-        setStepDetail(3, { note: 'SFMC is still running the query. Query Activities can wait behind other work in this account, and TOP does not make them start sooner. Open the activity from Create Activity to see it in Automation Studio.' })
-      }
+  // Why a run failed: the activity runs once more, inside a temporary automation whose
+  // run log has SFMC's reason (sfmcApi.js createRunAutomation). Only failed runs pay for
+  // this: run times are set by SFMC's queue, and a new automation was no faster (live
+  // test, 2026-11-08: 52 to 169 seconds against 11 to 46 on its own). Returns the error
+  // to show: SFMC's reason, or `original` when none could be had.
+  async function failureReason(original) {
+    setStepDetail(3, { note: 'The run failed. Running it once more inside a temporary automation to get SFMC\'s reason...' })
+    let automation = null
+    try {
+      automation = await createAutomationForRun()
+      if (!automation) return original
+      await runAutomationOnce(stack.value, automation.id, runFetch)
+      await pollAutomation(stack.value, automation.id)
+      return original // it completed this time: nothing more to say
+    } catch (err) {
+      if (err?.message?.includes('SESSION_EXPIRED') || err?.message === 'Poll aborted') throw err
+      return err instanceof RunFailedError ? err : original
+    } finally {
+      if (automation) deleteRunAutomation(automation)
+      if (stepDetails.value[3]?.note?.startsWith('The run failed.')) setStepDetail(3, null)
     }
-    await new Promise((r) => setTimeout(r, 15000))
-    if (pollAborted) throw new Error('Poll aborted')
+  }
 
-    async function tryFetchRows() {
+  // The automation ({ id, name }), or null when SFMC refuses it (no rights to create
+  // automations, for example). A session that expired still stops the run.
+  async function createAutomationForRun() {
+    const create = async (name) => {
+      const r = await createRunAutomation(stack.value, { name, activityId: createdActivityId.value, activityName: createdActivityName.value || name }, runFetch)
+      return r?.id ? { id: r.id, name } : null
+    }
+    try {
       try {
-        const data = await fetchDERows(stackId, deKey, 1, 2500)
-        const items = data.items || []
-        if (items.length > 0) return { items, totalCount: data.count ?? items.length }
-      } catch {}
+        return await create((runObjectNames ||= runNames()).autoName)
+      } catch (err) {
+        // A retry or a reused activity can meet the last run's automation before its
+        // deletion went through: new name, once.
+        if (!isNameClash(err)) throw err
+        return await create(runNames().autoName)
+      }
+    } catch (err) {
+      if (err?.message?.includes('SESSION_EXPIRED')) throw err
       return null
     }
+  }
 
-    const STARTUP_MAX = 10
-    let seenRunning = false
-    for (let i = 0; i < STARTUP_MAX; i++) {
-      if (i > 0) {
-        await new Promise((r) => setTimeout(r, 5000))
+  // Deleted right away, without holding up the error. One that could not be deleted is
+  // named SFMCQS_run_ and shows in Settings > Clean up.
+  function deleteRunAutomation(automation) {
+    deleteAutomation(stack.value, automation.id, runFetch).catch(() => undefined)
+  }
+
+  // Waits for the automation's run (utils/queryRun.js waitForAutomationRun); a failed
+  // run throws with SFMC's reason.
+  async function pollAutomation(stackId, automationId) {
+    return waitForAutomationRun({
+      sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+      aborted: () => pollAborted,
+      // A failed read decides nothing; the next poll reads again.
+      latestRun: () => fetchLatestAutomationRun(stackId, automationId, runFetch).catch((err) => {
+        if (err?.message?.includes('SESSION_EXPIRED')) throw err
+        return null
+      }),
+    })
+  }
+
+  // Puts the run marker row into the target DE before the start and waits until SFMC
+  // shows it (its insert is asynchronous), so the run's overwrite comes after it.
+  // Returns false when SFMC refuses it or it does not show in time: the run then goes
+  // on without telling a failed run from an empty result (utils/queryRun.js).
+  async function placeRunMarker(deKey) {
+    try {
+      await insertDERowsAsync(stack.value, deKey, [markerRow(targetFields)], runFetch)
+      for (let i = 0; i < 8; i++) {
+        await new Promise((r) => setTimeout(r, 1500))
         if (pollAborted) throw new Error('Poll aborted')
+        const data = await fetchDERows(stack.value, deKey, 1, 1, runFetch)
+        if ((data?.items || []).length) return true
       }
-      noteLongWait()
-      const { isRunning } = await getQueryActivityStatus(stackId, activityId)
-      const rows = await tryFetchRows()
-      if (rows) return rows
-      if (isRunning === true) { seenRunning = true; break }
+    } catch (err) {
+      if (err?.message === 'Poll aborted' || err?.message?.includes('SESSION_EXPIRED')) throw err
     }
-    if (!seenRunning) {
-      return await tryFetchRows() ?? { items: [], totalCount: 0 }
-    }
+    return false
+  }
 
-    const MAX_RUNNING_POLLS = 120
-    for (let i = 0; i < MAX_RUNNING_POLLS; i++) {
-      await new Promise((r) => setTimeout(r, 5000))
-      if (pollAborted) throw new Error('Poll aborted')
-      noteLongWait()
-      const { isRunning } = await getQueryActivityStatus(stackId, activityId)
-      const rows = await tryFetchRows()
-      if (rows) return rows
-      if (isRunning === false) return { items: [], totalCount: 0 }
-    }
-    throw new Error('Query timed out after 10 minutes')
+  // Waits for the started run (utils/queryRun.js waitForRun): its first page of rows,
+  // or a RunFailedError when SFMC left the marker row, i.e. the run failed (live test,
+  // 2026-11-07: failed runs used to show as "Completed · 0 rows").
+  async function pollUntilComplete(stackId, activityId, deKey, marker) {
+    // After a minute, say why it can take long (feedback #1076).
+    const pollStart = Date.now()
+    return waitForRun({
+      marker,
+      sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+      aborted: () => pollAborted,
+      onTick: () => {
+        if (Date.now() - pollStart >= 60000 && !stepDetails.value[3]?.note) {
+          setStepDetail(3, { note: 'SFMC is still running the query. Query Activities can wait behind other work in this account, and TOP does not make them start sooner. Open the activity from Create Activity to see it in Automation Studio.' })
+        }
+      },
+      isRunning: () => getQueryActivityStatus(stackId, activityId, runFetch),
+      // A failed read decides nothing; the next poll reads again.
+      readRows: () => fetchDERows(stackId, deKey, 1, 2500, runFetch).catch((err) => {
+        if (err?.message?.includes('SESSION_EXPIRED')) throw err
+        return null
+      }),
+    })
   }
 
   function setStepDetail(idx, detail) {
@@ -1162,6 +1275,7 @@ export function useQueryPanel(options) {
 
   const showRunStepper = computed(() => resultsMode.value === 'running')
 
+  let newRecord = false
   async function loadQueryRecord() {
     if (initialSql) queryText.value = initialSql
     await new Promise((resolve) => {
@@ -1180,7 +1294,8 @@ export function useQueryPanel(options) {
           queryRecord.value = { id: queryId, name: defaultName, autoName: true, queryText: initialSql || '', timeStamp: ts, isFavourite: false, url: '' }
           queryName.value = defaultName
           queryText.value = initialSql || ''
-          chrome.storage.local.set({ [queryId]: queryRecord.value }, resolve)
+          newRecord = true
+          chrome.storage.local.set({ [queryId]: queryRecord.value }, () => { tagBusinessUnit(); resolve() })
           return
         }
         resolve()

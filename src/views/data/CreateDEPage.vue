@@ -19,7 +19,7 @@ import {
 } from '@/utils/createDE/sample.js'
 import {
   FIELD_TYPES, RETENTION_MODES, RETENTION_UNITS, blankField, blankSettings, cellProblem, checkCreateForm, isFormValid,
-  createDE, readLastFolder, saveLastFolder, rowsToLoad, lengthErrorField,
+  createDE, readLastFolder, saveLastFolder, rowsToLoad, lengthErrorField, defaultSendField, SEND_FIELD_TYPES,
 } from '@/utils/createDE/createDE.js'
 import AiButton from '@/components/ai/AiButton.vue'
 import AskAiDialog from '@/components/ai/AskAiDialog.vue'
@@ -141,7 +141,7 @@ function onTypeChange(f) {
 function onPrimaryKey(f) { if (f.isPrimaryKey) f.isNullable = false }
 
 const check = computed(() => checkCreateForm(settings.value, fields.value))
-const sendFields = computed(() => fields.value.filter((f) => ['Text', 'EmailAddress', 'Number'].includes(f.type)))
+const sendFields = computed(() => fields.value.filter((f) => SEND_FIELD_TYPES.includes(f.type)))
 
 // Preview: the first 20 sample rows in field order, each cell checked against its field.
 const PREVIEW_ROWS = 20
@@ -296,8 +296,7 @@ const SWITCHES = [
 function toggleSetting(key) {
   settings.value[key] = !settings.value[key]
   if (key === 'isSendable' && settings.value.isSendable && !settings.value.sendField) {
-    const pick = sendFields.value.find((f) => f.type === 'EmailAddress') || sendFields.value[0]
-    if (pick) settings.value.sendField = pick.name
+    settings.value.sendField = defaultSendField(fields.value)
   }
 }
 const selectCls = 'h-9 rounded-full border border-border bg-card px-3 text-sm text-foreground'

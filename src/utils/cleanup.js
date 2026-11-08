@@ -1,10 +1,12 @@
-// Run Query clean-up (feedback #30): the data extensions and Query activities that
-// Run Query (and Query Saver before it) created in SFMC. They are found and deleted
+// Run Query clean-up (feedback #30): the data extensions, Query activities and
+// automations that Run Query (and Query Saver before it) created in SFMC. Run Query
+// deletes each run's automation itself (live test, 2026-11-08); one whose deletion
+// failed is listed here. They are found and deleted
 // by name: every one is called SFMCQS_<kind>_<date>_<seconds>, and nothing else is
 // ever listed or deleted here.
 import { searchLocalDEs } from './deApi.js'
-import { searchActivities } from './automationApi.js'
-import { deleteDE, deleteQueryActivity } from './sfmcApi.js'
+import { searchActivities, searchAutomations } from './automationApi.js'
+import { deleteDE, deleteQueryActivity, deleteAutomation } from './sfmcApi.js'
 import { runInBatches } from './batchRunner.js'
 
 export const TOOLKIT_PREFIX = 'SFMCQS_'
@@ -40,18 +42,28 @@ export async function listToolkitQueryActivities(stack) {
     .map((q) => ({ id: q.queryDefinitionId, name: q.name, targetName: q.targetName || '', createdDate: q.createdDate || null, modifiedDate: q.modifiedDate || null }))
 }
 
+/** Automations named SFMCQS_... (Run Query's SFMCQS_run_), newest first, by Automation Studio's list ID. */
+export async function listToolkitAutomations(stack) {
+  const found = await allPages(async (page) => {
+    const r = await searchAutomations(stack, TOOLKIT_PREFIX, (page - 1) * 50, 50)
+    return { items: r.entries, done: !r.entries.length || page * 50 >= r.total }
+  })
+  return dedupe(found.filter((a) => isToolkitName(a.name)), (a) => a.id)
+    .map((a) => ({ id: a.id, name: a.name, createdDate: a.createdDate || null, modifiedDate: a.modifiedDate || null }))
+}
+
 function dedupe(list, keyOf) {
   const seen = new Set()
   return list.filter((x) => { const k = keyOf(x); if (!k || seen.has(k)) return false; seen.add(k); return true })
 }
 
 /**
- * Deletes the given items, 5 at a time: Query activities first (they point at the
- * data extensions), then data extensions. Items whose name does not start with
+ * Deletes the given items, 5 at a time: automations, then Query activities (they point
+ * at the data extensions), then data extensions. Items whose name does not start with
  * SFMCQS_ are refused. Returns { deleted: [...], failed: [{ item, error }] }.
  */
-export async function deleteToolkitObjects(stack, { activities = [], des = [] }, onProgress) {
-  const total = activities.length + des.length
+export async function deleteToolkitObjects(stack, { automations = [], activities = [], des = [] }, onProgress) {
+  const total = automations.length + activities.length + des.length
   let before = 0
   const deleted = []
   const failed = []
@@ -66,7 +78,9 @@ export async function deleteToolkitObjects(stack, { activities = [], des = [] },
     })
     before += items.length
   }
-  // Activities first, all of them, then the data extensions they wrote to.
+  // Automations first (they run the activities), then activities, then the data
+  // extensions they wrote to.
+  await pass(automations, 'automation', (id) => deleteAutomation(stack, id))
   await pass(activities, 'activity', (id) => deleteQueryActivity(stack, id))
   await pass(des, 'de', (id) => deleteDE(stack, id))
   return { deleted, failed }

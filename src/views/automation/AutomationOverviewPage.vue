@@ -8,6 +8,7 @@ import { Loader2, RefreshCw, TrendingUp, Eye, EyeOff } from 'lucide-vue-next'
 import StatusBadge from '@/components/results/StatusBadge.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import { isRunningStatus } from '@/utils/runProgress.js'
+import { plural } from '@/utils/format.js'
 import StackedBars from '@/components/results/StackedBars.vue'
 import Button from '@/components/ui/button/Button.vue'
 import { useStack, whenStack } from '@/composables/useStack.js'
@@ -187,7 +188,7 @@ whenStack(start)
         <ProgressBar v-if="trendBusy" :value="trendProgress.done" :max="trendProgress.total" aria-label="Reading run logs" class="mb-2" />
         <p v-if="!trends" class="text-xs text-muted-foreground">Runs of every automation in this business unit, not only watched ones: reads the run log of the 40 that ran most recently in the period (one request each), then shows runs and failures per day.</p>
         <template v-else>
-          <p class="text-xs text-muted-foreground mb-2">{{ trendTotals.ok + trendTotals.failed }} runs, {{ trendTotals.failed }} failed, across {{ trends.read }} automations (all automations that ran, not only watched ones){{ trends.errors ? `; ${trends.errors} run logs could not be read` : '' }}. Click a day to see its runs.<template v-if="trends.partialDays?.length"> {{ trends.partialDays.length === 1 ? 'One day' : `${trends.partialDays.length} days` }} ({{ trends.partialDays.join(', ') }}) had more than 200 runs of one automation; those days show the newest 200 of it.</template></p>
+          <p class="text-xs text-muted-foreground mb-2">{{ plural(trendTotals.ok + trendTotals.failed, 'run') }}, {{ trendTotals.failed }} failed, across {{ plural(trends.read, 'automation') }} (all automations that ran, not only watched ones){{ trends.errors ? `; ${trends.errors} run logs could not be read` : '' }}. Click a day to see its runs.<template v-if="trends.partialDays?.length"> {{ trends.partialDays.length === 1 ? 'One day' : `${trends.partialDays.length} days` }} ({{ trends.partialDays.join(', ') }}) had more than 200 runs of one automation; those days show the newest 200 of it.</template></p>
           <StackedBars :rows="trends.days" :series="SERIES" :label-of="dayLabel" :title="`Runs per day, last ${trendDays} days`" :selected="pickedDay" @select="pickedDay = pickedDay === $event ? -1 : $event" />
           <div v-if="dayRuns" class="mt-3">
             <div class="flex items-center gap-2 mb-1">

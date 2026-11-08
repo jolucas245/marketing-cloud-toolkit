@@ -14,3 +14,7 @@ workers/**/.shot.json
 
 # read-feedback.sh scratch output (untrusted feedback rows)
 workers/feedback/.rows.json
+
+# Salesforce CLI local state
+.sf/
+.sfdx/

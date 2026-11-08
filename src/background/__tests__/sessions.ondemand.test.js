@@ -24,6 +24,8 @@ describe('Setup apps (user, 2026-11-05)', () => {
     expect(r.app.onDemand).toBe(true)
     expect(r.app.bearer).toBe(false)
     expect(r.app.probeUrl('s12')).toMatch(/^https:\/\/[a-z-]+\.s12\.marketingcloudapps\.com\/fuelapi\//)
-    expect(r.app.landings('s12').some((u) => u === 'https://mc.s12.exacttarget.com/cloud/#app/Setup')).toBe(true)
+    // Bare #app/Setup only starts mc-setup, not these apps (live test, 2026-11-07).
+    expect(r.app.landings('s12')).not.toContain('https://mc.s12.exacttarget.com/cloud/#app/Setup')
+    expect(r.app.landings('s12').some((u) => u.startsWith('https://mc.s12.exacttarget.com/cloud/#app/Setup/'))).toBe(true)
   })
 })

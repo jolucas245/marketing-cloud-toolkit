@@ -9,6 +9,7 @@ import StatusBadge from '@/components/results/StatusBadge.vue'
 import CodeView from '@/components/results/CodeView.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import { fetchRunHistory, fetchAutomationHealth, fetchWorkerInstance } from '@/utils/automationApi.js'
+import { healthChips } from '@/utils/automationHealth.js'
 import { formatDateTime } from '@/utils/format.js'
 
 const props = defineProps({
@@ -38,7 +39,7 @@ async function load() {
     ])
     runs.value = r.runs
     total.value = r.total
-    health.value = h && typeof h === 'object' ? Object.entries(h).filter(([, v]) => v != null && typeof v !== 'object') : null
+    health.value = healthChips(h)
   } catch (e) {
     error.value = `Could not load the run history: ${e.message}`
   } finally {
@@ -67,7 +68,6 @@ async function loadWorker(url) {
   catch (e) { workers.value = { ...workers.value, [url]: { error: e.message } } }
 }
 const duration = (ms) => (ms == null ? '—' : ms < 60000 ? `${Math.round(ms / 1000)} s` : `${Math.floor(ms / 60000)} min ${Math.round((ms % 60000) / 1000)} s`)
-const label = (k) => String(k).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/^./, (c) => c.toUpperCase())
 </script>
 
 <template>
@@ -85,7 +85,7 @@ const label = (k) => String(k).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/^
         </label>
         <button class="h-7 px-2 rounded-md border border-border hover:bg-accent disabled:opacity-50" :disabled="loading" @click="load">Refresh</button>
         <ProgressBar v-if="loading" indeterminate size="xs" aria-label="Reading the run history" class="w-24" />
-        <span v-for="[k, v] in health || []" :key="k" class="rounded-full border border-border px-2 py-0.5 text-muted-foreground">{{ label(k) }}: <span class="text-foreground">{{ v }}</span></span>
+        <span v-for="c in health || []" :key="c.label" class="rounded-full border border-border px-2 py-0.5 text-muted-foreground">{{ c.label }}: <span :class="c.tone === 'bad' ? 'text-red-700 dark:text-red-400' : 'text-foreground'">{{ c.value }}</span></span>
       </div>
       <p v-if="error" class="text-red-600" role="alert">{{ error }}<ReportErrorButton /></p>
       <div v-if="runs" class="overflow-x-auto">

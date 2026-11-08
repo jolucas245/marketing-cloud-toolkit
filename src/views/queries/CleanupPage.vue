@@ -1,15 +1,15 @@
 <script setup>
-// Settings > Clean up (feedback #30, redesign #1031): lists the data extensions and Query
-// activities Run Query created in SFMC (named SFMCQS_...) and deletes the ticked ones
-// after an inline confirm. Names are checked again in deleteToolkitObjects.
+// Settings > Clean up (feedback #30, redesign #1031): lists the data extensions, Query
+// activities and automations Run Query created in SFMC (named SFMCQS_...) and deletes the
+// ticked ones after an inline confirm. Names are checked again in deleteToolkitObjects.
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, ref, watch } from 'vue'
-import { Loader2, Trash2, Brush, Workflow, Database, Clock, RefreshCw, TriangleAlert } from 'lucide-vue-next'
+import { Loader2, Trash2, Brush, Workflow, Database, Clock, RefreshCw, TriangleAlert, Play } from 'lucide-vue-next'
 import CleanupRow from '@/components/cleanup/CleanupRow.vue'
 import { ageDays, reasons } from '@/components/cleanup/cleanupView.js'
 import { useStack, whenStack } from '@/composables/useStack.js'
 import { showToast } from '@/composables/useToast.js'
-import { listToolkitDEs, listToolkitQueryActivities, deleteToolkitObjects, TOOLKIT_PREFIX } from '@/utils/cleanup.js'
+import { listToolkitDEs, listToolkitQueryActivities, listToolkitAutomations, deleteToolkitObjects, TOOLKIT_PREFIX } from '@/utils/cleanup.js'
 
 const OLD_DAYS = 7
 
@@ -19,7 +19,8 @@ const loaded = ref(false)
 const error = ref('')
 const des = ref([])
 const activities = ref([])
-const ticked = ref(new Set()) // `de:<id>` / `activity:<id>`
+const automations = ref([])
+const ticked = ref(new Set()) // `de:<id>` / `activity:<id>` / `automation:<id>`
 const confirming = ref(false)
 const deleting = ref(false)
 const progress = ref({ done: 0, total: 0 })
@@ -29,10 +30,13 @@ const now = ref(Date.now())
 const keyOf = (kind, item) => `${kind}:${item.id}`
 const why = computed(() => reasons(activities.value, des.value))
 const sections = computed(() => [
+  // Run Query deletes its automations after each run, so this section shows only when one was left.
+  ...(automations.value.length ? [{ kind: 'automation', title: 'Automations', items: automations.value, empty: '' }] : []),
   { kind: 'activity', title: 'Query activities', items: activities.value, empty: `No Query activities named ${TOOLKIT_PREFIX}.` },
   { kind: 'de', title: 'Data extensions', items: des.value, empty: `No data extensions named ${TOOLKIT_PREFIX}.` },
 ])
 const allItems = computed(() => [
+  ...automations.value.map((it) => ({ kind: 'automation', it })),
   ...activities.value.map((it) => ({ kind: 'activity', it })),
   ...des.value.map((it) => ({ kind: 'de', it })),
 ])
@@ -46,15 +50,17 @@ const tickedCount = computed(() => ticked.value.size)
 const everythingTicked = computed(() => allItems.value.length > 0 && tickedCount.value === allItems.value.length)
 const stats = computed(() => [
   { label: 'toolkit leftovers', value: allItems.value.length, icon: Brush, tone: 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300' },
+  ...(automations.value.length ? [{ label: 'automations', value: automations.value.length, icon: Play, tone: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300' }] : []),
   { label: 'query activities', value: activities.value.length, icon: Workflow, tone: 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300' },
   { label: 'data extensions', value: des.value.length, icon: Database, tone: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300' },
   { label: `older than ${OLD_DAYS} days`, value: oldKeys.value.length, icon: Clock, tone: 'bg-muted text-muted-foreground' },
 ])
 const confirmText = computed(() => {
+  const n = automations.value.filter((x) => ticked.value.has(keyOf('automation', x))).length
   const a = activities.value.filter((x) => ticked.value.has(keyOf('activity', x))).length
   const d = des.value.filter((x) => ticked.value.has(keyOf('de', x))).length
-  const parts = [a && `${a} Query activit${a === 1 ? 'y' : 'ies'}`, d && `${d} data extension${d === 1 ? '' : 's'}`].filter(Boolean)
-  return `Delete ${parts.join(' and ')}?`
+  const parts = [n && `${n} automation${n === 1 ? '' : 's'}`, a && `${a} Query activit${a === 1 ? 'y' : 'ies'}`, d && `${d} data extension${d === 1 ? '' : 's'}`].filter(Boolean)
+  return `Delete ${parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0]}?`
 })
 
 // A changed selection needs a fresh confirm.
@@ -67,7 +73,8 @@ async function load() {
   failures.value = []
   confirming.value = false
   try {
-    const [a, d] = await Promise.all([listToolkitQueryActivities(stack.value), listToolkitDEs(stack.value)])
+    const [a, d, n] = await Promise.all([listToolkitQueryActivities(stack.value), listToolkitDEs(stack.value), listToolkitAutomations(stack.value)])
+    automations.value = n
     activities.value = a
     des.value = d
     ticked.value = new Set()
@@ -111,16 +118,18 @@ function askDelete() {
 }
 
 async function deleteTicked() {
+  const pickN = automations.value.filter((a) => ticked.value.has(keyOf('automation', a)))
   const pickA = activities.value.filter((a) => ticked.value.has(keyOf('activity', a)))
   const pickD = des.value.filter((d) => ticked.value.has(keyOf('de', d)))
   confirming.value = false
-  if (!pickA.length && !pickD.length) return
+  if (!pickN.length && !pickA.length && !pickD.length) return
   deleting.value = true
   failures.value = []
-  progress.value = { done: 0, total: pickA.length + pickD.length }
+  progress.value = { done: 0, total: pickN.length + pickA.length + pickD.length }
   try {
-    const r = await deleteToolkitObjects(stack.value, { activities: pickA, des: pickD }, (done, total) => { progress.value = { done, total } })
+    const r = await deleteToolkitObjects(stack.value, { automations: pickN, activities: pickA, des: pickD }, (done, total) => { progress.value = { done, total } })
     const gone = new Set(r.deleted.map((x) => keyOf(x.kind, x)))
+    automations.value = automations.value.filter((a) => !gone.has(keyOf('automation', a)))
     activities.value = activities.value.filter((a) => !gone.has(keyOf('activity', a)))
     des.value = des.value.filter((d) => !gone.has(keyOf('de', d)))
     ticked.value = new Set([...ticked.value].filter((k) => !gone.has(k)))
@@ -148,6 +157,7 @@ whenStack(load)
         </div>
         <p class="text-sm text-muted-foreground max-w-[760px]">
           Run Query (and SFMC Query Saver) leave a query activity and a result data extension behind in this business unit.
+          Run Query also deletes the automation of each run itself; one it could not delete is listed here.
           Only items named <code class="font-mono text-xs text-foreground">{{ TOOLKIT_PREFIX }}...</code> are listed, so nothing else can be picked by mistake.
           Saved queries and their run history in the Toolkit are kept.
         </p>
@@ -249,7 +259,7 @@ whenStack(load)
           :checked="ticked.has(keyOf(s.kind, it))"
           :disabled="deleting"
           :age="ages.get(keyOf(s.kind, it))"
-          :reason="s.kind === 'activity' ? why.activity(it) : why.de(it)"
+          :reason="s.kind === 'activity' ? why.activity(it) : s.kind === 'de' ? why.de(it) : {}"
           @toggle="toggle(s.kind, it)"
         />
         <p v-if="!s.items.length" class="px-[18px] py-4 border-t border-border/70 text-center text-sm text-muted-foreground">{{ s.empty }}</p>

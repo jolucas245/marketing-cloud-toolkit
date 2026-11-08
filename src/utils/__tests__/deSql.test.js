@@ -25,12 +25,12 @@ describe('buildDESelect', () => {
     expect(buildDESelect([
       { de: 'Subscribers', fields: ['SubscriberKey', 'Email'] },
       { de: 'Orders', fields: ['OrderId', 'subscriberkey'] },
-    ])).toBe('SELECT\n    t1.SubscriberKey,\n    t1.Email,\n    t2.OrderId,\n    t2.subscriberkey\nFROM Subscribers t1\nINNER JOIN Orders t2\n    ON t1.SubscriberKey = t2.subscriberkey')
+    ])).toBe('SELECT\n    t1.SubscriberKey,\n    t1.Email,\n    t2.OrderId\nFROM Subscribers t1\nINNER JOIN Orders t2\n    ON t1.SubscriberKey = t2.subscriberkey')
   })
 
   it('flags a join it had to guess', () => {
     const sql = buildDESelect([{ de: 'A', fields: ['x'] }, { de: 'B', fields: ['y'] }])
-    expect(sql.startsWith('-- MUST REVIEW: A and B share no selected column')).toBe(true)
+    expect(sql.startsWith('-- MUST REVIEW: A and B share no column')).toBe(true)
     expect(sql).toContain('ON t1.x = t2.y')
   })
 
@@ -39,5 +39,22 @@ describe('buildDESelect', () => {
     expect(sqlName('has space')).toBe('[has space]')
     expect(sqlName('a]b')).toBe('[a]]b]')
     expect(sqlName('1st')).toBe('[1st]')
+  })
+
+  it('joins on a column both DEs have even when it was not ticked in both (live test, 2026-11-07)', () => {
+    const sql = buildDESelect([
+      { de: 'Demo_Orders', fields: ['OrderId', 'Amount'], allFields: ['OrderId', 'SubscriberKey', 'Amount'] },
+      { de: 'Demo_Customers', fields: ['LoyaltyTier'], allFields: ['SubscriberKey', 'EmailAddress', 'LoyaltyTier'] },
+    ])
+    expect(sql).not.toContain('MUST REVIEW')
+    expect(sql).toContain('ON t1.SubscriberKey = t2.SubscriberKey')
+  })
+
+  it('gives a repeated output name an alias so SFMC can save it (live test, 2026-11-07)', () => {
+    const sql = buildDESelect([
+      { de: 'A', fields: ['Id', 'Status'] },
+      { de: 'B', fields: ['Id', 'Status'] },
+    ])
+    expect(sql).toBe('SELECT\n    t1.Id,\n    t1.Status,\n    t2.Status AS t2_Status\nFROM A t1\nINNER JOIN B t2\n    ON t1.Id = t2.Id')
   })
 })
