@@ -87,7 +87,9 @@ async function load(force = false) {
     // notifications need the list ID, so switch to it when it can be found (feedback #1042).
     if (isAutomationGuid(id.value)) {
       const legacy = await legacyAutomationId(stack.value, { ...r.details, id: id.value }).catch(() => null)
-      if (legacy && legacy !== id.value) { router.replace({ ...route, params: { ...route.params, id: legacy } }); return }
+      // An explicit path: with the route's own `path` in it, Vue Router ignored the new
+      // params and the page stayed on "Loading the automation" (live test, 2026-11-08).
+      if (legacy && legacy !== id.value) { router.replace({ path: `/automations/${encodeURIComponent(legacy)}`, query: route.query, hash: route.hash }); return }
     }
     details.value = r.details
     notifications.value = r.notifications

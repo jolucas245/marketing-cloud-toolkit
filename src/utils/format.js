@@ -22,6 +22,16 @@ export function formatDate(value) {
 }
 
 // "1 run", "3 runs" (live test, 2026-11-07: "1 runs ... across 1 automations").
+/**
+ * SFMC's joined-up status names in words: "PausedSchedule" -> "Paused schedule",
+ * "ScheduledToPublish" -> "Scheduled to publish" (live test, 2026-11-08). Anything
+ * else is returned as is.
+ */
+export function statusWords(v) {
+  const s = String(v ?? '')
+  return /^[A-Z][a-z]+(?:[A-Z][a-z]+)+$/.test(s) ? s.replace(/(?!^)([A-Z])/g, (c) => ` ${c.toLowerCase()}`) : s
+}
+
 export function plural(n, word, many = `${word}s`) {
   const count = Number(n) || 0
   return `${count.toLocaleString()} ${count === 1 ? word : many}`

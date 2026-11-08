@@ -25,7 +25,7 @@ describe('activityTypes', () => {
 
   it('maps import destination and update types', () => {
     const d = describeActivity(43, { name: 'Imp', destinationObjectTypeId: 310, destinationName: 'Target DE', updateTypeId: 0, fieldMappings: [{ name: 'A', type: 'Ordinal', value: '1' }] }, 's10')
-    expect(rows(d.main)).toMatchObject({ 'Destination type': 'Data Extension', 'Target data extension': 'Target DE', 'Update type': 'Add and Update' })
+    expect(rows(d.main)).toMatchObject({ 'Destination type': 'Data Extension', 'Target': 'Target DE', 'Update type': 'Add and Update' })
     // Checked against Automation Studio's Data Action (live test, 2026-11-07).
     expect(rows(describeActivity(43, { name: 'I', updateTypeId: 1 }, 's10').main)['Update type']).toBe('Add Only')
     expect(rows(describeActivity(43, { name: 'I', updateTypeId: 4 }, 's10').main)['Update type']).toBe('Overwrite')
@@ -73,7 +73,9 @@ describe('links and run data (feedback #35 to #37)', () => {
   it('leaves out DE refs without a name, and has none for other types', async () => {
     const { describeActivity } = await import('../activityTypes.js')
     expect(describeActivity(303, { name: 'F' }, 's1').deRefs).toEqual({})
-    expect(describeActivity(43, { targetDataExtension: { name: 'Imp', id: 'i1' } }, 's1').deRefs['Target data extension']).toMatchObject({ name: 'Imp', id: 'i1' })
+    expect(describeActivity(43, { targetDataExtension: { name: 'Imp', id: 'i1' } }, 's1').deRefs['Target']).toMatchObject({ name: 'Imp', id: 'i1' })
+    // An import into a list has no data extension to link (live test, 2026-11-08).
+    expect(describeActivity(43, { destinationObjectTypeId: 13, destinationName: 'Newsletter' }, 's1').deRefs).toEqual({})
     expect(describeActivity(9999, { a: 1 }, 's1')).toMatchObject({ deRefs: {}, run: null })
   })
   it('builds Automation Studio and Contact Builder links', async () => {

@@ -91,19 +91,53 @@ export function toEmailRow(a) {
   }
 }
 
-export async function searchEmails(stack, opts = {}, fetch = sfmcFetch) {
-  const d = await fetch(`${CB(stack)}/asset/v1/content/assets/query`, 'POST', emailSearchBody(opts))
-  const items = (d?.items || []).map(toEmailRow)
-  return { items, total: d?.count ?? items.length }
+/**
+ * Whether a row has every word of `text` in its name or its subject line, or `text` as
+ * its customer key. Content Builder's `contains` is a loose text match: "welcome" found
+ * "content blcok" and "emaiwelcome" found 39 emails (live test, 2026-11-08), so its
+ * results are checked here.
+ */
+export function emailMatches(row, text) {
+  const t = String(text || '').trim().toLowerCase()
+  if (!t) return true
+  if (String(row?.customerKey || '').toLowerCase() === t) return true
+  const words = t.split(/\s+/)
+  return [row?.name, row?.subject].some((v) => { const s = String(v || '').toLowerCase(); return words.every((w) => s.includes(w)) })
 }
 
-/** Emails changed after `since` for one search (up to 10 pages). */
+const TEXT_SEARCH_PAGES = 10 // 500 emails from SFMC's loose match
+
+/**
+ * One page of a folder, or for a text search every match among SFMC's first
+ * TEXT_SEARCH_PAGES pages (its count and pages follow its loose match, so the total is
+ * the matches kept). `capped` says SFMC had more.
+ */
+export async function searchEmails(stack, opts = {}, fetch = sfmcFetch) {
+  const text = String(opts.text || '').trim()
+  if (!text) {
+    const d = await fetch(`${CB(stack)}/asset/v1/content/assets/query`, 'POST', emailSearchBody(opts))
+    const items = (d?.items || []).map(toEmailRow)
+    return { items, total: d?.count ?? items.length }
+  }
+  const items = []
+  let capped = false
+  for (let page = 1; page <= TEXT_SEARCH_PAGES; page++) {
+    const d = await fetch(`${CB(stack)}/asset/v1/content/assets/query`, 'POST', emailSearchBody({ ...opts, page }))
+    const rows = (d?.items || []).map(toEmailRow)
+    items.push(...rows.filter((r) => emailMatches(r, text)))
+    if (rows.length < EMAIL_PAGE_SIZE) break
+    if (page === TEXT_SEARCH_PAGES) capped = true
+  }
+  return { items, total: items.length, capped }
+}
+
+/** Emails changed after `since` for one search (up to 10 pages), checked like searchEmails. */
 export async function emailChanges(stack, opts, since, fetch = sfmcFetch) {
   const out = []
   for (let page = 1; page <= 10; page++) {
     const d = await fetch(`${CB(stack)}/asset/v1/content/assets/query`, 'POST', emailSearchBody({ ...opts, page, since }))
     const items = (d?.items || []).map(toEmailRow)
-    out.push(...items)
+    out.push(...items.filter((r) => emailMatches(r, opts?.text)))
     if (items.length < EMAIL_PAGE_SIZE) break
   }
   return out

@@ -25,6 +25,24 @@ describe('Content > Emails (feedback #1054)', () => {
     expect(match.rightOperand.rightOperand).toEqual({ property: 'customerKey', simpleOperator: 'equal', value: 'Email  Preview Test' })
   })
 
+  it('keeps only real matches from SFMC\'s loose contains, and reads up to 10 pages for a text (live test, 2026-11-08)', async () => {
+    const { searchEmails, emailMatches, EMAIL_PAGE_SIZE } = await import('../contentEmails.js')
+    expect(emailMatches({ name: 'Welcome to TND', subject: '' }, 'welcome tnd')).toBe(true)
+    expect(emailMatches({ name: 'content blcok', subject: null }, 'welcome')).toBe(false)
+    expect(emailMatches({ name: 'Some email', subject: 'Email', customerKey: 'WELCOME-1' }, 'welcome-1')).toBe(true)
+    const page = (n, rows) => ({ count: 120, items: rows.map((name, i) => ({ id: `${n}-${i}`, name })) })
+    const pages = [
+      page(1, [...Array(EMAIL_PAGE_SIZE - 1).fill('Other'), 'Welcome email']),
+      page(2, ['content blcok', 'Spring welcome email']),
+    ]
+    const calls = []
+    const fetch = async (url, method, body) => { calls.push(body.page.page); return pages[body.page.page - 1] }
+    const r = await searchEmails('s10', { text: 'welcome email' }, fetch)
+    expect(r.items.map((e) => e.name)).toEqual(['Welcome email', 'Spring welcome email'])
+    expect(r).toMatchObject({ total: 2, capped: false })
+    expect(calls).toEqual([1, 2])
+  })
+
   it('reads list rows and the legacy email ID', () => {
     const r = toEmailRow({ id: 5, name: 'W', category: { id: 9, name: 'F' }, assetType: { displayName: 'HTML Email' }, views: { subjectline: { content: 'Hi' } }, legacyData: { legacyId: 123 } })
     expect(r).toMatchObject({ id: 5, folderId: '9', folderName: 'F', subject: 'Hi', type: 'HTML Email', legacyId: 123 })

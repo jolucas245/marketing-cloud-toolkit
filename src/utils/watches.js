@@ -2,6 +2,7 @@
 // becomes a notice.
 // Shared by the service worker (background/watches.js checks) and the pages (Watch
 // button, notices menu). Pure apart from the storage keys.
+import { statusWords } from './format.js'
 
 export const WATCHES_KEY = 'toolkit_watches' // { 'stack:id' or 'stack:journey:id': { type, stack, id, key, name, on, last, addedAt } }
 export const NOTICES_KEY = 'toolkit_watch_notices' // [{ id, at, stack, type, automationId or journeyId, name, kind, text, read }]
@@ -22,7 +23,9 @@ export function automationStatusName(v) {
   if (v == null || v === '') return ''
   const n = Number(v)
   if (Number.isInteger(n) && String(n) === String(v).trim() && STATUS_NAMES[n] != null) return STATUS_NAMES[n]
-  return String(v)
+  // Automation Studio's list gives names like PausedSchedule and InactiveTrigger, shown
+  // on Home as is (live test, 2026-11-08).
+  return statusWords(v)
 }
 
 // Automation keys stay `stack:id` so watches from 2.0.6 and 2.0.7 keep working.

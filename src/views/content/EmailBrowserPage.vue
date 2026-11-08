@@ -22,7 +22,7 @@ import { useStack, whenStack } from '@/composables/useStack.js'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
 import { formatDateTime } from '@/utils/format.js'
 import {
-  clearEmailCaches, emailChanges, searchEmails, fetchEmailAsset, emailParts,
+  clearEmailCaches, emailChanges, searchEmails, emailMatches, fetchEmailAsset, emailParts,
   fillEmail, emailAttributes, previewWithData, EMAIL_PAGE_SIZE,
 } from '@/utils/contentEmails.js'
 
@@ -68,8 +68,10 @@ async function runSearch(mode = 'search') {
         sortBy: (x, y) => String(y.modifiedDate || '').localeCompare(String(x.modifiedDate || '')),
       }))
     }
-    emails.value = r.items
-    total.value = r.total
+    // Lists stored before the matches were checked (live test, 2026-11-08) are checked here too.
+    const items = params.text ? r.items.filter((e) => emailMatches(e, params.text)) : r.items
+    emails.value = items
+    total.value = params.text ? items.length : r.total
     pageNo.value = Math.max(1, Math.ceil(r.items.length / EMAIL_PAGE_SIZE))
     listInfo.value = { savedAt: r.savedAt, mode: r.mode, changed: r.changed }
     searchedFor.value = { text: params.text, folder: params.folderId ? currentFolder.value?.name : null }

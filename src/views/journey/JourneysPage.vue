@@ -17,6 +17,7 @@ import ContentFolderTree from '@/components/content/ContentFolderTree.vue'
 import { cachedList, storedList, saveList } from '@/utils/listCache.js'
 import { savedAgo } from '@/utils/localCache.js'
 import { journeyChanges, searchJourneys, JOURNEY_STATUSES, JOURNEY_PAGE_SIZE } from '@/utils/journeys.js'
+import { statusWords } from '@/utils/format.js'
 import { formatDateTime } from '@/utils/format.js'
 import SfmcErrorNotice from '@/components/results/SfmcErrorNotice.vue'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
@@ -122,7 +123,7 @@ const columns = [
         </div>
         <select v-model="status" class="h-8 rounded-md border border-border bg-background px-1 text-xs" aria-label="Status">
           <option value="">Any status</option>
-          <option v-for="s in JOURNEY_STATUSES" :key="s" :value="s">{{ s }}</option>
+          <option v-for="s in JOURNEY_STATUSES" :key="s" :value="s">{{ statusWords(s) }}</option>
         </select>
         <Button size="sm" class="h-8 text-xs" type="submit" :disabled="loading"><Loader2 v-if="loading" class="h-3.5 w-3.5 mr-1 animate-spin" /> Search</Button>
       </form>

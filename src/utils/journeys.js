@@ -34,6 +34,8 @@ export async function searchJourneys(stack, { query = '', status = '', page = 1,
 // Statuses of a version that contacts can be in, best first. A journey's "current"
 // version is the newest of these, else its newest version.
 const LIVE_STATUSES = ['Published', 'ScheduledToPublish', 'Paused', 'Finishing', 'Sent']
+/** A version contacts can be in (see LIVE_STATUSES). */
+export const LIVE_VERSION = new RegExp(`^(${LIVE_STATUSES.join('|')})$`, 'i')
 const liveRank = (status) => { const i = LIVE_STATUSES.indexOf(String(status || '')); return i < 0 ? LIVE_STATUSES.length : i }
 
 /** The version to show for a journey: the published (or otherwise live) one, else the newest. */

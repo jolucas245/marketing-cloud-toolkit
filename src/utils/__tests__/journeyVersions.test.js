@@ -136,3 +136,11 @@ describe('journey list with every version', () => {
     expect(urls[1]).toContain('mostRecentVersionOnly=true')
   })
 })
+
+describe('LIVE_VERSION (live test, 2026-11-08)', () => {
+  it('matches the statuses contacts can be in', async () => {
+    const { LIVE_VERSION } = await import('../journeys.js')
+    expect(['Published', 'ScheduledToPublish', 'Paused', 'Finishing', 'Sent'].every((s) => LIVE_VERSION.test(s))).toBe(true)
+    expect(['Draft', 'Unpublished', 'Stopped', 'PublishedSomething'].some((s) => LIVE_VERSION.test(s))).toBe(false)
+  })
+})

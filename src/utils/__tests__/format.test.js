@@ -33,3 +33,14 @@ describe('plural', () => {
     expect(plural(1200, 'automation')).toMatch(/^1.200 automations$|^1,200 automations$/)
   })
 })
+
+describe('statusWords (live test, 2026-11-08)', () => {
+  it('splits SFMC\'s joined-up status names into words and keeps the rest', async () => {
+    const { statusWords } = await import('../format.js')
+    expect(statusWords('ScheduledToPublish')).toBe('Scheduled to publish')
+    expect(statusWords('PausedSchedule')).toBe('Paused schedule')
+    expect(statusWords('Published')).toBe('Published')
+    expect(statusWords('SFMC_Run')).toBe('SFMC_Run')
+    expect(statusWords(null)).toBe('')
+  })
+})

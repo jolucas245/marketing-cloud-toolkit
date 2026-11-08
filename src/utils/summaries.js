@@ -1,6 +1,7 @@
 // Counts for the automation and journey overviews (feedback #50) and the Toolkit card on
 // SFMC's dashboard (#65). Pure, so the service worker can use them too.
 import { automationStatusName, isFailure } from './watches.js'
+import { statusWords } from './format.js'
 
 const time = (v) => { const t = Date.parse(v || ''); return Number.isNaN(t) ? 0 : t }
 
@@ -35,5 +36,5 @@ export function summarizeAutomations(list, now = Date.now()) {
 export const LIVE_JOURNEY = /^(published|running|scheduledtopublish)$/i
 
 export function summarizeJourneys(list) {
-  return { total: list.length, byStatus: countBy(list, (j) => j.status), live: list.filter((j) => LIVE_JOURNEY.test(j.status || '')).length }
+  return { total: list.length, byStatus: countBy(list, (j) => statusWords(j.status)), live: list.filter((j) => LIVE_JOURNEY.test(j.status || '')).length }
 }

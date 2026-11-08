@@ -5,12 +5,13 @@
 import { computed } from 'vue'
 import { Loader2, CircleCheck, CircleX, CirclePause, CircleStop, CalendarClock, Clock, Zap, Circle, PencilLine } from 'lucide-vue-next'
 import { automationStatusName } from '@/utils/watches.js'
+import { statusWords } from '@/utils/format.js'
 
 const props = defineProps({
   status: { type: [String, Number], default: '' },
   automation: { type: Boolean, default: false },
 })
-const text = computed(() => (props.automation ? automationStatusName(props.status) : props.status))
+const text = computed(() => (props.automation ? automationStatusName(props.status) : statusWords(props.status)))
 const s = computed(() => String(text.value || '').toLowerCase())
 const tone = computed(() => {
   if (/error|fail/.test(s.value)) return 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'

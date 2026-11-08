@@ -185,14 +185,16 @@ const SPECS = {
   43: {
     link: (d, s) => AS_LINK(s, 'ActivityDetails', 43, d.importDefinitionId),
     main: [['Description', 'description'], ['File spec', 'fileSpec'], ['File naming pattern', 'fileNamingPattern'], ['Field mapping type', 'fieldMappingType'],
-      ['Destination type', (d) => IMPORT_DESTINATIONS[d.destinationObjectTypeId] || d.destinationObjectTypeId], ['Target data extension', (d) => d.destinationName || d.targetDataExtension?.name || d.targetDataExtension],
+      ['Destination type', (d) => IMPORT_DESTINATIONS[d.destinationObjectTypeId] || d.destinationObjectTypeId], ['Target', (d) => d.destinationName || d.targetDataExtension?.name || d.targetDataExtension],
       ['Update type', (d) => IMPORT_UPDATE_TYPES[d.updateTypeId] ?? d.updateTypeId]],
     extra: [['Allow errors', 'allowErrors'], ['Customer key', 'customerKey'], ['Created', 'createdDate'], ['Modified', 'modifiedDate'], ['Date format locale', 'dateFormatLocale'],
       ['Delete file', 'deleteFile'], ['Destination ID', 'destinationObjectId'], ['File transfer location ID', 'fileTransferLocationId'], ['File type', 'fileType'],
       ['Notification email', 'notificationEmailAddress'], ['Send email notification', 'sendEmailNotification'], ['Subscriber import type ID', 'subscriberImportTypeId'],
       ['Max file age (hours)', 'maxFileAgeHours'], ['Max import frequency (hours)', 'maxImportFrequencyHours'], ['Standard quoted strings', 'standardQuotedStrings']],
     alsoUsed: ['destinationObjectTypeId', 'targetDataExtension', 'destinationName', 'updateTypeId', 'fieldMappings', 'importDefinitionId'],
-    deRefs: (d) => ({ 'Target data extension': typeof d.targetDataExtension === 'object' && d.targetDataExtension
+    // "Target", not "Target data extension": an import can go to a list (live test,
+    // 2026-11-08: "pub list import"). Only a data extension target links to its details.
+    deRefs: (d) => (d.destinationObjectTypeId != null && Number(d.destinationObjectTypeId) !== 310 ? {} : { 'Target': typeof d.targetDataExtension === 'object' && d.targetDataExtension
       ? { name: d.targetDataExtension.name, id: d.targetDataExtension.id, key: d.targetDataExtension.customerKey ?? d.targetDataExtension.key }
       : { name: typeof d.targetDataExtension === 'string' ? d.targetDataExtension : '' } }),
     tables: (d) => [nvtTable('Field mappings', d.fieldMappings, true)],
