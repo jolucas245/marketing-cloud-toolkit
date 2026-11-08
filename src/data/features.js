@@ -68,6 +68,7 @@ export const FEATURE_GROUPS = [
       { title: 'Search the results', since: '2.0.21', how: 'Search rows box above the results', detail: 'Finds the text in any column of the loaded rows; works with the column filters, and CSV, Excel and Markdown keep only the matching rows. Esc clears it.' },
       { title: 'Delete old runs from SFMC', since: '2.0.21', how: 'Settings > Running queries', detail: 'On by default (feedback #1081). Once a day, runs you made in this browser more than 7 days ago (or the days you set) lose their data extension and Query Activity in SFMC; the run stays in the query\'s history with its SQL, marked Cleaned up from SFMC.' },
       { title: 'Data retention on new data extensions', since: '2.0.3', how: 'Settings > Running queries', detail: 'Off by default. Switched on, SFMC deletes each row of a new Run Query data extension after the number of days you set.' },
+      { title: 'Excel download', how: 'Excel above the results', detail: 'The SQL on the first sheet, one line per row, and the rows shown on the second (after search, filters and sorting).' },
       { title: 'Export with no rows', since: '2.0.3', detail: 'When a query returns nothing, Copy for AI and MD still give the SQL and the columns, and CSV gives the header.' },
       {
         title: 'Up to 6 queries side by side',
