@@ -96,3 +96,25 @@ describe('Create DE page (feedback #94)', () => {
     w.unmount()
   }, 20000)
 })
+
+describe('Create DE: Ask an AI (feedback #1084)', () => {
+  it('copies the prompt and fills fields and settings from the answer, keeping the folder pick', async () => {
+    const copied = []
+    Object.defineProperty(globalThis.navigator, 'clipboard', { value: { writeText: async (t) => { copied.push(t) } }, configurable: true })
+    const { default: Page } = await import('../CreateDEPage.vue')
+    const w = mount(Page, { global: { stubs: { 'router-link': { template: '<a><slot /></a>' } } } })
+    await flushPromises()
+    await w.find('input[value="ai"]').setValue(true)
+    await w.find('textarea[aria-label="Describe the data extension"]').setValue('newsletter sign-ups')
+    await w.find('[data-copy-ai-prompt]').trigger('click')
+    await flushPromises()
+    expect(copied[0]).toContain('newsletter sign-ups')
+    await w.find('textarea[aria-label="The AI\'s answer"]').setValue('```json\n{"dataExtension":{"name":"Signups","isSendable":true,"sendField":"Email"},"fields":[{"name":"Email","type":"EmailAddress","primaryKey":true,"required":true},{"name":"Source","type":"Text","length":50}],"sampleRows":[{"Email":"a@example.com","Source":"web"}]}\n```')
+    await w.find('[data-use-definition]').trigger('click')
+    await flushPromises()
+    expect(w.find('[data-definition-read]').text()).toContain('2 field(s) and 1 sample row(s)')
+    expect(w.findAll('select[aria-label$="type"]').map((s) => s.element.value)).toEqual(['EmailAddress', 'Text'])
+    expect(w.find('input[aria-label="Data extension name"]').element.value).toBe('Signups')
+    w.unmount()
+  }, 20000)
+})

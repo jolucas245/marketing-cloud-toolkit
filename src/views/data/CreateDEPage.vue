@@ -25,10 +25,11 @@ import AiButton from '@/components/ai/AiButton.vue'
 import AskAiDialog from '@/components/ai/AskAiDialog.vue'
 import { useAi } from '@/composables/useAi.js'
 import { AI_FIELDS_SYSTEM, buildFieldsPrompt, readFieldSuggestions } from '@/utils/aiAssist.js'
+import { buildDePrompt, parseDefinition, looksLikeDefinition } from '@/utils/createDE/definition.js'
 
 const { stack } = useStack()
 
-const source = ref('paste') // paste | file | none
+const source = ref('paste') // paste | file | ai | none
 const pasted = ref('')
 const delimiter = ref('') // '' = detect
 const reading = ref(false)
@@ -75,6 +76,8 @@ function applySuggestions(text, keys = false) {
 }
 
 function useSample(table, name = '') {
+  fromDefinition.value = false
+  definitionNotes.value = []
   sample.value = table
   fileName.value = name
   fields.value = fieldsFromSample(table).map((f, i) => ({ ...f, src: i }))
@@ -82,11 +85,45 @@ function useSample(table, name = '') {
   step.value = 'edit'
 }
 
+// Ask an AI (feedback #1084): copy a prompt into any AI assistant, paste its JSON
+// definition back. The Toolkit sends nothing; the folder is still picked here.
+const aiDescription = ref('')
+const aiAnswer = ref('')
+const aiCopied = ref(false)
+const definitionNotes = ref([])
+const fromDefinition = ref(false)
+const aiPrompt = computed(() => buildDePrompt(aiDescription.value))
+async function copyAiPrompt() {
+  try {
+    await navigator.clipboard.writeText(aiPrompt.value)
+    aiCopied.value = true
+    setTimeout(() => { aiCopied.value = false }, 2000)
+  } catch { readError.value = 'Could not copy: select the prompt below and copy it.' }
+}
+function useDefinition(text) {
+  const def = parseDefinition(text)
+  const keep = { folderId: settings.value.folderId, folderPath: settings.value.folderPath, key: settings.value.key }
+  settings.value = { ...settings.value, ...def.settings, ...keep }
+  sample.value = def.sample
+  fileName.value = ''
+  fields.value = def.fields
+  definitionNotes.value = def.notes
+  fromDefinition.value = true
+  step.value = 'edit'
+}
+function readAiAnswer() {
+  readError.value = ''
+  if (!aiAnswer.value.trim()) { readError.value = "Paste the AI's answer first."; return }
+  try { useDefinition(aiAnswer.value) } catch (e) { readError.value = e.message }
+}
+
 function readPasted() {
   readError.value = ''
+  definitionNotes.value = []
   if (!pasted.value.trim()) { readError.value = 'Paste a few rows with a header row first.'; return }
   try {
     const text = pasted.value.trim()
+    if (looksLikeDefinition(text)) { useDefinition(text); return }
     const table = /^[[{]/.test(text) ? parseJsonSample(text) : parseDelimitedSample(text, delimiter.value || undefined)
     if (!table.columns.length) throw new Error('No columns found.')
     useSample(table)
@@ -114,6 +151,8 @@ function onFileInput(e) { readFile(e.target.files?.[0]); e.target.value = '' }
 function onDrop(e) { dragging.value = false; readFile(e.dataTransfer?.files?.[0]) }
 
 function startEmpty() {
+  fromDefinition.value = false
+  definitionNotes.value = []
   sample.value = null
   fileName.value = ''
   fields.value = [{ ...blankField(1), src: null }]
@@ -220,6 +259,9 @@ function startOver() {
   fields.value = []
   sample.value = null
   pasted.value = ''
+  aiAnswer.value = ''
+  definitionNotes.value = []
+  fromDefinition.value = false
   fileName.value = ''
   result.value = null
   error.value = ''
@@ -241,6 +283,7 @@ const maxMB = Math.round(MAX_SAMPLE_BYTES / 1048576)
 const SOURCES = [
   { id: 'paste', label: 'Paste rows', desc: 'From a spreadsheet, CSV or JSON' },
   { id: 'file', label: 'Upload a file', desc: 'CSV, TSV, TXT, JSON, Parquet, Excel' },
+  { id: 'ai', label: 'Ask an AI', desc: 'Copy a prompt, paste the answer' },
   { id: 'none', label: 'Add fields by hand', desc: 'No sample' },
 ]
 const scroller = ref(null)
@@ -370,15 +413,30 @@ const cellInput = 'h-9 rounded-lg text-sm'
                 <input type="file" class="sr-only" :accept="SAMPLE_ACCEPT" aria-label="Sample file" @change="onFileInput" />
               </label>
 
+              <div v-else-if="source === 'ai'" class="flex flex-col gap-2.5" data-ai-definition>
+                <p class="text-[13px] text-muted-foreground">Describe the data extension, copy the prompt into the AI assistant you use (ChatGPT, Claude, Gemini, Copilot ...), then paste its answer below. The answer fills in the fields, keys, types and settings; you still pick the folder and check everything before creating. The Toolkit sends nothing.</p>
+                <textarea v-model="aiDescription" rows="2" class="w-full resize-y rounded-[10px] border border-border bg-background p-3 text-[13px]" placeholder="What should it hold? For example: one row per order with the customer's subscriber key and email, order total and date, for order confirmation emails" aria-label="Describe the data extension" />
+                <div class="flex flex-wrap items-center gap-2.5">
+                  <Button variant="outline" class="h-9 rounded-full px-3.5 text-sm" data-copy-ai-prompt @click="copyAiPrompt"><FileText class="mr-1.5 h-4 w-4" /> {{ aiCopied ? 'Copied' : 'Copy prompt for AI' }}</Button>
+                  <details class="text-[13px]"><summary class="cursor-pointer text-primary">Show the prompt</summary><pre class="mt-2 max-h-60 overflow-auto whitespace-pre-wrap rounded-[10px] border border-border bg-muted/40 p-3 font-mono text-xs">{{ aiPrompt }}</pre></details>
+                </div>
+                <textarea v-model="aiAnswer" rows="6" class="w-full resize-y rounded-[10px] border border-border bg-background p-3 font-mono text-[13px]" placeholder="Paste the AI's answer here (the JSON block)" aria-label="The AI's answer" />
+                <div><Button class="h-9 rounded-full px-3.5 text-sm" data-use-definition @click="readAiAnswer"><CheckCircle2 class="mr-1.5 h-4 w-4" /> Use definition</Button></div>
+              </div>
+
               <div v-else class="flex flex-wrap items-center gap-3">
                 <span class="text-[13px] text-muted-foreground">Skip the sample and add fields one by one.</span>
                 <Button variant="outline" class="h-9 rounded-full px-3.5 text-sm" @click="startEmpty"><Plus class="mr-1.5 h-4 w-4" /> Start with one field</Button>
               </div>
 
-              <p v-if="sample" class="inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[13px] font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+              <p v-if="sample && !fromDefinition" class="inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[13px] font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                 <CheckCircle2 class="h-4 w-4" />
                 Read {{ sample.rows.length.toLocaleString() }} row(s) and {{ sample.columns.length }} column(s){{ fileName ? ` from ${fileName}` : '' }}{{ sample.sheet ? ` (sheet ${sample.sheet})` : '' }}{{ sample.truncated ? '; the rest of the file was not read' : '' }}.
               </p>
+              <p v-if="fromDefinition" class="text-[13px] font-semibold text-emerald-700 dark:text-emerald-300" data-definition-read>Read the AI's definition: {{ fields.length }} field(s){{ sample ? ` and ${sample.rows.length} sample row(s)` : '' }}. Check the fields and settings below, and pick the folder.</p>
+              <ul v-if="definitionNotes.length" class="list-disc pl-5 text-[13px] text-amber-700 dark:text-amber-300" data-definition-notes>
+                <li v-for="n in definitionNotes" :key="n">{{ n }}</li>
+              </ul>
               <p v-if="readError" class="text-[13px] text-red-600 dark:text-red-400" role="alert">{{ readError }}<ReportErrorButton /></p>
               <p class="text-xs text-muted-foreground">Only the first {{ MAX_SAMPLE_ROWS.toLocaleString() }} rows ({{ maxMB }} MB at most) are read. Values stay in this browser unless you choose to add them to the new data extension.</p>
             </div>

@@ -11,6 +11,23 @@ export const TO_TEST = [
     status: 'Not released: test builds only',
     items: [
       {
+        id: '2.0.22-create-de-ai', area: 'Data', title: 'Create DE: Ask an AI', ref: '#1084', live: true,
+        where: 'Data > Create DE > Ask an AI',
+        steps: [
+          'Describe a data extension (for example order confirmations) and click Copy prompt for AI.',
+          'Paste the prompt into an AI assistant, then paste its whole answer into the answer box and click Use definition.',
+          'Check the fields, keys, sendable and retention settings; pick a folder; Review and create.',
+          'Also paste the same answer into Paste rows and click Read sample.',
+        ],
+        expect: "The fields and settings match the AI's answer, any notes about changed types show in amber, the folder is still yours to pick, and SFMC creates the data extension (with the example rows if ticked).",
+      },
+      {
+        id: '2.0.22-whats-new', area: 'Shell', title: "What's New fits the window", ref: '#1083',
+        where: 'App start after an update (or set _seenVersion to an older version)',
+        steps: ['Open the app in a short window.', 'Scroll the list; click Show earlier updates; press Esc.'],
+        expect: "The title, close button and Got it stay in view, only the list scrolls, older news shows on request, and Esc closes it.",
+      },
+      {
         id: '2.0.22-ntext', area: 'Queries', title: 'ntext columns in DISTINCT, GROUP BY, ORDER BY and UNION', ref: '#1085', live: true,
         where: 'Run Query',
         steps: [
