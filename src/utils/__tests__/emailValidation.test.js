@@ -1,8 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
 import {
   parseEmailList, toResult, validateMany, contactEmails, guessEmailField, guessResultFields, checkInPlace,
-  newDEFields, rowForResult, createResultWriter, createResultsDE, reasonFor, WRITE_BATCH,
+  rowForResult, createResultWriter, reasonFor, WRITE_BATCH, resultFieldNames, copyFieldsWithResults, copyDESettings,
+  createCopyDE, summarize, summaryRows, summaryText, summaryLine, resultMatches, invalidCategory,
 } from '../emailValidation.js'
+import { buildCreateBody } from '../createDE/createDE.js'
 
 describe('parseEmailList', () => {
   it('splits on lines, commas and spaces, strips brackets and drops duplicates ignoring case', () => {
@@ -98,12 +100,66 @@ describe('rows to write', () => {
     const row = rowForResult({ ...r, valid: null }, { Id: '1' }, { mode: 'inplace', keyFields: ['Id'], mapping: { isValidEmail: 'V', invalidReason: 'R', APIresponse: 'P' } })
     expect(row).not.toHaveProperty('V')
   })
-  it('new DE: keys, email and the three result fields', () => {
-    const fields = newDEFields([{ name: 'Id', isPrimaryKey: true, length: 36 }, { name: 'Email' }], 'Email')
-    expect(fields.map((f) => f.name)).toEqual(['Id', 'Email', 'isValidEmail', 'invalidReason', 'APIresponse'])
-    expect(fields.find((f) => f.name === 'isValidEmail').type).toBe('Boolean')
-    const row = rowForResult({ ...r, valid: true }, { Id: '7' }, { mode: 'new', keyFields: ['Id'], emailField: 'Email' })
-    expect(row).toMatchObject({ Id: '7', Email: 'a@x', isValidEmail: 'true', APIresponse: '{"valid":false}' })
+  it('new DE (feedback #1090): every source value, empty ones left out, plus the results under their names', () => {
+    const row = rowForResult({ ...r, valid: true }, { Id: '7', Email: 'a@x', Age: '', City: 'Oslo' }, {
+      mode: 'new', copyFields: ['Id', 'Email', 'Age', 'City'], names: { isValidEmail: 'isValidEmail_2', invalidReason: 'invalidReason', APIresponse: 'APIresponse' },
+    })
+    expect(row).toEqual({ Id: '7', Email: 'a@x', City: 'Oslo', isValidEmail_2: 'true', invalidReason: 'x'.repeat(50), APIresponse: '{"valid":false}' })
+  })
+  it('new DE: a row the run did not reach is copied without results', () => {
+    const row = rowForResult(null, { Id: '8', Email: 'b@x' }, { mode: 'new', copyFields: ['Id', 'Email'], names: {} })
+    expect(row).toEqual({ Id: '8', Email: 'b@x' })
+  })
+})
+
+describe('copy of the source DE (feedback #1090)', () => {
+  const source = [
+    { name: 'SubscriberKey', type: 'Text', length: 50, isPrimaryKey: true, isNullable: false, ordinal: 0 },
+    { name: 'Score', type: 'Decimal', length: 18, scale: 2, isNullable: true, ordinal: 3 },
+    { name: 'Email', type: 'EmailAddress', length: 254, isNullable: false, ordinal: 1 },
+    { name: 'Joined', type: 'Date', isNullable: true, defaultValue: 'getdate()', ordinal: 2 },
+    { name: 'Active', type: 'Boolean', isNullable: true, defaultValue: 'maybe', ordinal: 4 },
+    { name: 'IsValidEmail', type: 'Text', length: 10, isNullable: true, ordinal: 5 },
+  ]
+  it('names the result fields without clashing, ignoring case', () => {
+    expect(resultFieldNames([{ name: 'isvalidemail' }, { name: 'isValidEmail_2' }])).toEqual({
+      names: { isValidEmail: 'isValidEmail_3', invalidReason: 'invalidReason', APIresponse: 'APIresponse' },
+      renamed: [{ from: 'isValidEmail', to: 'isValidEmail_3' }],
+    })
+  })
+  it('keeps every field in DE order with type, length, scale, key, required and default, then adds the results', () => {
+    const plan = copyFieldsWithResults(source)
+    expect(plan.fields.map((f) => f.name)).toEqual(['SubscriberKey', 'Email', 'Joined', 'Score', 'Active', 'IsValidEmail', 'isValidEmail_2', 'invalidReason', 'APIresponse'])
+    expect(plan.fields[0]).toMatchObject({ type: 'Text', length: 50, isPrimaryKey: true, isNullable: false })
+    expect(plan.fields[1]).toMatchObject({ type: 'EmailAddress', isNullable: false })
+    expect(plan.fields[2]).toMatchObject({ type: 'Date', currentDate: true })
+    expect(plan.fields[3]).toMatchObject({ type: 'Decimal', length: 18, scale: 2 })
+    expect(plan.fields.slice(-3).map((f) => [f.type, f.length])).toEqual([['Boolean', ''], ['Text', 500], ['Text', 4000]])
+    expect(plan.renamed).toEqual([{ from: 'isValidEmail', to: 'isValidEmail_2' }])
+    // A default Create DE would refuse is dropped and named.
+    expect(plan.droppedDefaults).toEqual(['Active'])
+    expect(plan.fields[4].defaultValue).toBe('')
+  })
+  it('copies sendable, the send relationship field and the folder; never retention', () => {
+    const { fields } = copyFieldsWithResults(source)
+    const detail = { isSendable: true, isTestable: true, sendableCustomObjectField: { name: 'subscriberkey' }, categoryID: 12, description: 'Members', dataRetentionProperties: { dataRetentionPeriodLength: 3 } }
+    const { settings, notes } = copyDESettings({ name: 'Members' }, detail, { name: 'Members_EmailValidation', folderId: 40, fields })
+    expect(settings).toMatchObject({ name: 'Members_EmailValidation', folderId: 40, isSendable: true, sendField: 'SubscriberKey', isTestable: true, description: 'Members' })
+    expect(settings.retention.mode).toBe('off')
+    expect(notes).toEqual([])
+    const body = buildCreateBody(settings, fields)
+    expect(body).toMatchObject({ isSendable: true, sendableCustomObjectField: 'SubscriberKey', categoryID: 40 })
+    expect(body.dataRetentionProperties).toBeUndefined()
+  })
+  it('says so when the send relationship field cannot be found', () => {
+    const { settings, notes } = copyDESettings({ name: 'M' }, { isSendable: true, sendableCustomObjectField: 'Gone' }, { name: 'N', folderId: 1, fields: [] })
+    expect(settings.isSendable).toBe(false)
+    expect(notes[0]).toMatch(/"Gone" could not be copied/)
+  })
+  it('creates the copy through Create DE and needs its key', async () => {
+    const createDE = vi.fn(async () => ({ de: { id: 'i1', key: 'k1', name: 'N' } }))
+    expect(await createCopyDE('s7', { name: 'N' }, [], { createDE })).toEqual({ id: 'i1', key: 'k1', name: 'N' })
+    await expect(createCopyDE('s7', { name: 'N' }, [], { createDE: async () => ({ de: { id: 'i1' } }) })).rejects.toThrow(/did not return its key/)
   })
 })
 
@@ -122,17 +178,6 @@ describe('createResultWriter', () => {
     const w = createResultWriter('s7', { key: 'K', mode: 'new' }, api)
     w.add({ a: 1 })
     await expect(w.flush()).rejects.toThrow('refused')
-  })
-})
-
-describe('createResultsDE', () => {
-  it('sends numeric field types to createTargetDE', async () => {
-    const createTargetDE = vi.fn(async () => ({ id: 'id1', customerKey: 'ck1' }))
-    const made = await createResultsDE('s7', { name: 'N', categoryID: 5, fields: newDEFields([], 'Email') }, { createTargetDE })
-    expect(made).toEqual({ id: 'id1', key: 'ck1', name: 'N' })
-    const sent = createTargetDE.mock.calls[0][1]
-    expect(sent.categoryID).toBe(5)
-    expect(sent.fields.map((f) => [f.name, f.type, f.length])).toEqual([['Email', 0, 254], ['isValidEmail', 3, undefined], ['invalidReason', 0, 500], ['APIresponse', 0, 4000]])
   })
 })
 
@@ -163,5 +208,44 @@ describe('contact addresses skip formulas (feedback #1022)', () => {
       { set: 'Primary', name: 'EmailAddress', value: 'jo@example.com' },
     ] }
     expect(contactEmails(c)).toEqual([{ email: 'jo@example.com', attribute: 'Primary > EmailAddress' }])
+  })
+})
+
+describe('summary (feedback #1091)', () => {
+  const results = [
+    { email: 'a@x', valid: true },
+    { email: 'b@x', valid: true },
+    { email: 'c@x', valid: false, failedValidation: 'MXValidator' },
+    { email: 'd@x', valid: false, failedValidation: 'MXValidator' },
+    { email: 'e@x', valid: false, failedValidation: 'SyntaxValidator' },
+    { email: '', valid: false, failedValidation: '' },
+    { email: 'f@x', valid: false, failedValidation: '' },
+    { email: 'g@x', valid: null, error: 'session expired', reason: 'Not checked: session expired' },
+    undefined,
+  ]
+  it('counts valid, not valid by category, and not checked by error', () => {
+    const sum = summarize(results)
+    expect(sum).toMatchObject({ total: 8, valid: 2, invalid: 5, notChecked: 1 })
+    expect(sum.categories.map((c) => [c.id, c.count])).toEqual([['MXValidator', 2], ['SyntaxValidator', 1], ['empty', 1], ['unknown', 1]])
+    expect(sum.categories[0].label).toMatch(/Mail server/)
+    expect(sum.errors).toEqual([{ message: 'session expired', count: 1 }])
+  })
+  it('filters results by group or category', () => {
+    const list = results.filter(Boolean)
+    expect(list.filter((r) => resultMatches(r, 'valid'))).toHaveLength(2)
+    expect(list.filter((r) => resultMatches(r, 'invalid'))).toHaveLength(5)
+    expect(list.filter((r) => resultMatches(r, 'invalid:MXValidator')).map((r) => r.email)).toEqual(['c@x', 'd@x'])
+    expect(list.filter((r) => resultMatches(r, 'notChecked'))).toHaveLength(1)
+    expect(list.filter((r) => resultMatches(r, ''))).toHaveLength(8)
+    expect(invalidCategory({ email: ' ', valid: false })).toBe('empty')
+  })
+  it('gives rows, text and a line with counts and shares but no addresses', () => {
+    const sum = summarize(results)
+    expect(summaryRows(sum)[1]).toEqual({ Group: 'Valid', Count: 2, Share: '25%' })
+    const text = summaryText(sum, 'Run 1')
+    expect(text).toMatch(/^Run 1/)
+    expect(text).toContain('Not valid: Mail server: the domain has no mail server: 2 (25%)')
+    expect(text).not.toMatch(/@/)
+    expect(summaryLine(sum)).toBe('2 valid, 5 not valid, 1 not checked')
   })
 })

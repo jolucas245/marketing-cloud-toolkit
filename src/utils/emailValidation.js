@@ -2,13 +2,16 @@
 // (body { email, validators }, answer { email, valid, failedValidation? }). One call
 // per address. Sources: one address, a pasted or uploaded list, contacts found by
 // Contact Key, or a data extension column. For a data extension the results go into
-// three columns of that DE (upsert by primary key) or into a new DE.
+// three columns of that DE (upsert by primary key) or into a new DE that copies the
+// source's fields, settings and rows and adds the three result fields (feedback #1090).
 //
 // Checked live 2026-11-02 (through mc.<stack>.exacttarget.com/cloud/fuelapi): answers
 // { email, valid, failedValidation } with one failed validator even when several fail, and
 // not in the order sent (a domain with no mail server came back as ListDetectiveValidator
 // with all three picked, MXValidator alone). How SFMC counts the calls against API limits: unknown.
-import { sfmcFetch, createTargetDE, insertDERowsAsync, upsertDERowsAsync, searchDEsAllSources } from './sfmcApi.js'
+import { sfmcFetch, insertDERowsAsync, upsertDERowsAsync, searchDEsAllSources } from './sfmcApi.js'
+import { createDE, fieldProblem, SEND_FIELD_TYPES } from './createDE/createDE.js'
+import { toCreateField, fieldsInOrder, copySettings } from './deReorder.js'
 
 const AS_BASE = (stack) => `https://mc.${stack}.exacttarget.com/cloud/fuelapi`
 
@@ -169,33 +172,107 @@ export function checkInPlace({ fields = [], emailField, mapping }) {
   return ''
 }
 
-/** Fields for a new results DE: the source's primary keys (as Text), the email, and the three results. */
-export function newDEFields(sourceFields = [], emailField) {
-  const keys = sourceFields.filter((f) => f.isPrimaryKey && f.name !== emailField)
-  const out = keys.map((f) => ({ name: f.name, type: 'Text', length: Math.min(Math.max(fieldLength(f) || 254, 50), 4000), isNullable: true }))
-  out.push({ name: emailField || 'Email', type: 'Text', length: 254, isNullable: true })
-  out.push({ name: 'isValidEmail', type: 'Boolean', isNullable: true })
-  out.push({ name: 'invalidReason', type: 'Text', length: 500, isNullable: true })
-  out.push({ name: 'APIresponse', type: 'Text', length: RESPONSE_MAX, isNullable: true })
-  return out
+// The three result fields of a new DE (feedback #1090): types and lengths.
+export const RESULT_FIELD_DEFS = [
+  { id: 'isValidEmail', type: 'Boolean' },
+  { id: 'invalidReason', type: 'Text', length: 500 },
+  { id: 'APIresponse', type: 'Text', length: RESPONSE_MAX },
+]
+
+/**
+ * Names for the three result fields that do not clash (ignoring case) with the source's
+ * fields: isValidEmail, else isValidEmail_2, _3, ... Returns { names, renamed: [{ from, to }] }.
+ */
+export function resultFieldNames(sourceFields = []) {
+  const taken = new Set(sourceFields.map((f) => String(f.name || '').toLowerCase()))
+  const names = {}
+  const renamed = []
+  for (const { id } of RESULT_FIELD_DEFS) {
+    let n = id
+    for (let i = 2; taken.has(n.toLowerCase()); i++) n = `${id}_${i}`
+    taken.add(n.toLowerCase())
+    names[id] = n
+    if (n !== id) renamed.push({ from: id, to: n })
+  }
+  return { names, renamed }
 }
 
-/** One row to write for a result: in place (keys + the 3 mapped fields) or for the new DE. */
-export function rowForResult(r, sourceRow, { mode, keyFields = [], emailField, mapping, fieldsByName = {} }) {
+/**
+ * The new DE's fields (feedback #1090): every source field as it is (name, type, length,
+ * scale, primary key, required, default; in the DE's own order), then the three result
+ * fields. A default value Create DE would refuse is left out and named in `droppedDefaults`.
+ * Returns { fields, names, renamed, droppedDefaults }.
+ */
+export function copyFieldsWithResults(sourceFields = []) {
+  const { names, renamed } = resultFieldNames(sourceFields)
+  const droppedDefaults = []
+  const fields = fieldsInOrder(sourceFields).map((src) => {
+    const f = toCreateField(src)
+    if ((f.defaultValue || f.currentDate) && /^Default value/.test(fieldProblem(f))) {
+      droppedDefaults.push(f.name)
+      return { ...f, defaultValue: '', currentDate: false }
+    }
+    return f
+  })
+  for (const d of RESULT_FIELD_DEFS) {
+    fields.push({ name: names[d.id], type: d.type, length: d.length ?? '', scale: 0, isPrimaryKey: false, isNullable: true, defaultValue: '', currentDate: false })
+  }
+  return { fields, names, renamed, droppedDefaults }
+}
+
+const nameOf = (v) => (v && typeof v === 'object' ? v.name || v.fieldName || '' : String(v ?? '')).trim()
+
+/**
+ * Settings for the new DE from the source's record (fetchDEDetail): sendable with the same
+ * send relationship field, testable, description; the folder picked on the page (the
+ * source's by default). Retention is not copied (a copy should not delete itself).
+ * Returns { settings, notes }.
+ */
+export function copyDESettings(de, detail = {}, { name, folderId, fields = [] } = {}) {
+  const base = copySettings(de, detail || {}, name)
+  const notes = []
+  const wanted = nameOf(detail?.sendableCustomObjectField) || nameOf(detail?.sendableDataExtensionField)
+  const field = wanted ? fields.find((f) => String(f.name).toLowerCase() === wanted.toLowerCase()) : null
+  const isSendable = !!detail?.isSendable && !!field && SEND_FIELD_TYPES.includes(field.type)
+  if (detail?.isSendable && !isSendable) notes.push(wanted ? `The send relationship field "${wanted}" could not be copied, so the new data extension is not sendable.` : 'SFMC did not say which field relates to Subscriber Key, so the new data extension is not sendable.')
+  return {
+    settings: {
+      ...base,
+      name: String(name || '').trim(),
+      folderId: folderId ?? base.folderId,
+      description: String(detail?.description || de?.description || '').slice(0, 400) || `Copy of ${de?.name || 'a data extension'} with email validation results`,
+      isSendable,
+      sendField: isSendable ? field.name : '',
+    },
+    notes,
+  }
+}
+
+/**
+ * One row to write for a result: in place (keys + the 3 mapped fields), or for the new
+ * DE every source value (empty ones left out, so SFMC applies defaults and does not
+ * refuse an empty number or date) plus the results under `names`. `r` null: the row is
+ * copied without results (a run stopped before reaching it).
+ */
+export function rowForResult(r, sourceRow, { mode, keyFields = [], mapping, fieldsByName = {}, copyFields = [], names = {} }) {
   const row = {}
-  for (const k of keyFields) row[k] = sourceRow?.[k] ?? ''
   if (mode === 'inplace') {
+    for (const k of keyFields) row[k] = sourceRow?.[k] ?? ''
     const v = resultValues(r, { reason: fieldsByName[mapping.invalidReason], response: fieldsByName[mapping.APIresponse] })
     // An empty Boolean is refused; leave a not-checked row's flag unset.
     if (v.valid !== '') row[mapping.isValidEmail] = v.valid
     row[mapping.invalidReason] = v.reason
     row[mapping.APIresponse] = v.response
   } else {
+    for (const f of copyFields) {
+      const val = sourceRow?.[f]
+      if (val != null && String(val) !== '') row[f] = val
+    }
+    if (!r) return row
     const v = resultValues(r, { reason: { type: 'Text', length: 500 }, response: { type: 'Text', length: RESPONSE_MAX } })
-    row[emailField || 'Email'] = r.email
-    if (v.valid !== '') row.isValidEmail = v.valid
-    row.invalidReason = v.reason
-    row.APIresponse = v.response
+    if (v.valid !== '') row[names.isValidEmail || 'isValidEmail'] = v.valid
+    row[names.invalidReason || 'invalidReason'] = v.reason
+    row[names.APIresponse || 'APIresponse'] = v.response
   }
   return row
 }
@@ -225,25 +302,14 @@ export function createResultWriter(stack, { key, mode }, api = { insertDERowsAsy
   }
 }
 
-/** Makes the new results DE. Returns { id, key, name }. */
-export async function createResultsDE(stack, { name, categoryID, fields }, api = { createTargetDE }) {
-  const made = await api.createTargetDE(stack, { name, categoryID, fields: toBuildFields(fields) })
-  return { id: made.id, key: made.customerKey, name }
-}
-
-// createTargetDE takes fields already shaped by buildDEFields (numeric types).
-const TYPE_NUM = { Text: 0, Number: 1, Date: 2, Boolean: 3, EmailAddress: 4, Phone: 5, Decimal: 6, Locale: 7 }
-function toBuildFields(fields) {
-  return fields.map((f, i) => {
-    const type = TYPE_NUM[f.type] ?? 0
-    const field = {
-      name: f.name, ordinal: i, type, scale: 0, isPrimaryKey: false, isTemplateField: false, isHidden: false,
-      isReadOnly: false, isOverridable: false, isInheritable: false, updatable: true, retrievable: true,
-      isActive: true, mustOverride: false, isNullable: true,
-    }
-    if (type === 0) field.length = f.length || 254
-    return field
-  })
+/**
+ * Makes the new DE (Create DE's createDE: numeric types, a retry with type names when
+ * SFMC refuses a type). Returns { id, key, name }.
+ */
+export async function createCopyDE(stack, settings, fields, api = { createDE }) {
+  const { de } = await api.createDE(stack, settings, fields)
+  if (!de?.key) throw new Error(`"${settings.name}" was created, but SFMC did not return its key, so no rows were copied.`)
+  return { id: de.id, key: de.key, name: de.name }
 }
 
 /** CSV rows for a download of results. */
@@ -276,3 +342,87 @@ export async function freeDEName(stack, base, taken = deNameTaken) {
 }
 
 export const isNameClash = (e) => e?.status === 409 || /already exists/i.test(String(e?.message || ''))
+
+// ── Summary (feedback #1091) ──
+
+const CATEGORY_LABELS = {
+  SyntaxValidator: 'Syntax: not written correctly',
+  MXValidator: 'Mail server: the domain has no mail server',
+  ListDetectiveValidator: 'List Detective: known bad, role or spam-trap address',
+  empty: 'No email address',
+  unknown: 'Not valid, SFMC gave no reason',
+}
+
+/** The category of a not-valid result: the failed validator, "empty" or "unknown". */
+export function invalidCategory(r) {
+  if (r.failedValidation) return String(r.failedValidation)
+  if (!String(r.email ?? '').trim()) return 'empty'
+  return 'unknown'
+}
+
+/** The filter id a result matches: valid, notChecked, or invalid:<category>. */
+export function resultMatches(r, filter) {
+  if (!filter) return true
+  if (filter === 'valid') return r.valid === true
+  if (filter === 'notChecked') return r.valid == null
+  if (filter === 'invalid') return r.valid === false
+  if (filter.startsWith('invalid:')) return r.valid === false && invalidCategory(r) === filter.slice(8)
+  return true
+}
+
+/**
+ * Counts for a run: total, valid, invalid, notChecked, and the not-valid ones split by
+ * category ([{ id, label, count }], largest first). Errors are counted per message too
+ * (`errors`), so a session problem shows as one line.
+ */
+export function summarize(results = []) {
+  const list = results.filter(Boolean)
+  const out = { total: list.length, valid: 0, invalid: 0, notChecked: 0, categories: [], errors: [] }
+  const cats = new Map()
+  const errs = new Map()
+  for (const r of list) {
+    if (r.valid === true) out.valid++
+    else if (r.valid === false) {
+      out.invalid++
+      const c = invalidCategory(r)
+      cats.set(c, (cats.get(c) || 0) + 1)
+    } else {
+      out.notChecked++
+      const m = String(r.error || r.reason || 'Not checked').replace(/^Not checked: /, '').slice(0, 200)
+      errs.set(m, (errs.get(m) || 0) + 1)
+    }
+  }
+  out.categories = [...cats].map(([id, count]) => ({ id, label: CATEGORY_LABELS[id] || reasonFor(id), count })).sort((a, b) => b.count - a.count)
+  out.errors = [...errs].map(([message, count]) => ({ message, count })).sort((a, b) => b.count - a.count)
+  return out
+}
+
+const pct = (n, total) => (total ? `${Math.round((1000 * n) / total) / 10}%` : '0%')
+
+/** The summary as rows for a CSV or table: [{ Group, Count, Share }]. */
+export function summaryRows(sum) {
+  const rows = [
+    { Group: 'Total', Count: sum.total, Share: '100%' },
+    { Group: 'Valid', Count: sum.valid, Share: pct(sum.valid, sum.total) },
+    { Group: 'Not valid', Count: sum.invalid, Share: pct(sum.invalid, sum.total) },
+    ...sum.categories.map((c) => ({ Group: `Not valid: ${c.label}`, Count: c.count, Share: pct(c.count, sum.total) })),
+    { Group: 'Not checked (errors)', Count: sum.notChecked, Share: pct(sum.notChecked, sum.total) },
+  ]
+  return rows
+}
+
+/** The summary as plain text (Copy), with no addresses. `title` names the run. */
+export function summaryText(sum, title = 'Email validation') {
+  const lines = [title, '']
+  for (const r of summaryRows(sum)) lines.push(`${r.Group}: ${r.Count.toLocaleString()} (${r.Share})`)
+  if (sum.errors.length) {
+    lines.push('', 'Not checked, by error:')
+    for (const e of sum.errors.slice(0, 10)) lines.push(`- ${e.message}: ${e.count.toLocaleString()}`)
+  }
+  return lines.join('\n')
+}
+
+/** One line for the activity history: counts only. */
+export function summaryLine(sum) {
+  return `${sum.valid.toLocaleString()} valid, ${sum.invalid.toLocaleString()} not valid${sum.notChecked ? `, ${sum.notChecked.toLocaleString()} not checked` : ''}`
+}
