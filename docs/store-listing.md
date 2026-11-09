@@ -1,4 +1,4 @@
-# Chrome Web Store listing: Marketing Cloud Toolkit 2.0.0
+# Chrome Web Store listing: Marketing Cloud Toolkit
 
 Text for the Chrome Web Store dashboard. Marketing Cloud Toolkit is published as a new version of the existing **SFMC Query Saver** item, so update each field of that item.
 
@@ -14,71 +14,30 @@ Run and save SFMC SQL, and explore automations, journeys, data extensions, Cloud
 
 ## Description
 
-Marketing Cloud Toolkit is a set of tools for Salesforce Marketing Cloud, in one full-tab app. It replaces SFMC Query Saver: if you used Query Saver, your saved queries, run history and email versions are already here.
+Rewritten 2026-11-09 after the store rejected 2.0.22 for keyword spam (violation "Yellow Argon": the lists "SQL, scripts, imports, extracts, file transfers, filters, email sends and more" and "Query, Script, Import, Data Extract, File Transfer and Filter activities"). Keep this text in sentences: no lists of product terms, activity types or object names.
 
-It works with the Marketing Cloud login you already have in this browser. It never asks for or stores your password.
+```
+Marketing Cloud Toolkit brings the everyday work of a Salesforce Marketing Cloud Engagement developer into one browser tab. It replaces SFMC Query Saver: if you used Query Saver, your saved queries, run history and email versions are already here.
 
-QUERIES
+It works with the Marketing Cloud login you already have in this browser. It never asks for or stores your password, and it only changes your account when you ask it to.
 
-Saved queries
-- Every query you run in Query Studio is saved automatically, with the business unit it ran in.
-- Search by name, SQL or business unit; browse by date; mark favourites.
-- Preview, copy, share as a link, export and import as CSV.
+Write and run SQL
+Write queries in an editor that checks Marketing Cloud's SQL rules as you type and offers one-click fixes. Run several queries side by side and see the results without setting anything up in Automation Studio. Every query you run is saved with its history. You can also build a query visually by joining data extensions on a canvas.
 
-Run Query
-- Write and run up to 6 queries side by side. Each run creates the target data extension and Query Activity for you and shows the results.
-- The editor checks SFMC SQL as you type (44 checks, with one-click fixes), suggests data extensions, data views and fields, explains functions on hover, and formats SQL.
-- Download results as CSV or Markdown, or copy them ready to paste into an AI assistant.
-- Open an existing Query Activity from Automation Studio.
+Understand automations and journeys
+Open an automation to read its schedule in plain words and what each step does. Open a journey to see it drawn as a diagram, with what every step sends, waits for or decides. Looking never pauses or edits anything.
 
-Query Builder
-- Build a query by picking data extensions and fields, in a list or on a canvas, with joins, filters, grouping and sorting.
+Find and look after your data
+Search data extensions, preview their rows, see where each one is used, and create new ones from a sample file.
 
-AUTOMATION
+Keep versions of your work
+Each time you save an email, a CloudPage or an Automation Studio activity, the Toolkit keeps the earlier version so you can compare it or put it back.
 
-Automations
-- Find any automation and see its schedule in plain words, its error notifications, and every step.
-- See each activity's details: SQL, scripts, imports, extracts, file transfers, filters, email sends and more.
-- Viewing an automation never pauses or changes it.
+Also included: Ctrl+K search, downloads to Excel, Word or PDF, light and dark themes, backups, and a feedback form.
 
-Activities
-- List Query, Script, Import, Data Extract, File Transfer and Filter activities, search them, or load them all.
-
-JOURNEY
-
-Journeys
-- Find any journey and see it drawn like the Journey Builder canvas, left to right or top to bottom.
-- Click a step to see what it does: email subject, preheader and preview; wait times; decision split criteria in plain words; random split shares; every setting.
-
-Journey Entry
-- List journey entry events and filter them by name, key, data extension, type, category and journey status.
-
-DATA
-
-Data Extensions
-- Search local, Shared and Synchronized data extensions; see folder paths and fields.
-- Tick fields in one or more data extensions to build a query that joins them.
-- Export names or every field to Excel.
-
-DE storage
-- See the GB and rows your data extensions use, day by day, by business unit, and the largest data extensions first.
-
-CONTENT
-
-CloudPages
-- Search CloudPages, get their URLs and folder paths, export to Excel.
-
-Saved Emails
-- Every time you save an email in Content Builder, a version is kept. Preview any version, and revert the email to it.
-
-ALSO
-- Download any result as Markdown, Word or HTML.
-- Ctrl+K to jump to a section, open a saved query or email, or search SFMC.
-- Light, dark or system theme.
-- Back up everything to one file, and restore it on another computer.
-- Send feedback with a screenshot you can mark up.
-
-Your queries and emails are stored in your browser only. SFMC calls go straight from the extension to your Marketing Cloud account.
+Privacy
+Your queries and saved versions stay in your browser. Calls go straight from the extension to your Marketing Cloud account. There is no analytics. Privacy policy: https://marketing-cloud-toolkit.mathes.dev/privacy
+```
 
 ## What's new (for the version notes, if asked)
 
