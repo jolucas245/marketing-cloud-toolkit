@@ -14,7 +14,7 @@ export const FEATURE_GROUPS = [
       { title: 'Descriptive file names', since: '2.0.4', detail: 'Downloads are named with the business unit, what they contain, and the date and time.' },
       { title: 'Storage by section', since: '2.0.4', how: 'Settings > Storage', detail: 'What takes the space, by section and business unit. Delete one part, or keep only the newest versions of each email.' },
       { title: 'App sessions started for you', how: 'Automatic (Settings > Connection)', detail: 'When the Toolkit opens and at least one SFMC app already has a session, the apps without one are started in the background, one at a time in a tab that closes itself (at most every 10 minutes). The connection menu shows each app as Ready or Starting, and Start missing does it now.' },
-      { title: 'Sections in the sidebar', detail: 'Home, then Queries (Run Query, Query Builder, Saved queries), Data (Data Extensions, Create DE, Where used, DE storage), Contacts (Contacts, Contact journeys, Email validation), Automation (Automation overview, Automations, Activities, Saved Activities, Templates), Journeys (Journey overview, Journeys, Journey Entry), Content (Emails and CloudPages, each with a Saved versions tab) and Setup (Domains, since 2.0.21). Settings is at the bottom. Collapse the sidebar to icons with Collapse; in a narrow window it shows icons only.' },
+      { title: 'Sections in the sidebar', detail: 'Home, then Queries (Run Query, Query Builder, Saved queries), Data (Data Extensions, Create DE, Where used, DE storage), Contacts (Contacts, Contact journeys, Email validation), Automation (Automation overview, Automations, Activities, Saved Activities, Templates), Journeys (Journey overview, Journeys, Journey Entry), Content (Emails and CloudPages, each with a Saved versions tab, and Changes since 2.0.23) and Setup (Domains, since 2.0.21). Settings is at the bottom. Collapse the sidebar to icons with Collapse; in a narrow window it shows icons only.' },
       { title: 'Concepts', since: '2.0.20', how: 'Book icon in the top bar', detail: 'Plain explanations of the terms used in the section you are on, with a search box and All sections.' },
       { title: 'Folders', since: '2.0.20', how: 'Left side of Automations, Journeys, Data Extensions, Emails and CloudPages', detail: 'Open a folder to list what is in it, as in SFMC.' },
       { title: 'Search everything', how: 'Ctrl+K (Cmd+K on a Mac), or Search in the top bar', detail: 'Jump to a section, open a saved query or a saved email, or start a search for data extensions, automations, activities, CloudPages or journey entry events.' },
@@ -435,6 +435,14 @@ export const FEATURE_GROUPS = [
     ],
   },
   {
+    id: 'content-changes',
+    title: 'Changes',
+    intro: 'Content > Changes. Read only: nothing in SFMC changes.',
+    items: [
+      { title: 'What changed, and who changed it', since: '2.0.23', how: 'Pick a period, then Find changes', detail: 'What was created or modified in Content Builder, Automation Studio and Journey Builder in the last day, 7, 30 or 90 days, or since a date. Filter by the person who made the change (name or email, or pick from the people found) and open emails, CloudPages, automations and journeys from the list. Download as CSV or the usual formats. Journeys name people by user ID only.' },
+    ],
+  },
+  {
     id: 'saved-cloudpages',
     title: 'CloudPage versions',
     intro: 'Content > CloudPages, Saved versions tab. Turn saving on or off in Settings > Emails and CloudPages.',
@@ -450,6 +458,7 @@ export const FEATURE_GROUPS = [
     intro: 'Content > Saved Emails. Turn saving on or off in Settings.',
     items: [
       { title: 'Every Content Builder save is kept', how: 'Automatic', detail: 'Each save of an email becomes a version. Saves closer together than the time set in Settings count as one.' },
+      { title: 'Room for more emails', since: '2.0.23', how: 'Automatic', detail: 'Each version keeps its content once (it used to be kept three times), so about three times as many emails fit in Chrome\'s 10 MB. If storage is still full, Saved Emails says which save was not kept.' },
       { title: 'Preview and delete versions', how: 'Click an email', detail: 'Pick any version to preview it with its subject line, and delete versions you do not need.' },
       { title: 'Revert to an earlier version', how: 'Revert to this version, then confirm', detail: 'Writes that version back to Content Builder; reload the email there to see it. Emails saved before version history existed cannot be reverted.' },
     ],

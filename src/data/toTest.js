@@ -22,6 +22,12 @@ export const TO_TEST = [
         steps: ['Install the build over one that has many saved emails and note Settings > Storage before and after.', 'Save several emails in Content Builder.', 'Open a saved email: Preview, Code, Compare and Revert on a new and an old version.'],
         expect: 'Email versions take about a third of the space they did, new saves appear, previews and Revert work for old and new versions. If storage is full, Saved Emails says which save was not kept.',
       },
+      {
+        id: '2.0.23-changes', area: 'Content', title: 'Changes page', ref: '#1087', live: true,
+        where: 'Content > Changes',
+        steps: ['Leave Last 7 days and Modified, press Find changes.', 'Type part of your name in Person, then pick yourself from the list.', 'Switch to Created, then to a From date.', 'Press Open on an email, a CloudPage, an automation and a journey.'],
+        expect: 'Created by and Modified by show names (or emails) for Content Builder items, the counts per source match SFMC, and Open lands on the right item.',
+      },
     ],
   },
   {
