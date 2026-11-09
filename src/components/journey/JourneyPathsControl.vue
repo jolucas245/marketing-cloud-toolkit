@@ -47,17 +47,18 @@ async function show() {
   const matcher = journeyMatcher(props.journey, props.versions)
   try {
     const r = await withReconnect(stack, () => fetchJourneyHistory(stack, props.journey, {
-      ...range, matcher, max: PATH_MAX_ROWS,
+      ...range, matcher, versions: props.versions || [], max: PATH_MAX_ROWS,
       onProgress: (p) => { if (gen === generation) progress.value = p },
       cancelled: () => gen !== generation,
     }))
     if (gen !== generation) return
     const agg = aggregatePaths(props.journey, props.graph, r.items)
-    result.value = { agg, read: r.read, total: r.total, capped: r.capped, searchKey: r.searchKey, label: label(), rows: pathRows(props.graph, agg) }
+    result.value = { agg, read: r.read, total: r.total, capped: r.capped, form: r.form, label: label(), rows: pathRows(props.graph, agg) }
     emit('counts', agg)
   } catch (e) {
     if (gen !== generation) return
-    error.value = { message: e.code === 'HISTORY_SEARCH_REFUSED' ? e.message : searchError(e, 'read the journey history').message, refused: e.code === 'HISTORY_SEARCH_REFUSED' }
+    const known = e.code === 'HISTORY_SEARCH_REFUSED' || e.code === 'HISTORY_NOT_FILTERED'
+    error.value = { message: known ? e.message : searchError(e, 'read the journey history').message, refused: known }
   } finally {
     if (gen === generation) busy.value = false
   }
@@ -114,7 +115,7 @@ const reached = computed(() => result.value?.rows.filter((r) => r.count > 0) || 
         <span class="text-muted-foreground">{{ result.read.toLocaleString() }} history rows read.</span>
       </p>
       <p v-if="result.capped" class="text-amber-700 dark:text-amber-400" data-paths-capped>Stopped at {{ PATH_MAX_ROWS.toLocaleString() }} history rows<span v-if="result.total"> of {{ result.total.toLocaleString() }}</span>: the counts cover the newest rows only, and the oldest entries may be missing their first steps. Pick a shorter period for full counts.</p>
-      <p v-if="!result.searchKey && result.read" class="text-muted-foreground">Searched the whole history and kept this journey's rows.</p>
+      <p v-if="result.form" class="text-muted-foreground" data-paths-form>History searched for this journey by its {{ result.form }}.</p>
       <p v-if="result.agg.unmatched" class="text-muted-foreground">{{ result.agg.unmatched.toLocaleString() }} history rows name activities that are not in this version's canvas (other versions, or removed steps); they are not drawn.</p>
       <p v-if="!result.agg.entries" class="text-muted-foreground">No contact went through this journey in the period.</p>
       <details v-if="reached.length">

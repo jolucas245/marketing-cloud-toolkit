@@ -44,8 +44,14 @@ export const TO_TEST = [
       {
         id: '2.0.23-journey-paths', area: 'Journeys', title: 'Contact paths on the journey canvas', ref: '#1089', from: 'Mathes', live: true,
         where: 'A published journey with recent entries > Contact paths',
-        steps: ['Pick Last 7 days and press Show paths.', 'Note whether it worked or said Journey Builder did not answer a search without contact keys, and whether the summary says "Searched the whole history".', 'Try 30 days on a busy journey (5,000-row cap), a custom date range, and the Email send counts from data views link.', 'Press Clear.'],
+        steps: ['Pick Last 7 days and press Show paths (API console open).', 'Note the line "History searched for this journey by its ..." (version IDs, journey key or journey name), or the message that Journey Builder did not filter by this journey (#1094: then nothing should have been read beyond one page per try).', 'Try 30 days on a busy journey (5,000-row cap), a custom date range, and the Email send counts from data views link.', 'Press Clear.'],
         expect: "Counts on activities and routes roughly match Journey Builder's history; thicker lines carry more; the cap note shows when hit; the data view link opens SQL that runs; Clear removes the overlay. Nothing loads until Show paths.",
+      },
+      {
+        id: '2.0.23-order-by-offset', area: 'Queries', title: 'ORDER BY without TOP runs (OFFSET 0 ROWS added)', ref: '#1093', from: 'Mathes', live: true,
+        where: 'Run Query',
+        steps: ['Run SELECT ... FROM <DE> ORDER BY <field> without TOP.', 'Validate it too, and Save as query activity.', 'Put an ORDER BY without TOP in a subquery and use the SQL check fix Add OFFSET 0 ROWS.'],
+        expect: 'The run, validation and saved activity work (SFMC gets ORDER BY ... OFFSET 0 ROWS; the editor keeps your text). The SQL check shows QS045 as a warning with Add OFFSET 0 ROWS first, and QS011 offers the same fix.',
       },
       {
         id: '2.0.23-validation-copy', area: 'Data', title: 'Email validation: a copy of the DE with the results', ref: '#1090', from: 'Mathes', live: true,

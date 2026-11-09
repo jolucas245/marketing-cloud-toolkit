@@ -8,10 +8,10 @@
 // History page; body { start, end, contactKeys, journeySearchKey } confirmed live
 // 2026-11-02 with one contact key and journeySearchKey ''). NOT confirmed live:
 // - whether the search answers with an empty contactKeys list (every contact);
-// - what journeySearchKey expects. This file sends the journey's key first and, when
-//   that is refused or finds nothing, an empty key, and always keeps only the rows of
-//   this journey (by definitionId, key or name), so a search key that SFMC ignores
-//   costs reads but never mixes journeys.
+// - how the search is narrowed to one journey. historySearchForms lists the forms
+//   tried (version IDs, journey key, journey name); a form is used only when its first
+//   page holds this journey's rows alone. An empty journeySearchKey searches every
+//   journey in the account and is never sent here (feedback #1094).
 // History rows carry no version (seen live 2026-11-02); the version comes from the
 // row's definitionId when it matches one version's id, else it is unknown.
 import { sfmcFetch } from './sfmcApi.js'
@@ -148,35 +148,75 @@ export function contactInJourney({ contactKey, memberships = [], items = [], mat
 }
 
 /**
- * Read the journey history for this journey in a period, newest first, at most `max`
- * rows read (rows of other journeys count, they were read). Returns
- * { items, read, total, capped, searchKey } where items are parsed rows of this journey.
- * Throws an Error with code 'HISTORY_SEARCH_REFUSED' when every form of the search fails.
+ * The ways the history search is asked for one journey (feedback #1094: an empty
+ * journeySearchKey searches every journey in the account, which must never happen).
+ * Which one Journey Builder honours is NOT confirmed live; each is checked on its first
+ * page (see fetchJourneyHistory).
  */
-export async function fetchJourneyHistory(stack, journey, { start, end, matcher, max = PATH_MAX_ROWS, onProgress = () => {}, cancelled = () => false, fetcher = sfmcFetch } = {}) {
-  const tries = journey?.key ? [journey.key, ''] : ['']
-  let lastError = null
-  for (const [n, searchKey] of tries.entries()) {
-    let result
-    try {
-      result = await readPages(stack, { start, end, contactKeys: [], journeySearchKey: searchKey }, { matcher, max, onProgress, cancelled, fetcher })
-    } catch (e) {
-      // A 4xx says this body form is refused; anything else (session, network) is final.
-      if (e?.status >= 400 && e?.status < 500 && e.status !== 401 && e.status !== 403) { lastError = e; continue }
-      throw e
-    }
-    // Nothing for this journey with its key: the key may not be what the search expects.
-    if (!result.items.length && n < tries.length - 1 && !cancelled()) continue
-    return { ...result, searchKey }
-  }
-  const err = new Error(`Journey Builder did not answer a history search without contact keys${lastError ? ` (${lastError.message})` : ''}.`)
-  err.code = 'HISTORY_SEARCH_REFUSED'
-  err.cause = lastError
-  throw err
+export function historySearchForms(journey, versions = []) {
+  const ids = [...new Set([journey?.definitionId, ...versions.map((v) => v?.definitionId)].filter(Boolean).map(String))]
+  const forms = []
+  if (ids.length) forms.push({ label: 'version IDs', body: { definitionIds: ids, journeySearchKey: '' } })
+  if (journey?.key) forms.push({ label: 'journey key', body: { journeySearchKey: String(journey.key) } })
+  if (journey?.name && journey.name !== journey.key) forms.push({ label: 'journey name', body: { journeySearchKey: String(journey.name) } })
+  return forms
 }
 
-async function readPages(stack, body, { matcher, max, onProgress, cancelled, fetcher }) {
+// A form filters by this journey when its first page holds only (almost only) this
+// journey's rows. One stray row in 20 is tolerated.
+const FILTERED_SHARE = 0.95
+
+/**
+ * Read the journey history for this journey in a period, newest first, at most `max`
+ * rows read. Only searches that Journey Builder filters by this journey are read in
+ * full (feedback #1094); the whole account's history is never searched.
+ * Each form from historySearchForms is tried on one page:
+ * - rows, all of this journey: that form filters, so its pages are read;
+ * - rows of other journeys: the filter was ignored, next form;
+ * - no rows, or refused (4xx other than 401/403): next form.
+ * Returns { items, read, total, capped, form } (form: the label used, or '' when no form
+ * found any row, meaning nothing ran through the journey in the period).
+ * Throws code 'HISTORY_NOT_FILTERED' when Journey Builder answered but filtered by no
+ * form, and 'HISTORY_SEARCH_REFUSED' when every form was refused.
+ */
+export async function fetchJourneyHistory(stack, journey, { start, end, matcher, versions = [], max = PATH_MAX_ROWS, onProgress = () => {}, cancelled = () => false, fetcher = sfmcFetch } = {}) {
+  const forms = historySearchForms(journey, versions)
+  let refused = 0
+  let ignored = 0
+  let lastError = null
+  for (const form of forms) {
+    if (cancelled()) break
+    const body = { start, end, contactKeys: [], ...form.body }
+    let first
+    try {
+      first = await readPages(stack, body, { matcher, max: Math.min(HISTORY_PAGE_SIZE, max), onProgress: () => {}, cancelled, fetcher, keepAll: true })
+    } catch (e) {
+      if (e?.status >= 400 && e?.status < 500 && e.status !== 401 && e.status !== 403) { refused++; lastError = e; continue }
+      throw e
+    }
+    if (!first.seen.length) continue
+    const mine = first.seen.filter((r) => matcher.row(r)).length
+    if (mine / first.seen.length < FILTERED_SHARE) { ignored++; continue }
+    const all = await readPages(stack, body, { matcher, max, onProgress, cancelled, fetcher })
+    return { items: all.items, read: all.read, total: all.total, capped: all.capped, form: form.label }
+  }
+  if (ignored) {
+    const err = new Error('Journey Builder did not filter its history by this journey, so nothing was read: the Toolkit does not read every journey\'s history to find this one\'s.')
+    err.code = 'HISTORY_NOT_FILTERED'
+    throw err
+  }
+  if (refused && refused === forms.length) {
+    const err = new Error(`Journey Builder refused every history search for this journey${lastError ? ` (${lastError.message})` : ''}.`)
+    err.code = 'HISTORY_SEARCH_REFUSED'
+    err.cause = lastError
+    throw err
+  }
+  return { items: [], read: 0, total: 0, capped: false, form: '' }
+}
+
+async function readPages(stack, body, { matcher, max, onProgress, cancelled, fetcher, keepAll = false }) {
   const items = []
+  const seen = []
   let read = 0
   let total = null
   let more = false
@@ -193,12 +233,13 @@ async function readPages(stack, body, { matcher, max, onProgress, cancelled, fet
     for (const raw of list) {
       const r = parseHistoryItem(raw)
       r.contactKey = String(raw?.contactKey ?? raw?.ContactKey ?? raw?.subscriberKey ?? raw?.SubscriberKey ?? '')
+      if (keepAll) seen.push(r)
       if (matcher.row(r)) items.push(r)
     }
     onProgress({ read, total, kept: items.length })
     if (!more) break
   }
-  return { items, read, total, capped: read >= max && more }
+  return { items, seen, read, total, capped: read >= max && more }
 }
 
 /**

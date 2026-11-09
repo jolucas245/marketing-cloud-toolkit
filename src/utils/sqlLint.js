@@ -618,6 +618,11 @@ function ruleEmptySelectItem(ctx) {
   return out
 }
 
+// ORDER BY ... OFFSET 0 ROWS keeps every row and makes the ORDER BY legal where SFMC
+// wraps the query or in a subquery (feedback #1093).
+const OFFSET_FIX_LABEL = 'Add OFFSET 0 ROWS'
+const offsetFix = (last) => ({ label: OFFSET_FIX_LABEL, changes: [{ from: last.end, to: last.end, insert: ' OFFSET 0 ROWS' }] })
+
 function ruleOrderByInSubquery(ctx) {
   const { sig } = ctx
   const out = []
@@ -627,7 +632,12 @@ function ruleOrderByInSubquery(ctx) {
     let offset = false
     for (let i = ob.body; i < ob.end; i++) if (isWord(sig[i], 'OFFSET') && sig[i].depth === sc.depth) offset = true
     if (offset) continue
-    out.push({ ...span(sig[ob.idx], sig[ob.idx + 1]), message: 'ORDER BY is not allowed in a subquery unless it also has TOP or OFFSET.' })
+    const last = sig[ob.end - 1]
+    out.push({
+      ...span(sig[ob.idx], sig[ob.idx + 1]),
+      message: 'ORDER BY is not allowed in a subquery unless it also has TOP or OFFSET.',
+      fixes: last ? [offsetFix(last)] : undefined,
+    })
   }
   return out
 }
@@ -1272,8 +1282,8 @@ function ruleOrderByTopLevel(ctx) {
     const last = sig[ob.end - 1]
     out.push({
       ...span(sig[ob.idx], sig[ob.idx + 1]),
-      message: 'ORDER BY without TOP is refused: SFMC runs the query as a subquery. A data extension keeps no order anyway; remove ORDER BY or add TOP.',
-      fixes: last ? [{ label: 'Remove ORDER BY', changes: [{ from: sig[ob.idx].start, to: last.end, insert: '' }] }] : undefined,
+      message: 'ORDER BY without TOP or OFFSET is refused: SFMC runs the query as a subquery. Run Query adds OFFSET 0 ROWS for you; add it here, or remove ORDER BY (a data extension keeps no order anyway).',
+      fixes: last ? [offsetFix(last), { label: 'Remove ORDER BY', changes: [{ from: sig[ob.idx].start, to: last.end, insert: '' }] }] : undefined,
     })
   }
   return out
@@ -1822,7 +1832,7 @@ const RULES = [
   { code: 'QS042', severity: 'info', title: 'ORDER BY column number', check: ruleOrderByNumber },
   { code: 'QS043', severity: 'warning', title: 'SELECT * instead of a column list', check: ruleSelectStar },
   { code: 'QS044', severity: 'warning', title: 'Output column name starts with an underscore', check: ruleUnderscoreName },
-  { code: 'QS045', severity: 'error', title: 'ORDER BY without TOP at the top level', check: ruleOrderByTopLevel },
+  { code: 'QS045', severity: 'warning', title: 'ORDER BY without TOP or OFFSET at the top level', check: ruleOrderByTopLevel },
   { code: 'QS046', severity: 'error', title: 'Tables separated by commas in FROM (old style join)', check: ruleCommaJoin },
   { code: 'QS047', severity: 'error', title: 'Syntax from another database (LIMIT, ||, CURRENT_DATE, ILIKE, ::, backticks)', check: ruleOtherDialect },
   { code: 'QS048', severity: 'error', title: 'Function from another database (NOW, IFNULL, NVL, SUBSTR, ...)', check: ruleOtherFunctions },
@@ -1892,6 +1902,26 @@ export function applyFix(sql, fix) {
   let out = sql
   for (const c of changes) out = out.slice(0, c.from) + (c.insert || '') + out.slice(c.to)
   return out
+}
+
+/**
+ * The SQL with OFFSET 0 ROWS added to every ORDER BY that has no TOP, OFFSET or FOR
+ * (QS045 at the top level, QS011 in subqueries), so SFMC accepts it (feedback #1093).
+ * Returns { sql, added } where added counts the clauses changed.
+ */
+export function addOffsetToOrderBy(sql) {
+  let text = typeof sql === 'string' ? sql : ''
+  const only = RULES.map((r) => r.code).filter((c) => c !== 'QS045' && c !== 'QS011')
+  let added = 0
+  for (let round = 0; round < 50; round++) {
+    const d = lintSql(text, { disabled: only }).find((x) => x.fixes?.[0]?.label === OFFSET_FIX_LABEL)
+    if (!d) break
+    const next = applyFix(text, d.fixes[0])
+    if (next === text) break
+    text = next
+    added++
+  }
+  return { sql: text, added }
 }
 
 /** Fixes that change what the query returns, so Fix all leaves them to the user. */

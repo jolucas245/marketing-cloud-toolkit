@@ -91,8 +91,8 @@ const RULES = [
   },
   {
     test: /the order by clause is invalid in views, inline functions, derived tables, subqueries/i,
-    cause: 'ORDER BY without TOP. SFMC wraps the query, so ORDER BY alone is refused, at the top level too.',
-    fix: 'Remove ORDER BY (a data extension keeps no row order anyway), or add TOP n when you want only the first n rows.',
+    cause: 'ORDER BY without TOP or OFFSET. SFMC wraps the query, so ORDER BY alone is refused, at the top level too.',
+    fix: 'Add OFFSET 0 ROWS after the ORDER BY (Run Query does this for you), remove ORDER BY (a data extension keeps no row order anyway), or add TOP n when you want only the first n rows.',
   },
   {
     test: /incorrect syntax near (the keyword )?'?(limit|offset)'?/i,

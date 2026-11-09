@@ -3,7 +3,7 @@ import { journeyGraph, layoutJourney } from '../journeys.js'
 import { journeyCanvasModel } from '../journeyCanvas.js'
 import { parseHistoryItem, HISTORY_PAGE_SIZE } from '../contactJourneys.js'
 import {
-  parseContactKeys, periodRange, journeyMatcher, fetchMembershipMany, contactInJourney, fetchJourneyHistory,
+  parseContactKeys, periodRange, journeyMatcher, fetchMembershipMany, contactInJourney, fetchJourneyHistory, historySearchForms,
   aggregatePaths, pathRows, journeySendCountsSql, MEMBERSHIP_BATCH,
 } from '../journeyPaths.js'
 
@@ -84,41 +84,51 @@ describe('contactInJourney', () => {
   })
 })
 
-describe('fetchJourneyHistory', () => {
+describe('fetchJourneyHistory (feedback #1094: this journey only)', () => {
   const matcher = journeyMatcher(journey, versions)
-  it('searches without contact keys by journey key, pages, keeps this journey and caps the read', async () => {
-    const page = Array.from({ length: HISTORY_PAGE_SIZE }, (_, i) => row(`c${i}`, 'A1', 'EMAILV2', 1, i % 2 ? { definitionId: 'other' } : {}))
-    const fetcher = vi.fn(async () => ({ items: page, count: 5000 }))
-    const progress = vi.fn()
-    const r = await fetchJourneyHistory('s7', journey, { start: 's', end: 'e', matcher, max: 1200, onProgress: progress, fetcher })
-    expect(fetcher.mock.calls[0][2]).toEqual({ start: 's', end: 'e', contactKeys: [], journeySearchKey: 'welcome-key' })
-    expect(fetcher.mock.calls[0][0]).toMatch(`${JB}/interactions/journeyhistory/search?`)
-    expect(fetcher).toHaveBeenCalledTimes(3)
-    expect(r).toMatchObject({ read: 1200, capped: true, searchKey: 'welcome-key' })
-    expect(r.items).toHaveLength(600)
-    expect(r.items[0].contactKey).toBe('c0')
-    expect(progress).toHaveBeenLastCalledWith({ read: 1200, total: 5000, kept: 600 })
-  })
-  it('tries an empty search key when the journey key finds nothing or is refused', async () => {
-    const fetcher = vi.fn()
-      .mockResolvedValueOnce({ items: [], count: 0 })
-      .mockResolvedValueOnce({ items: [row('c1', 'A1', 'EMAILV2', 1)], count: 1 })
-    const r = await fetchJourneyHistory('s7', journey, { start: 's', end: 'e', matcher, fetcher })
-    expect(fetcher.mock.calls[1][2].journeySearchKey).toBe('')
-    expect(r).toMatchObject({ searchKey: '', capped: false })
-    expect(r.items).toHaveLength(1)
+  const mine = (n, extra = {}) => Array.from({ length: n }, (_, i) => row(`c${i}`, 'A1', 'EMAILV2', 1, extra))
+  const forms = historySearchForms(journey, versions)
 
-    const refused = Object.assign(new Error('SFMC API error 400: bad request'), { status: 400 })
-    const f2 = vi.fn().mockRejectedValueOnce(refused).mockResolvedValueOnce({ items: [], count: 0 })
-    const r2 = await fetchJourneyHistory('s7', journey, { start: 's', end: 'e', matcher, fetcher: f2 })
-    expect(r2.items).toEqual([])
+  it('lists filters for this journey and never an empty search key', () => {
+    expect(forms.length).toBeGreaterThan(0)
+    for (const f of forms) {
+      expect(f.body.definitionIds?.length || f.body.journeySearchKey).toBeTruthy()
+    }
   })
-  it('says the search is refused when every form fails, and passes other errors on', async () => {
+  it('reads with the first form whose first page holds only this journey, and caps the read', async () => {
+    const fetcher = vi.fn(async () => ({ items: mine(HISTORY_PAGE_SIZE), count: 5000 }))
+    const progress = vi.fn()
+    const r = await fetchJourneyHistory('s7', journey, { start: 's', end: 'e', matcher, versions, max: 1200, onProgress: progress, fetcher })
+    expect(fetcher.mock.calls[0][2]).toMatchObject({ start: 's', end: 'e', contactKeys: [], ...forms[0].body })
+    expect(fetcher.mock.calls[0][0]).toMatch(`${JB}/interactions/journeyhistory/search?`)
+    expect(r).toMatchObject({ read: 1200, capped: true, form: forms[0].label })
+    expect(r.items).toHaveLength(1200)
+    expect(progress).toHaveBeenLastCalledWith({ read: 1200, total: 5000, kept: 1200 })
+  })
+  it('skips a form whose page holds other journeys, and uses the next one that filters', async () => {
+    const mixed = mine(10).concat(mine(10, { definitionId: 'other' }))
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce({ items: mixed, count: 20 })
+      .mockResolvedValue({ items: mine(3), count: 3 })
+    const r = await fetchJourneyHistory('s7', journey, { start: 's', end: 'e', matcher, versions, fetcher })
+    expect(r.form).toBe(forms[1].label)
+    expect(r.items).toHaveLength(3)
+    for (const call of fetcher.mock.calls) expect(call[2].journeySearchKey === '' && !call[2].definitionIds).toBe(false)
+  })
+  it('stops without reading when no form filters by this journey', async () => {
+    const fetcher = vi.fn(async () => ({ items: mine(5, { definitionId: 'other' }), count: 900000 }))
+    await expect(fetchJourneyHistory('s7', journey, { start: 's', end: 'e', matcher, versions, fetcher }))
+      .rejects.toMatchObject({ code: 'HISTORY_NOT_FILTERED' })
+    expect(fetcher).toHaveBeenCalledTimes(forms.length)
+  })
+  it('returns nothing when every form finds no rows, and says when every form is refused', async () => {
+    const r = await fetchJourneyHistory('s7', journey, { start: 's', end: 'e', matcher, versions, fetcher: vi.fn(async () => ({ items: [], count: 0 })) })
+    expect(r).toMatchObject({ items: [], read: 0, form: '' })
     const refused = Object.assign(new Error('SFMC API error 400'), { status: 400 })
-    await expect(fetchJourneyHistory('s7', journey, { start: 's', end: 'e', matcher, fetcher: vi.fn().mockRejectedValue(refused) }))
+    await expect(fetchJourneyHistory('s7', journey, { start: 's', end: 'e', matcher, versions, fetcher: vi.fn().mockRejectedValue(refused) }))
       .rejects.toMatchObject({ code: 'HISTORY_SEARCH_REFUSED' })
     const session = Object.assign(new Error('session expired'), { status: 401 })
-    await expect(fetchJourneyHistory('s7', journey, { start: 's', end: 'e', matcher, fetcher: vi.fn().mockRejectedValue(session) }))
+    await expect(fetchJourneyHistory('s7', journey, { start: 's', end: 'e', matcher, versions, fetcher: vi.fn().mockRejectedValue(session) }))
       .rejects.toThrow('session expired')
   })
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { lintSql, applyFix, LINT_RULES, DEFAULT_DISABLED } from '../sqlLint.js'
+import { lintSql, applyFix, addOffsetToOrderBy, LINT_RULES, DEFAULT_DISABLED } from '../sqlLint.js'
 
 const of = (sql, code, opts) => lintSql(sql, opts).filter(d => d.code === code)
 const text = (sql, d) => sql.slice(d.from, d.to)
@@ -620,7 +620,19 @@ describe('MCE error list rules (QS045 to QS064)', () => {
     has('SELECT a FROM x ORDER BY a', 'QS045')
     not('SELECT TOP 10 a FROM x ORDER BY a', 'QS045')
     const d = lintSql('SELECT a FROM x ORDER BY a').find((x) => x.code === 'QS045')
-    expect(applyFix('SELECT a FROM x ORDER BY a', d.fixes[0]).trim()).toBe('SELECT a FROM x')
+    expect(applyFix('SELECT a FROM x ORDER BY a', d.fixes[0])).toBe('SELECT a FROM x ORDER BY a OFFSET 0 ROWS')
+    expect(applyFix('SELECT a FROM x ORDER BY a', d.fixes[1]).trim()).toBe('SELECT a FROM x')
+    not('SELECT a FROM x ORDER BY a OFFSET 0 ROWS', 'QS045')
+  })
+  it('addOffsetToOrderBy adds OFFSET 0 ROWS where SFMC needs it (feedback #1093)', () => {
+    expect(addOffsetToOrderBy('SELECT a FROM x ORDER BY a DESC, b')).toEqual({ sql: 'SELECT a FROM x ORDER BY a DESC, b OFFSET 0 ROWS', added: 1 })
+    expect(addOffsetToOrderBy('SELECT y.a FROM (SELECT a FROM x ORDER BY a) y ORDER BY y.a').sql)
+      .toBe('SELECT y.a FROM (SELECT a FROM x ORDER BY a OFFSET 0 ROWS) y ORDER BY y.a OFFSET 0 ROWS')
+    expect(addOffsetToOrderBy('SELECT TOP 5 a FROM x ORDER BY a').added).toBe(0)
+    expect(addOffsetToOrderBy('SELECT a FROM x ORDER BY a OFFSET 10 ROWS').added).toBe(0)
+    expect(addOffsetToOrderBy('SELECT ROW_NUMBER() OVER (ORDER BY a) AS rn FROM x').added).toBe(0)
+    expect(addOffsetToOrderBy('SELECT a FROM x UNION SELECT a FROM z ORDER BY a').sql).toBe('SELECT a FROM x UNION SELECT a FROM z ORDER BY a OFFSET 0 ROWS')
+    expect(addOffsetToOrderBy('').sql).toBe('')
   })
   it('QS046 comma join', () => { has('SELECT a.x FROM a, b WHERE a.id = b.id', 'QS046'); not('SELECT a.x FROM a JOIN b ON a.id = b.id', 'QS046') })
   it('QS047 other dialects', () => {

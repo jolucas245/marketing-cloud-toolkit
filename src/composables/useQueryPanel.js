@@ -9,6 +9,7 @@ import { SNAPSHOTS_KEY, addSnapshot, pruneSnapshots, typingSnapshotDue } from '.
 import { HISTORY_SETTING, historyAllowed, runsForStorage } from '../utils/history.js'
 import { isAutoName, suggestQueryName } from '../utils/queryNames.js'
 import { directReadPlan, readDirect, projectRow } from '../utils/directRead.js'
+import { addOffsetToOrderBy } from '../utils/sqlLint.js'
 import { showToast } from './useToast.js'
 import {
   fetchDEMetadata, fetchDEFields, buildDEFields,
@@ -1256,8 +1257,10 @@ export function useQueryPanel(options) {
     document.removeEventListener('mouseup', onResizeEnd)
   }
 
+  // Also adds OFFSET 0 ROWS to an ORDER BY without TOP, which SFMC refuses otherwise
+  // (feedback #1093). The editor text is left as written.
   function cleanQueryText(sql) {
-    return (sql || '').trim().replace(/;+\s*$/, '')
+    return addOffsetToOrderBy((sql || '').trim().replace(/;+\s*$/, '')).sql
   }
 
   function openSfmcLogin() {
