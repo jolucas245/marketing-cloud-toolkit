@@ -84,51 +84,47 @@ describe('contactInJourney', () => {
   })
 })
 
-describe('fetchJourneyHistory (feedback #1094: this journey only)', () => {
+describe('fetchJourneyHistory (feedback #1094, #1095: this journey only)', () => {
   const matcher = journeyMatcher(journey, versions)
   const mine = (n, extra = {}) => Array.from({ length: n }, (_, i) => row(`c${i}`, 'A1', 'EMAILV2', 1, extra))
-  const forms = historySearchForms(journey, versions)
+  const withEvent = { ...journey, triggers: [{ name: 'Entry', metaData: { eventDefinitionId: 'ev-1' } }] }
 
-  it('lists filters for this journey and never an empty search key', () => {
-    expect(forms.length).toBeGreaterThan(0)
-    for (const f of forms) {
-      expect(f.body.definitionIds?.length || f.body.journeySearchKey).toBeTruthy()
-    }
+  it('searches by the entry event, as Journey Builder does, and never by journeySearchKey alone', () => {
+    expect(historySearchForms(withEvent, versions)).toEqual([{ label: 'entry event', body: { eventIds: ['ev-1', 'EV-1'], journeySearchKey: '' }, exact: true }])
+    const noEvent = historySearchForms(journey, versions)
+    expect(noEvent).toEqual([{ label: 'version IDs', body: { definitionIds: ['def-v2', 'def-v1'], journeySearchKey: '' } }])
+    expect(historySearchForms({ name: 'x', key: 'k' }, [])).toEqual([])
   })
-  it('reads with the first form whose first page holds only this journey, and caps the read', async () => {
+  it('reads the entry event search and caps the read', async () => {
     const fetcher = vi.fn(async () => ({ items: mine(HISTORY_PAGE_SIZE), count: 5000 }))
     const progress = vi.fn()
-    const r = await fetchJourneyHistory('s7', journey, { start: 's', end: 'e', matcher, versions, max: 1200, onProgress: progress, fetcher })
-    expect(fetcher.mock.calls[0][2]).toMatchObject({ start: 's', end: 'e', contactKeys: [], ...forms[0].body })
+    const r = await fetchJourneyHistory('s7', withEvent, { start: 's', end: 'e', matcher, versions, max: 1200, onProgress: progress, fetcher })
+    expect(fetcher.mock.calls[0][2]).toEqual({ start: 's', end: 'e', contactKeys: [], eventIds: ['ev-1', 'EV-1'], journeySearchKey: '' })
     expect(fetcher.mock.calls[0][0]).toMatch(`${JB}/interactions/journeyhistory/search?`)
-    expect(r).toMatchObject({ read: 1200, capped: true, form: forms[0].label })
+    expect(r).toMatchObject({ read: 1200, capped: true, form: 'entry event' })
     expect(r.items).toHaveLength(1200)
     expect(progress).toHaveBeenLastCalledWith({ read: 1200, total: 5000, kept: 1200 })
   })
-  it('skips a form whose page holds other journeys, and uses the next one that filters', async () => {
-    const mixed = mine(10).concat(mine(10, { definitionId: 'other' }))
-    const fetcher = vi.fn()
-      .mockResolvedValueOnce({ items: mixed, count: 20 })
-      .mockResolvedValue({ items: mine(3), count: 3 })
-    const r = await fetchJourneyHistory('s7', journey, { start: 's', end: 'e', matcher, versions, fetcher })
-    expect(r.form).toBe(forms[1].label)
-    expect(r.items).toHaveLength(3)
-    for (const call of fetcher.mock.calls) expect(call[2].journeySearchKey === '' && !call[2].definitionIds).toBe(false)
+  it('takes no rows from the entry event search as no entries, without other searches', async () => {
+    const fetcher = vi.fn(async () => ({ items: [], count: 0 }))
+    const r = await fetchJourneyHistory('s7', withEvent, { start: 's', end: 'e', matcher, versions, fetcher })
+    expect(r).toMatchObject({ items: [], read: 0, form: 'entry event' })
+    expect(fetcher).toHaveBeenCalledTimes(1)
   })
-  it('stops without reading when no form filters by this journey', async () => {
+  it('stops without reading more when a search returns other journeys', async () => {
     const fetcher = vi.fn(async () => ({ items: mine(5, { definitionId: 'other' }), count: 900000 }))
+    await expect(fetchJourneyHistory('s7', withEvent, { start: 's', end: 'e', matcher, versions, fetcher }))
+      .rejects.toMatchObject({ code: 'HISTORY_NOT_FILTERED' })
+    expect(fetcher).toHaveBeenCalledTimes(1)
     await expect(fetchJourneyHistory('s7', journey, { start: 's', end: 'e', matcher, versions, fetcher }))
       .rejects.toMatchObject({ code: 'HISTORY_NOT_FILTERED' })
-    expect(fetcher).toHaveBeenCalledTimes(forms.length)
   })
-  it('returns nothing when every form finds no rows, and says when every form is refused', async () => {
-    const r = await fetchJourneyHistory('s7', journey, { start: 's', end: 'e', matcher, versions, fetcher: vi.fn(async () => ({ items: [], count: 0 })) })
-    expect(r).toMatchObject({ items: [], read: 0, form: '' })
+  it('says when the search is refused, and passes other errors on', async () => {
     const refused = Object.assign(new Error('SFMC API error 400'), { status: 400 })
-    await expect(fetchJourneyHistory('s7', journey, { start: 's', end: 'e', matcher, versions, fetcher: vi.fn().mockRejectedValue(refused) }))
+    await expect(fetchJourneyHistory('s7', withEvent, { start: 's', end: 'e', matcher, versions, fetcher: vi.fn().mockRejectedValue(refused) }))
       .rejects.toMatchObject({ code: 'HISTORY_SEARCH_REFUSED' })
     const session = Object.assign(new Error('session expired'), { status: 401 })
-    await expect(fetchJourneyHistory('s7', journey, { start: 's', end: 'e', matcher, versions, fetcher: vi.fn().mockRejectedValue(session) }))
+    await expect(fetchJourneyHistory('s7', withEvent, { start: 's', end: 'e', matcher, versions, fetcher: vi.fn().mockRejectedValue(session) }))
       .rejects.toThrow('session expired')
   })
 })

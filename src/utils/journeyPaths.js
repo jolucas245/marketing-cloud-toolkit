@@ -8,10 +8,10 @@
 // History page; body { start, end, contactKeys, journeySearchKey } confirmed live
 // 2026-11-02 with one contact key and journeySearchKey ''). NOT confirmed live:
 // - whether the search answers with an empty contactKeys list (every contact);
-// - how the search is narrowed to one journey. historySearchForms lists the forms
-//   tried (version IDs, journey key, journey name); a form is used only when its first
-//   page holds this journey's rows alone. An empty journeySearchKey searches every
-//   journey in the account and is never sent here (feedback #1094).
+// - nothing else: the search is narrowed to one journey by its entry event's
+//   eventDefinitionId (eventIds, as Journey Builder's History panel does; checked live
+//   2026-11-09, feedback #1095). journeySearchKey is ignored by Journey Builder and
+//   returns every journey's history, so it is never sent alone (feedback #1094).
 // History rows carry no version (seen live 2026-11-02); the version comes from the
 // row's definitionId when it matches one version's id, else it is unknown.
 import { sfmcFetch } from './sfmcApi.js'
@@ -149,16 +149,29 @@ export function contactInJourney({ contactKey, memberships = [], items = [], mat
 
 /**
  * The ways the history search is asked for one journey (feedback #1094: an empty
- * journeySearchKey searches every journey in the account, which must never happen).
- * Which one Journey Builder honours is NOT confirmed live; each is checked on its first
- * page (see fetchJourneyHistory).
+ * journeySearchKey with no other filter searches every journey in the account, which
+ * must never happen). The entry event form is what Journey Builder's own History panel
+ * sends, and was checked live 2026-11-09: a journey's eventDefinitionId returned only
+ * its rows, an unknown one none. `exact` forms are trusted when they find nothing.
  */
 export function historySearchForms(journey, versions = []) {
   const ids = [...new Set([journey?.definitionId, ...versions.map((v) => v?.definitionId)].filter(Boolean).map(String))]
   const forms = []
-  if (ids.length) forms.push({ label: 'version IDs', body: { definitionIds: ids, journeySearchKey: '' } })
-  if (journey?.key) forms.push({ label: 'journey key', body: { journeySearchKey: String(journey.key) } })
-  if (journey?.name && journey.name !== journey.key) forms.push({ label: 'journey name', body: { journeySearchKey: String(journey.name) } })
+  // What Journey Builder's own Journey History panel sends (seen live 2026-11-09, feedback
+  // #1095): the entry event's eventDefinitionId, in lower and upper case, with an empty
+  // journeySearchKey. The entry event is the same in every version.
+  const events = new Set()
+  for (const j of [journey, ...versions]) {
+    for (const t of j?.triggers || []) {
+      const id = t?.metaData?.eventDefinitionId
+      if (id) { events.add(String(id).toLowerCase()); events.add(String(id).toUpperCase()) }
+    }
+  }
+  if (events.size) forms.push({ label: 'entry event', body: { eventIds: [...events], journeySearchKey: '' }, exact: true })
+  // Without an entry event (not seen yet): version IDs, checked on their first page.
+  // journeySearchKey is not used: Journey Builder ignores it and returns every journey's
+  // history (seen live 2026-11-09 with the key and with the name).
+  else if (ids.length) forms.push({ label: 'version IDs', body: { definitionIds: ids, journeySearchKey: '' } })
   return forms
 }
 
@@ -194,7 +207,10 @@ export async function fetchJourneyHistory(stack, journey, { start, end, matcher,
       if (e?.status >= 400 && e?.status < 500 && e.status !== 401 && e.status !== 403) { refused++; lastError = e; continue }
       throw e
     }
-    if (!first.seen.length) continue
+    if (!first.seen.length) {
+      if (form.exact) return { items: [], read: 0, total: 0, capped: false, form: form.label }
+      continue
+    }
     const mine = first.seen.filter((r) => matcher.row(r)).length
     if (mine / first.seen.length < FILTERED_SHARE) { ignored++; continue }
     const all = await readPages(stack, body, { matcher, max, onProgress, cancelled, fetcher })
