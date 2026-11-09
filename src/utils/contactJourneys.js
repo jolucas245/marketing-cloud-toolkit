@@ -127,6 +127,8 @@ export function groupByJourney(items) {
  * without an instance id join the entry whose time range they fall in, else their own.
  * Returns [{ id, steps, first, last, failed }] newest first.
  */
+const ATTEMPT_LEAD_MS = 5 * 60 * 1000
+
 export function splitEntries(steps) {
   const byId = new Map()
   const loose = []
@@ -136,9 +138,21 @@ export function splitEntries(steps) {
     byId.get(s.instanceId).push(s)
   }
   const entries = [...byId.entries()].map(([id, list]) => ({ id, steps: list }))
+  // Entry attempts (status ContactAttempted, no instance ID) come a few seconds before the
+  // entry they start (seen live 2026-11-09, feedback #1095): they join the next entry
+  // starting within ATTEMPT_LEAD_MS instead of counting as an entry of their own.
+  const startOf = (e) => Math.min(...e.steps.map(timeOf))
+  const endOf = (e) => Math.max(...e.steps.map(timeOf))
+  const real = [...entries]
   for (const s of loose) {
     const t = timeOf(s)
-    const home = entries.find((e) => t >= timeOf(e.steps[0]) && t <= timeOf(e.steps[e.steps.length - 1]))
+    let home = real.find((e) => t >= startOf(e) && t <= endOf(e))
+    if (!home) {
+      const next = real.filter((e) => startOf(e) >= t && startOf(e) - t <= ATTEMPT_LEAD_MS)
+        .filter((e) => !e.steps.some((x) => !x.instanceId))
+        .sort((a, b) => startOf(a) - startOf(b))
+      home = next[0]
+    }
     if (home) home.steps.push(s)
     else entries.push({ id: '', steps: [s] })
   }

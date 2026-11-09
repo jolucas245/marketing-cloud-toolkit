@@ -281,6 +281,8 @@ export function aggregatePaths(def, graph, items) {
   }
   for (const rows of byContact.values()) {
     for (const entry of splitEntries(rows)) {
+      // Entry attempts that never became an entry (no instance, no activity) are not entries.
+      if (!entry.id && entry.steps.every((x) => !x.activityType)) continue
       entries++
       const { keys, unmatched: miss, ended } = matchSteps(def, entry.steps)
       unmatched += miss.length

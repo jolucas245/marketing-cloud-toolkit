@@ -140,6 +140,16 @@ describe('entries by definitionInstanceId (feedback #1020)', () => {
     expect(e[1].steps.map((s) => s.activityType)).toEqual(['', 'Trigger', 'WaitActivity', 'EMAILV2'])
     expect(entryFlowText(e[0])).toBe('Entry: Evt → Left the journey')
   })
+  it('joins an entry attempt to the entry it starts (feedback #1095, seen live)', () => {
+    const t0 = Date.UTC(2026, 10, 9, 21, 3, 35)
+    const steps = [row('', t0, '', '', 'ContactAttempted'), row('A', t0 + 6000, 'Trigger', 'Evt', 'MetCriteria'), row('A', t0 + 6100, 'EMAILV2', 'Hi'),
+      row('', t0 + 3600000, '', '', 'ContactAttempted')]
+    const e = splitEntries(steps)
+    expect(e.filter((x) => x.id)).toHaveLength(1)
+    expect(e.find((x) => x.id === 'A').steps[0].status).toBe('ContactAttempted')
+    // An attempt with no entry after it stays on its own.
+    expect(e.find((x) => !x.id).steps).toHaveLength(1)
+  })
   it('reads definitionInstanceId from a history item', () => {
     expect(parseHistoryItem({ definitionInstanceId: 'x-1' }).instanceId).toBe('x-1')
   })

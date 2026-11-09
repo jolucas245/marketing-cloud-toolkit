@@ -44,7 +44,7 @@ export const TO_TEST = [
       {
         id: '2.0.23-journey-paths', area: 'Journeys', title: 'Contact paths on the journey canvas', ref: '#1089, #1094, #1095', from: 'Mathes', live: true,
         where: 'A published journey with recent entries > Contact paths',
-        steps: ['Pick Last 7 days and press Show paths (API console open).', 'Check the line "History searched for this journey by its entry event" and that only one search runs per page of results (#1094, #1095: checked live 2026-11-09 on a journey with no entries; a journey with entries still to see).', 'Try 30 days on a busy journey (5,000-row cap), a custom date range, and the Email send counts from data views link.', 'Press Clear.'],
+        steps: ['Pick Last 7 days and press Show paths (API console open).', 'Check the line "History searched for this journey by its entry event" and that only one search runs per page of results (#1094, #1095: checked live 2026-11-09 on a test journey with 2 contacts and a random split: 2 entries, one per path).', 'Try 30 days on a busy journey (5,000-row cap), a custom date range, and the Email send counts from data views link.', 'Press Clear.'],
         expect: "Counts on activities and routes roughly match Journey Builder's history; thicker lines carry more; the cap note shows when hit; the data view link opens SQL that runs; Clear removes the overlay. Nothing loads until Show paths.",
       },
       {
