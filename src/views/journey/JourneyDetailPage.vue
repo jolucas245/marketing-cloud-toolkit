@@ -6,8 +6,10 @@ import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PrevNext from '@/components/shell/PrevNext.vue'
-import { ArrowLeft, Loader2, ExternalLink, X, Columns3, Rows3 } from 'lucide-vue-next'
+import { ArrowLeft, Loader2, ExternalLink, X, Columns3, Rows3, UserSearch, Footprints } from 'lucide-vue-next'
 import JourneyCanvas from '@/components/journey/JourneyCanvas.vue'
+import JourneyContactCheck from '@/components/journey/JourneyContactCheck.vue'
+import JourneyPathsControl from '@/components/journey/JourneyPathsControl.vue'
 import ActivityCard from '@/components/results/ActivityCard.vue'
 import StatusBadge from '@/components/results/StatusBadge.vue'
 import DownloadMenu from '@/components/results/DownloadMenu.vue'
@@ -58,6 +60,12 @@ watch(orientation, (v) => {
   try { localStorage.setItem(ORIENTATION_KEY, v) } catch { /* storage blocked */ }
 })
 
+// Contacts on this journey (feedback #1088, #1089): panels opened by their buttons;
+// nothing is read until the panel's own Check or Show paths.
+const panel = ref('') // '' | 'check' | 'paths'
+const pathCounts = ref(null) // aggregatePaths output drawn on the canvas
+function togglePanel(name) { panel.value = panel.value === name ? '' : name }
+
 function selectActivity(key) {
   selected.value = selected.value === key ? null : key
 }
@@ -75,6 +83,7 @@ async function load() {
   loading.value = true
   error.value = ''
   selected.value = null
+  pathCounts.value = null
   try {
     const result = await fetchJourney(stack.value, String(route.params.id), route.query.version)
     if (generation === loadGeneration) {
@@ -190,9 +199,21 @@ const summaryPrompt = (extra) => buildAiTaskPrompt('journey', { text: docText(jo
             <template v-for="[k, v] in journeyOverviewRows(journey)" :key="k"><dt class="text-muted-foreground">{{ k }}</dt><dd class="wrap-break-word">{{ v }}</dd></template>
           </dl>
         </section>
+        <div class="mx-4 mb-2 flex flex-wrap items-center gap-2">
+          <button type="button" class="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-border text-xs hover:bg-accent" :class="panel === 'check' ? 'bg-accent' : ''"
+            :aria-expanded="panel === 'check'" data-open-contact-check @click="togglePanel('check')"><UserSearch class="h-3.5 w-3.5" /> Is a contact in this journey?</button>
+          <button type="button" class="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-border text-xs hover:bg-accent" :class="panel === 'paths' || pathCounts ? 'bg-accent' : ''"
+            :aria-expanded="panel === 'paths'" data-open-contact-paths @click="togglePanel('paths')"><Footprints class="h-3.5 w-3.5" /> Contact paths<span v-if="pathCounts" class="text-muted-foreground"> (shown)</span></button>
+        </div>
+        <div v-show="panel === 'check'" class="mx-4 mb-3">
+          <JourneyContactCheck :key="`check:${journey.id}:${journey.version}`" :stack="stack" :journey="journey" :versions="versions" />
+        </div>
+        <div v-show="panel === 'paths'" class="mx-4 mb-3">
+          <JourneyPathsControl :key="`paths:${journey.id}:${journey.version}`" :stack="stack" :journey="journey" :versions="versions" :graph="graph" @counts="pathCounts = $event" />
+        </div>
         <p class="mx-4 mb-2 text-xs text-muted-foreground">Click an activity to see its configuration and email preview. Drag to pan; scroll to zoom.</p>
         <div class="mx-4 mb-4">
-          <JourneyCanvas :key="`${journey.id}:${journey.version}`" ref="canvas" :graph="graph" :layout="layout" :orientation="orientation" :selected="selected" @select="selectActivity" />
+          <JourneyCanvas :key="`${journey.id}:${journey.version}`" ref="canvas" :graph="graph" :layout="layout" :orientation="orientation" :selected="selected" :counts="pathCounts" @select="selectActivity" />
         </div>
         <section v-if="journey.goals?.length || journey.exits?.length" class="mx-4 mb-4 text-xs text-muted-foreground">
           <span v-if="journey.goals?.length">Goals: {{ journey.goals.map((g) => g.name || g.key).join(', ') }}. </span>

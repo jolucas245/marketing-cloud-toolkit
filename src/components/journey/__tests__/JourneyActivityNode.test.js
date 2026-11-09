@@ -199,3 +199,17 @@ describe('Wait Until In-App Event icon', () => {
     wrapper.unmount()
   })
 })
+
+describe('Contact paths counts on activities (feedback #1089)', () => {
+  it('shows how many entries reached the activity and how many failed', () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data({ iconUrl: null, count: 1500, failed: 3 }) } })
+    expect(wrapper.get('[data-path-count]').text()).toBe('1,500 · 3 failed')
+    expect(wrapper.get('button').attributes('aria-label')).toContain('1500 contact entries reached this, 3 failed here')
+    wrapper.unmount()
+  })
+  it('has no count without the overlay', () => {
+    const wrapper = mount(JourneyActivityNode, { props: { data: data({ iconUrl: null }) } })
+    expect(wrapper.find('[data-path-count]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})

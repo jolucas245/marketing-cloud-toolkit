@@ -28,7 +28,6 @@ export const NAV_GROUPS = [
     label: 'Contacts',
     items: [
       { path: '/contacts', name: 'Contacts', icon: Users },
-      { path: '/contact-journeys', name: 'Contact journeys', icon: Footprints },
       { path: '/email-validation', name: 'Email validation', icon: MailCheck },
       // Subscribers per list and status (feedback #1080).
       { path: '/publication-lists', name: 'Publication Lists', icon: Newspaper },
@@ -50,6 +49,8 @@ export const NAV_GROUPS = [
       { path: '/journey-overview', name: 'Journey overview', icon: LayoutDashboard },
       { path: '/journeys', name: 'Journeys', icon: Route },
       { path: '/journey-entry', name: 'Journey Entry', icon: LogIn },
+      // Moved from Contacts (feedback #1088); same route.
+      { path: '/contact-journeys', name: 'Contact journeys', icon: Footprints },
     ],
   },
   {

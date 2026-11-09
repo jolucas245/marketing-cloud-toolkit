@@ -28,3 +28,19 @@ describe('Journey contact path edges', () => {
     wrapper.unmount()
   })
 })
+
+describe('Contact paths counts on edges (feedback #1089)', () => {
+  it('shows the count with the path label and widens the line by weight', () => {
+    const wrapper = mount(JourneyStepEdge, { props: { id: 'journey-edge-2', data: { path: 'M0 0L100 0', x: 50, y: 0, label: 'Path 1', visited: true, count: 1234, weight: 0.5 } } })
+    expect(wrapper.get('[data-edge-count]').text()).toBe('Path 1 · 1,234')
+    expect(wrapper.get('path').attributes('style')).toContain('stroke-width: 5px')
+    wrapper.unmount()
+  })
+  it('shows a count on an unlabelled edge and nothing for zero', async () => {
+    const wrapper = mount(JourneyStepEdge, { props: { id: 'journey-edge-3', data: { path: 'M0 0L100 0', x: 50, y: 0, label: '', visited: true, count: 7, weight: 1 } } })
+    expect(wrapper.get('.journey-step-label').text()).toBe('7')
+    await wrapper.setProps({ data: { path: 'M0 0L100 0', x: 50, y: 0, label: '', visited: false, count: 0, weight: 0 } })
+    expect(wrapper.find('.journey-step-label').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})

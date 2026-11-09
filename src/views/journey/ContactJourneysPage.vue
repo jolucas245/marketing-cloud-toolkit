@@ -5,7 +5,7 @@
 // Read-only. The history items' field names are not confirmed live (utils/contactJourneys.js).
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Loader2, Search, Route as RouteIcon, ChevronDown, ChevronRight, ExternalLink, Database, X, FileDown } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
 import Input from '@/components/ui/input/Input.vue'
@@ -25,6 +25,7 @@ import { fetchContactMembership, fetchContactHistory, groupByJourney, journeyFor
 import { formatDateTime } from '@/utils/format.js'
 
 const router = useRouter()
+const route = useRoute()
 const { stack } = useStack()
 
 const contactKey = ref('')
@@ -158,7 +159,23 @@ function downloadCsv() {
 function openSendsSql() {
   router.push({ path: '/queries/workspace', query: { sql: journeySendsSql(searched.value?.key || contactKey.value.trim()) } })
 }
-onMounted(() => whenStack(() => { if (!searched.value) restore() }))
+// From a journey's "Is a contact in this journey?" (feedback #1088): ?key= with the
+// journey (?jid, ?jkey, ?jname, ?jversion) opens this contact within that journey and runs
+// the search; the link was a click, so reading straight away is expected.
+function fromQuery() {
+  const q = route?.query || {}
+  const key = typeof q.key === 'string' ? q.key.trim() : ''
+  if (!key) return false
+  contactKey.value = key
+  if (q.jid || q.jkey) {
+    scope.value = 'one'
+    journey.value = { id: String(q.jid || ''), key: String(q.jkey || ''), name: String(q.jname || q.jkey || ''), version: q.jversion ? String(q.jversion) : null }
+  } else scope.value = 'all'
+  router.replace({ path: route.path, query: {} })
+  find()
+  return true
+}
+onMounted(() => whenStack(() => { if (!fromQuery() && !searched.value) restore() }))
 const statusClass = (s) => (/fail|error/i.test(s) ? 'text-red-600' : /complete|success|executed|metcriteria/i.test(s) ? 'text-green-700 dark:text-green-400' : 'text-muted-foreground')
 </script>
 

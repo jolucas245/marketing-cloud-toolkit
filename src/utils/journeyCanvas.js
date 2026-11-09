@@ -181,7 +181,15 @@ export function journeyActivityIcon(activity) {
   return null
 }
 
-export function journeyCanvasModel(graph, layout, orientation = 'horizontal', selected = null, { visited = null, visitedEdges = null, steps = null } = {}) {
+// `counts` (feedback #1089, Contact paths): { nodes: Map key → { count, failed }, edges:
+// Map edge index → count, maxEdge } from aggregatePaths (journeyPaths.js). Nodes and
+// edges get `count` (and `failed`, `weight` 0..1 for the line width); with counts, the
+// ones no contact reached are dimmed.
+export function journeyCanvasModel(graph, layout, orientation = 'horizontal', selected = null, { visited = null, visitedEdges = null, steps = null, counts = null } = {}) {
+  if (counts && !visited) {
+    visited = new Set([...counts.nodes].filter(([, v]) => v.count > 0).map(([k]) => k))
+    visitedEdges = new Set([...counts.edges].filter(([, v]) => v > 0).map(([k]) => k))
+  }
   const mergeTargets = new Set(graph.nodes.filter((node) => String(node.type || '').toUpperCase() === 'ABNTESTSTOP').map((node) => node.key))
   const flow = journeyFlowModel(graph, layout, orientation, { mergeTargets })
   const branchExits = new Set(flow.edges.filter((edge) => edge.sourceHandle === 'branch').map((edge) => edge.from))
@@ -207,6 +215,7 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
         active: node.key === selected,
         visited: visited ? visited.has(node.key) : null,
         steps: steps?.get(node.key) || [],
+        ...(counts ? { count: counts.nodes.get(node.key)?.count || 0, failed: counts.nodes.get(node.key)?.failed || 0 } : {}),
         branchExit: branchExits.has(node.key),
         orientation,
       },
@@ -231,7 +240,8 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
       id: `journey-edge-${edge.index}`, source: edge.from, target: edge.to, type: 'journeyStep',
       selectable: false, focusable: false, updatable: false,
       ...(edge.sourceHandle ? { sourceHandle: edge.sourceHandle } : {}),
-      data: { path: edge.path, x: edge.x, y: edge.y, label: edge.label, visited: visitedEdges ? visitedEdges.has(edge.index) : null, ...(junction ? { junction } : {}) },
+      data: { path: edge.path, x: edge.x, y: edge.y, label: edge.label, visited: visitedEdges ? visitedEdges.has(edge.index) : null, ...(junction ? { junction } : {}),
+        ...(counts ? { count: counts.edges.get(edge.index) || 0, weight: counts.maxEdge ? (counts.edges.get(edge.index) || 0) / counts.maxEdge : 0 } : {}) },
     }
   })
   return { nodes, edges }
