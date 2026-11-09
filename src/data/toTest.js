@@ -7,8 +7,26 @@
 
 export const TO_TEST = [
   {
+    version: '2.0.23',
+    status: 'On main, not packaged',
+    items: [
+      {
+        id: '2.0.23-whats-new-pages', area: 'Shell', title: "What's New shows 3 items a page", ref: '#1083',
+        where: 'App start after an update (or set _seenVersion to an older version)',
+        steps: ['Open the app.', 'Click Next and Previous; press the right and left arrow keys; go to the last page; press Esc.'],
+        expect: "3 items a page with Page N of M; this version's news first, then items marked Earlier update; Previous is off on page 1 and Next on the last page; Esc closes it.",
+      },
+      {
+        id: '2.0.23-saved-emails-room', area: 'Content', title: 'Saved Emails keep saving past 20 emails', ref: '#1086', live: true,
+        where: 'Content Builder, then Content > Saved Emails, and Settings > Storage',
+        steps: ['Install the build over one that has many saved emails and note Settings > Storage before and after.', 'Save several emails in Content Builder.', 'Open a saved email: Preview, Code, Compare and Revert on a new and an old version.'],
+        expect: 'Email versions take about a third of the space they did, new saves appear, previews and Revert work for old and new versions. If storage is full, Saved Emails says which save was not kept.',
+      },
+    ],
+  },
+  {
     version: '2.0.22',
-    status: 'Released on GitHub 2026-11-09; store upload pending',
+    status: 'Released on GitHub 2026-11-09; in Chrome Web Store review',
     items: [
       {
         id: '2.0.22-create-de-ai', area: 'Data', title: 'Create DE: Ask an AI', ref: '#1084', live: true,
