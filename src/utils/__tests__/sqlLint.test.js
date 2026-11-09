@@ -691,3 +691,35 @@ describe('MCE error list rules (QS045 to QS064)', () => {
     not('SELECT t._Value FROM _PushTag t JOIN _PushAddress p ON p._DeviceID = t._DeviceID AND p._APID = t._APID', 'QS064')
   })
 })
+
+describe('QS065 ntext columns compared (feedback #1085)', () => {
+  const sql = "SELECT\ndistinct \n  DynamicEmailSubject\nFROM _Job\nwhere EmailName = 'BB_LimitedDrops'"
+  const q = (text) => lintSql(text).filter((d) => d.code === 'QS065')
+  it('flags DISTINCT on _Job.DynamicEmailSubject and casts it, keeping the name', () => {
+    const d = q(sql)
+    expect(d).toHaveLength(1)
+    const fixed = applyFix(sql, d[0].fixes[0])
+    expect(fixed).toContain('CAST(DynamicEmailSubject AS NVARCHAR(4000)) AS DynamicEmailSubject')
+    expect(q(fixed)).toHaveLength(0)
+  })
+  it('keeps an alias that is already there', () => {
+    const t = 'SELECT DISTINCT j.DynamicEmailSubject AS Subj FROM _Job j'
+    expect(applyFix(t, q(t)[0].fixes[0])).toBe('SELECT DISTINCT CAST(j.DynamicEmailSubject AS NVARCHAR(4000)) AS Subj FROM _Job j')
+  })
+  it('flags UNION without ALL, GROUP BY and ORDER BY', () => {
+    expect(q('SELECT DynamicEmailSubject FROM _Job UNION SELECT DynamicEmailSubject FROM _Job')).toHaveLength(2)
+    expect(q('SELECT DynamicEmailSubject FROM _Job UNION ALL SELECT DynamicEmailSubject FROM _Job')).toHaveLength(0)
+    const g = 'SELECT DynamicEmailSubject, COUNT(*) AS n FROM _Job GROUP BY DynamicEmailSubject'
+    expect(q(g)).toHaveLength(2)
+    const all = fixAll(g)
+    expect(q(all.sql)).toHaveLength(0)
+    expect(all.sql).toContain('GROUP BY CAST(DynamicEmailSubject AS NVARCHAR(4000))')
+    expect(q('SELECT TOP 5 JobID FROM _Job ORDER BY DynamicEmailSubject DESC')).toHaveLength(1)
+  })
+  it('leaves plain selects, other columns and casts alone', () => {
+    expect(q('SELECT DynamicEmailSubject FROM _Job')).toHaveLength(0)
+    expect(q('SELECT DISTINCT EmailSubject FROM _Job')).toHaveLength(0)
+    expect(q('SELECT DISTINCT CAST(DynamicEmailSubject AS NVARCHAR(4000)) AS S FROM _Job')).toHaveLength(0)
+    expect(q('SELECT TOP 5 CAST(DynamicEmailSubject AS NVARCHAR(4000)) AS DynamicEmailSubject FROM _Job ORDER BY DynamicEmailSubject')).toHaveLength(0)
+  })
+})

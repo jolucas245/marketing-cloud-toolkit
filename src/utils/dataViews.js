@@ -15,6 +15,8 @@ export const DATA_VIEWS = new Set([
 
 // Field definitions for SFMC data views (used when SELECT * targets a data view).
 // Keys are uppercase data view names. Type numbers: 0=Text,1=Number,2=Date,3=Boolean,4=Email,5=Phone
+// ntext: true marks a column SFMC stores as ntext, which cannot be used in DISTINCT, UNION,
+// GROUP BY, ORDER BY or = (confirmed for _Job.DynamicEmailSubject, feedback #1085).
 export const DATA_VIEW_FIELDS = {
   _JOB: [
     {name:'AccountID',type:1},{name:'AccountUserID',type:1},{name:'JobID',type:1},{name:'EmailID',type:1},
@@ -25,7 +27,7 @@ export const DATA_VIEW_FIELDS = {
     {name:'IsWrapped',type:3},{name:'TestEmailAddr',type:4},{name:'Category',type:0},{name:'BccEmail',type:4},
     {name:'OriginalSchedTime',type:2},{name:'CreatedDate',type:2},{name:'CharacterSet',type:0},
     {name:'IPAddress',type:0},{name:'SalesForceTotalSubscriberCount',type:1},{name:'SalesForceErrorSubscriberCount',type:1},
-    {name:'SendType',type:0},{name:'DynamicEmailSubject',type:0},{name:'SuppressTracking',type:3},
+    {name:'SendType',type:0},{name:'DynamicEmailSubject',type:0,ntext:true},{name:'SuppressTracking',type:3},
     {name:'SendClassificationType',type:0},{name:'SendClassification',type:0},
     {name:'ResolveLinksWithCurrentData',type:3},{name:'EmailSendDefinition',type:0},{name:'DeduplicateByEmail',type:3},
   ],

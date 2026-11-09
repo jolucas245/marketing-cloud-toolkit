@@ -376,19 +376,22 @@ function findTable(scope, qual) {
   return null
 }
 
-// Field type of a column reference chain, or null when unknown.
-function columnType(ctx, scope, chain) {
+// Field of a column reference chain, or null when unknown.
+function columnField(ctx, scope, chain) {
   const parts = chain.parts.map(identName)
   const col = parts[parts.length - 1]
-  if (parts.length >= 2) {
-    const f = fieldNamed(fieldsFor(ctx, findTable(scope, parts[parts.length - 2])), col)
-    return f ? f.type : null
-  }
+  if (parts.length >= 2) return fieldNamed(fieldsFor(ctx, findTable(scope, parts[parts.length - 2])), col)
   // Unqualified: only when every table in the scope is known and exactly one has it.
   const known = scope.tables.map(t => fieldsFor(ctx, t))
   if (!known.length || known.some(f => !f)) return null
   const hits = known.map(f => fieldNamed(f, col)).filter(Boolean)
-  return hits.length === 1 ? hits[0].type : null
+  return hits.length === 1 ? hits[0] : null
+}
+
+// Field type of a column reference chain, or null when unknown.
+function columnType(ctx, scope, chain) {
+  const f = columnField(ctx, scope, chain)
+  return f ? f.type : null
 }
 
 const tableOf = (ctx, t) => t.derived ? ctx.sig[t.startIdx] : t.nameTok
@@ -1718,6 +1721,59 @@ function rulePushJoin(ctx) {
   return out
 }
 
+// QS065: an ntext column (_Job.DynamicEmailSubject) where SQL Server has to compare
+// values: SELECT DISTINCT, UNION / EXCEPT / INTERSECT without ALL, GROUP BY, ORDER BY.
+// SFMC refuses the query ("The ntext data type cannot be selected as DISTINCT because it
+// is not comparable"). CAST(x AS NVARCHAR(4000)) makes it comparable.
+function ruleNtextCompared(ctx) {
+  const { sig, sql } = ctx
+  const out = []
+  const text = (a, b) => sql.slice(sig[a].start, sig[b].end)
+  const ntextAt = (sc, ch) => columnField(ctx, sc, ch)?.ntext === true
+  const castFix = (a, b, keepName) => {
+    const name = keepName ? ` AS ${text(b, b)}` : ''
+    return { label: 'Use CAST(... AS NVARCHAR(4000))', changes: [{ from: sig[a].start, to: sig[b].end, insert: `CAST(${text(a, b)} AS NVARCHAR(4000))${name}` }] }
+  }
+  for (const sc of ctx.scopes) {
+    // A set operator without ALL removes duplicates across every branch of the chain.
+    const setOp = ctx.scopes.find(o => o.firstBranch === sc.firstBranch && o.setOpIdx != null && !isWord(sig[o.setOpIdx + 1], 'ALL'))
+    const why = sc.distinct ? 'SELECT DISTINCT' : setOp ? `${sig[setOp.setOpIdx].upper} without ALL` : sc.clauses.groupBy ? 'GROUP BY' : null
+    if (why) {
+      for (const it of sc.items) {
+        if (!it.bare || it.bare.star || !ntextAt(sc, it.bare)) continue
+        const col = identName(it.bare.parts[it.bare.parts.length - 1])
+        out.push({
+          from: sig[it.exprStart].start, to: sig[it.exprEnd].end,
+          message: `${col} is ntext, which SFMC cannot compare, so ${why} fails ("The ntext data type cannot be selected as DISTINCT because it is not comparable"). Use CAST(${col} AS NVARCHAR(4000)); longer values are cut at 4,000 characters.`,
+          fixes: [castFix(it.exprStart, it.exprEnd, !it.alias)],
+        })
+      }
+    }
+    for (const kw of ['groupBy', 'orderBy']) {
+      const cl = sc.clauses[kw]
+      if (!cl) continue
+      for (const { start: a, end: b } of splitOnCommas(sig, cl.body, cl.end, sc.depth)) {
+        if (b < a) continue
+        let e = b
+        if (kw === 'orderBy' && isWord(sig[e], 'ASC', 'DESC')) e--
+        const ch = chainAt(sig, a)
+        if (!ch || ch.end !== e) continue
+        const col = identName(ch.parts[ch.parts.length - 1])
+        // ORDER BY a select alias of the same name refers to that column, not the table's.
+        if (kw === 'orderBy' && ch.parts.length === 1 && sc.items.some(it => it.outName && eqi(it.outName, col) && !it.bare)) continue
+        if (!ntextAt(sc, ch)) continue
+        const words = kw === 'groupBy' ? 'GROUP BY' : 'ORDER BY'
+        out.push({
+          ...span(sig[a], sig[e]),
+          message: `${col} is ntext, which SFMC cannot sort or group, so ${words} ${col} fails. Use CAST(${col} AS NVARCHAR(4000)).`,
+          fixes: [castFix(a, e, false)],
+        })
+      }
+    }
+  }
+  return out
+}
+
 // ---------------------------------------------------------------------------
 // Registry
 
@@ -1786,6 +1842,7 @@ const RULES = [
   { code: 'QS062', severity: 'error', title: 'Text value in double quotes', check: ruleDoubleQuotedValue },
   { code: 'QS063', severity: 'warning', title: 'WHERE on a LEFT JOIN table makes it an INNER JOIN', check: ruleLeftJoinFilteredInWhere },
   { code: 'QS064', severity: 'warning', title: '_PushTag and _PushAddress joined without _APID', check: rulePushJoin },
+  { code: 'QS065', severity: 'error', title: 'ntext column in DISTINCT, UNION, GROUP BY or ORDER BY', check: ruleNtextCompared },
 ]
 
 /** Every rule, for a settings or help list. */

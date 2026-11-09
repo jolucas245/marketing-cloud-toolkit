@@ -7,6 +7,23 @@
 
 export const TO_TEST = [
   {
+    version: '2.0.22',
+    status: 'Not released: test builds only',
+    items: [
+      {
+        id: '2.0.22-ntext', area: 'Queries', title: 'ntext columns in DISTINCT, GROUP BY, ORDER BY and UNION', ref: '#1085', live: true,
+        where: 'Run Query',
+        steps: [
+          "Type SELECT DISTINCT DynamicEmailSubject FROM _Job WHERE EmailName = '<an email name>'.",
+          'Check the red QS065 mark on DynamicEmailSubject and use its fix (or Fix all).',
+          'Run the fixed query.',
+          'Run the original query anyway (turn QS065 off in Settings first) and read the explanation under the error.',
+        ],
+        expect: 'The fix gives CAST(DynamicEmailSubject AS NVARCHAR(4000)) AS DynamicEmailSubject and the query runs. The error from the original query shows a Likely cause and fix that name ntext and CAST.',
+      },
+    ],
+  },
+  {
     version: '2.0.21',
     status: 'Not released: test builds only',
     items: [

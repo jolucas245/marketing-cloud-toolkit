@@ -23,3 +23,15 @@ describe('Explain the run error', () => {
     expect(explainRunError('Something nobody knows')).toBe(null)
   })
 })
+
+describe('ntext errors (feedback #1085)', () => {
+  it('explains DISTINCT on an ntext column', () => {
+    const r = explainRunError('An error occurred while checking the query syntax. Errors: The ntext data type cannot be selected as DISTINCT because it is not comparable.')
+    expect(r.cause).toMatch(/ntext/)
+    expect(r.fix).toMatch(/NVARCHAR\(4000\)/)
+  })
+  it('explains sorting and = on ntext', () => {
+    expect(explainRunError('The text, ntext, and image data types cannot be compared or sorted, except when using IS NULL or LIKE operator.').fix).toMatch(/CAST/)
+    expect(explainRunError('The data types ntext and varchar are incompatible in the equal to operator.').fix).toMatch(/CAST/)
+  })
+})

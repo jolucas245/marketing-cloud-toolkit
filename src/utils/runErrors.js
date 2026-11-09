@@ -55,6 +55,11 @@ const RULES = [
     fix: 'Give the column a value for every row (ISNULL(x, \'\') or COALESCE), filter out rows where it is NULL, or make the field nullable.',
   },
   {
+    test: /n?text data type cannot be selected as distinct|n?text,? (and image )?data types? cannot be compared or sorted|data types n?text and \w+ are incompatible/i,
+    cause: 'A column stored as ntext (for example _Job.DynamicEmailSubject) is used where values have to be compared: SELECT DISTINCT, UNION, GROUP BY, ORDER BY or =. SQL Server cannot compare ntext.',
+    fix: 'Use CAST(column AS NVARCHAR(4000)) in those places, e.g. SELECT DISTINCT CAST(DynamicEmailSubject AS NVARCHAR(4000)) AS DynamicEmailSubject. For a filter, LIKE also works on ntext.',
+  },
+  {
     test: /ambiguous column name/i,
     cause: 'A column without a table alias exists in more than one joined table.',
     fix: 'Write it as alias.[Column] (for example s.[SubscriberKey]).',

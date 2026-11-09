@@ -34,7 +34,7 @@ describe('To Test (test builds only)', () => {
 
   it('Send results puts every result and note in one Test results report', async () => {
     const w = mount(ToTestPage)
-    const [a, b] = TO_TEST[0].items
+    const [a, b] = TO_TEST.flatMap((v) => v.items)
     const rowA = w.find(`[data-test-item="${a.id}"]`)
     await rowA.findAll('button').find((x) => x.text().includes('Pass')).trigger('click')
     await rowA.find('input').setValue('looked fine')
