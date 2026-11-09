@@ -27,6 +27,14 @@ const to = ref('')
 const busy = ref(false)
 const progress = ref({ read: 0, total: null, kept: 0 })
 const error = ref(null) // { message, refused }
+// Only searches SFMC filters by this journey are read (#1094), so every row read is one
+// of this journey's steps (feedback #1095 read "rows read" as the whole account).
+const progressLabel = computed(() => {
+  const p = progress.value
+  if (!p.read) return 'Finding the search that filters by this journey'
+  const of = p.total != null ? ` of ${Math.min(p.total, PATH_MAX_ROWS).toLocaleString()}` : ''
+  return `Reading this journey's history (filtered by journey in SFMC): ${p.read.toLocaleString()}${of} step rows`
+})
 const result = ref(null) // { agg, read, total, capped, searchKey, label }
 let generation = 0
 
@@ -101,7 +109,7 @@ const reached = computed(() => result.value?.rows.filter((r) => r.count > 0) || 
     </form>
 
     <ProgressBar v-if="busy" :value="progress.read" :max="Math.min(progress.total ?? PATH_MAX_ROWS, PATH_MAX_ROWS)" :indeterminate="progress.total == null && !progress.read"
-      :label="`Reading the history: ${progress.read.toLocaleString()} rows read, ${progress.kept.toLocaleString()} for this journey`" aria-label="Reading the journey history" />
+      :label="progressLabel" aria-label="Reading the journey history" />
 
     <div v-if="error" class="space-y-1" role="alert" data-paths-error>
       <p class="text-red-600">{{ error.message }}</p>
