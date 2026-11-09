@@ -29,7 +29,8 @@ export function dismissMessage(id) {
 /**
  * @param {string} message
  * @param {number} [ms]  how long a non-error message stays (at least 6 s)
- * @param {{ kind?: 'error'|'success'|'info' }} [opts]
+ * @param {{ kind?: 'error'|'success'|'info', action?: { label: string, to: string } }} [opts]
+ *   `action`: a link to an app route shown in the message (feedback #1092: a finished job's results)
  */
 export function showToast(message, ms = 3500, opts = {}) {
   const text = String(message ?? '')
@@ -39,7 +40,7 @@ export function showToast(message, ms = 3500, opts = {}) {
   const id = ++seq
   // Raised while a dialog is open: shown above the dialog, not behind its backdrop.
   const overDialog = typeof document !== 'undefined' && !!document.querySelector('[aria-modal="true"]')
-  messages.value = [...messages.value, { id, message: text, kind, at: Date.now(), overDialog }].slice(-MAX)
+  messages.value = [...messages.value, { id, message: text, kind, at: Date.now(), overDialog, ...(opts.action?.to ? { action: { label: String(opts.action.label || 'Open'), to: String(opts.action.to) } } : {}) }].slice(-MAX)
   if (kind !== 'error') timers.set(id, setTimeout(() => dismissMessage(id), Math.max(ms, 6000)))
   return id
 }

@@ -12,6 +12,7 @@
 //   OPEN_APP { path }                                 open app.html#<path> (Automation Summary tab, dashboard card)
 //   AUTOMATION_SUMMARY { stack, id }                  one automation with each activity described (automationSummary.js, Automation Summary tab)
 //   DASHBOARD_SUMMARY { stack, force }                automations and journeys for the dashboard card (dashboard.js)
+//   JOB_NOTIFY { title, message, path }              Chrome notification for a finished background job, if permitted (jobNotify.js)
 //   OPEN_SFMC_LINK { url }                            open an SFMC deep link and keep it (deepLinks.js)
 //   SFMC_CONTEXT_CAPTURED, MCA_TOKEN_CAPTURED         from content.js
 //   PING
@@ -44,6 +45,7 @@ import { watchForUpdates } from './updates.js'
 import { checkWatches, updateBadge } from './watches.js'
 import { getDashboardSummary } from './dashboard.js'
 import { captureActivity, activitySaveCompleted } from './activityCapture.js'
+import { notifyJob, listenForJobClicks } from './jobNotify.js'
 
 onForgetStack(dropMcaToken)
 setOnMintFailure(forgetStack)
@@ -57,6 +59,8 @@ watchPolicy()
 // On update: drop the content copies older saves kept (feedback #1086), then make room.
 chrome.runtime.onInstalled?.addListener(() => { slimStoredAssets().catch(() => 0).then(() => makeRoom(0)) })
 updateBadge()
+// Clicks on finished-job notifications go back to the job's page (feedback #1092).
+listenForJobClicks()
 
 const APP_PAGE = 'app.html'
 
@@ -176,6 +180,7 @@ const handlers = {
     createTab(nextTo(sender?.tab, { url: chrome.runtime.getURL(`${APP_PAGE}#${path}`) }))
     return { ok: true }
   },
+  JOB_NOTIFY: (m, sender) => notifyJob(m, sender),
   // From the Marketing Cloud Toolkit card on SFMC's dashboard page (public/dashboardPanel.js, feedback #65).
   DASHBOARD_SUMMARY: async (m) => ({ summary: await getDashboardSummary(m.stack, { force: !!m.force }) }),
   OPEN_SFMC_LINK: async (m, sender) => {

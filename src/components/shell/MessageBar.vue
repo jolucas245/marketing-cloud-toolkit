@@ -23,6 +23,7 @@ async function copy(m) { try { await navigator.clipboard.writeText(m.message) } 
       <CheckCircle2 v-else-if="m.kind === 'success'" class="h-4 w-4 shrink-0 mt-0.5" />
       <Info v-else class="h-4 w-4 shrink-0 mt-0.5" />
       <span class="flex-1 min-w-0 break-words whitespace-pre-line">{{ m.message }}</span>
+      <RouterLink v-if="m.action" :to="m.action.to" class="shrink-0 text-xs font-medium underline underline-offset-2" data-message-action @click="dismissMessage(m.id)">{{ m.action.label }}</RouterLink>
       <template v-if="m.kind === 'error'">
         <button type="button" class="shrink-0 inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline" title="Copy the message" @click="copy(m)"><Copy class="h-3 w-3" /> Copy</button>
         <button type="button" class="shrink-0 inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline" title="Send this error to the developer" @click="reportError(m.message, { page: route.path })"><MessageSquareWarning class="h-3 w-3" /> Report</button>

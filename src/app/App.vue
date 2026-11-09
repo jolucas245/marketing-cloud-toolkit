@@ -16,6 +16,7 @@ import { cleanUpOldRuns } from '@/utils/runCleanup.js'
 import { resumeSummary } from '@/utils/publicationLists.js'
 import { fetchCurrentBU } from '@/utils/sfmcApi.js'
 import NoticesMenu from '@/components/shell/NoticesMenu.vue'
+import JobsPill from '@/components/shell/JobsPill.vue'
 import ConceptsButton from '@/components/shell/ConceptsButton.vue'
 import ThemeSwitcher from '@/components/ui/ThemeSwitcher.vue'
 import { policy } from '@/utils/policy.js'
@@ -115,6 +116,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
         <span class="max-w-32 truncate">{{ targetTitle(usage.state.target) }}</span>
         <span v-if="usage.state.running" class="text-muted-foreground">{{ usagePercent }}%</span>
       </button>
+      <JobsPill />
       <ConnectionMenu />
       <ConceptsButton />
       <NoticesMenu />

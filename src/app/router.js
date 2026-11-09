@@ -75,6 +75,8 @@ export const routes = [
   // To do is hidden from users (feedback #77); old links and todo.html land on Features.
   { path: '/todo', redirect: '/features' },
   { path: '/settings', component: () => import('../views/settings/SettingsPage.vue'), meta: { title: 'Settings' } },
+  // Background tasks of this tab and earlier ones (feedback #1092); linked from the bell and the header pill.
+  { path: '/activity', component: () => import('../views/info/ActivityHistoryPage.vue'), meta: { title: 'Activity history' } },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 
