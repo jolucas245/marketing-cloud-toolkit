@@ -19,6 +19,7 @@ import { fetchDEFieldList } from '@/utils/deApi.js'
 import { PanelLeftClose, PanelLeftOpen, Plus, X as XIcon, ChevronDown as ChevronDownIcon, ChevronRight as ChevronRightIcon } from 'lucide-vue-next'
 import { savedAgo } from '@/utils/localCache.js'
 import { useStack, whenStack } from '@/composables/useStack.js'
+import { useRouteSearch } from '@/composables/useRouteSearch.js'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
 import { formatDateTime, plural } from '@/utils/format.js'
 import {
@@ -253,6 +254,8 @@ const shownSubject = computed(() => dataPreview.value?.subject ?? parts.value?.s
 const shownPreheader = computed(() => dataPreview.value?.preheader ?? parts.value?.preheader ?? '')
 
 whenStack(() => runSearch('open'))
+// Opened with ?q= (Content > Changes, feedback #1087): search every folder for it.
+useRouteSearch('/emails', (q) => { text.value = q; searchAll.value = true; whenStack(() => runSearch('search')) })
 </script>
 
 <template>

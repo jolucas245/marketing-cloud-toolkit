@@ -29,6 +29,7 @@ const PAGES = {
   '/emails/saved': () => import('../views/emails/EmailsPage.vue'),
   '/cloudpages': () => import('../views/content/CloudPagesPage.vue'),
   '/cloudpages/saved': () => import('../views/emails/EmailsPage.vue'),
+  '/content/changes': () => import('../views/content/ChangesPage.vue'),
   '/domains': () => import('../views/setup/DomainsPage.vue'),
   '/installed-packages': () => import('../views/setup/InstalledPackagesPage.vue'),
 }
