@@ -2,12 +2,15 @@
 // Shown once after an update that has news: to SFMC Query Saver users the rename
 // to Marketing Cloud Toolkit (2.0.0) plus the latest news, to Toolkit users only the news.
 // Fresh installs skip it. Uses Query Saver's `_seenVersion` key.
-import { ref } from 'vue'
+// The dialog keeps its title, close button and Got it in view and scrolls the list;
+// only this version's news shows until Show earlier updates (feedback #1083).
+import { ref, onMounted, onUnmounted } from 'vue'
 import { X } from 'lucide-vue-next'
 
 const VERSION = '2.0.21'
 const open = ref(false)
 const fromQuerySaver = ref(false)
+const showEarlier = ref(false)
 
 try {
   chrome.storage.local.get(null, (all) => {
@@ -24,22 +27,32 @@ function close() {
   open.value = false
   try { chrome.storage.local.set({ _seenVersion: VERSION }) } catch { /* not in an extension */ }
 }
+
+const onKey = (e) => { if (open.value && e.key === 'Escape') close() }
+onMounted(() => window.addEventListener('keydown', onKey))
+onUnmounted(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
   <div v-if="open" class="fixed inset-0 z-150 flex items-center justify-center bg-black/50 p-4" @mousedown.self="close">
-    <div class="w-full max-w-md rounded-xl border border-border bg-card shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="whatsnew-title">
-      <div class="flex items-center justify-between px-5 pt-5">
-        <span class="text-[11px] font-bold text-primary bg-primary/10 rounded-full px-3 py-1 uppercase tracking-wide">Version {{ VERSION }}</span>
-        <button class="p-1 rounded hover:bg-accent" title="Close" @click="close"><X class="h-4 w-4" /></button>
+    <div data-whatsnew class="flex w-full max-w-md max-h-[calc(100vh-2rem)] flex-col rounded-xl border border-border bg-card shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="whatsnew-title">
+      <div class="shrink-0 border-b border-border px-5 pt-5 pb-3">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold text-primary bg-primary/10 rounded-full px-3 py-1 uppercase tracking-wide">Version {{ VERSION }}</span>
+          <button class="p-1 rounded hover:bg-accent" title="Close" aria-label="Close" data-whatsnew-close @click="close"><X class="h-4 w-4" /></button>
+        </div>
+        <h2 id="whatsnew-title" class="mt-3 text-lg font-bold">{{ fromQuerySaver ? 'SFMC Query Saver is now Marketing Cloud Toolkit' : 'What\'s new in Marketing Cloud Toolkit' }}</h2>
+        <p class="mt-1 text-xs text-muted-foreground">The changes in this update, shown once. Every feature is on the <a href="#/features" class="text-primary hover:underline" @click="close">Features</a> page.</p>
       </div>
-      <h2 id="whatsnew-title" class="px-5 mt-3 text-lg font-bold">{{ fromQuerySaver ? 'SFMC Query Saver is now Marketing Cloud Toolkit' : 'What\'s new in Marketing Cloud Toolkit' }}</h2>
-      <ul v-if="!fromQuerySaver" class="px-5 mt-3 mb-5 space-y-3 text-sm">
+      <ul v-if="!fromQuerySaver" class="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-3 text-sm">
         <li><strong class="block">Setup: Domains and Installed Packages</strong><span class="text-muted-foreground">Sender domains with SPF, DKIM and DMARC explained, From addresses at risk, custom domain certificates, and an alert when an installed package's client secret is about to expire.</span></li>
         <li><strong class="block">Customize Home</strong><span class="text-muted-foreground">Hide, show and reorder Home's sections and cards. Kept in this browser; nothing is sent.</span></li>
         <li><strong class="block">Faster plain reads, and search the results</strong><span class="text-muted-foreground">A query that only reads one data extension shows its rows in seconds, without a Query Activity. A Search rows box finds text in any column of the results.</span></li>
         <li><strong class="block">Old runs cleaned up in SFMC</strong><span class="text-muted-foreground">Data extensions and Query Activities from your Run Query runs are deleted from SFMC after 7 days; the SQL stays in the query's history. Settings > Running queries changes the days or turns it off.</span></li>
         <li><strong class="block">Email validation and Publication Lists</strong><span class="text-muted-foreground">Pick a sendable data extension right on the page and see its details; one tab for one address or many. Contacts > Publication Lists counts each list's subscribers by status.</span></li>
+        <li v-if="!showEarlier"><button class="text-sm font-medium text-primary hover:underline" data-whatsnew-earlier @click="showEarlier = true">Show earlier updates</button></li>
+        <template v-if="showEarlier">
+        <li class="pt-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Earlier updates</li>
         <li><strong class="block">Emails and CloudPages, browsed</strong><span class="text-muted-foreground">Content Builder folders, a preview of any email with data from a data extension row or values you type, and the code of each version. Every CloudPage save is kept like email versions, with Code and Compare.</span></li>
         <li><strong class="block">Folders and Concepts</strong><span class="text-muted-foreground">Automations, Journeys and Data Extensions list by folder. The book icon in the top bar explains the terms of the section you are on.</span></li>
         <li><strong class="block">Faster, with fewer calls to SFMC</strong><span class="text-muted-foreground">Folders, lists and automation details are kept in this browser for 30 days and only the changes are read again. Settings can forget them.</span></li>
@@ -84,15 +97,16 @@ function close() {
         <li><strong class="block">Query Builder</strong><span class="text-muted-foreground">Drag data extensions to reorder or swap them, and the search finds every data extension.</span></li>
         <li><strong class="block">Overviews ready sooner</strong><span class="text-muted-foreground">Automation overview and Journey overview load quietly in the background after the app opens.</span></li>
         <li><strong class="block">No more empty searches</strong><span class="text-muted-foreground">When an SFMC app has no session, a search connects it and tries again; if that fails it says which app, with Retry and a link to log in.</span></li>
+        </template>
       </ul>
-      <ul v-else class="px-5 mt-3 mb-5 space-y-3 text-sm">
+      <ul v-else class="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-3 text-sm">
         <li><strong class="block">Everything you saved is here</strong><span class="text-muted-foreground">Saved queries with their run history, workspaces, Query Builder queries and email versions, under Queries and Saved Emails in the sidebar.</span></li>
         <li><strong class="block">New sections</strong><span class="text-muted-foreground">Automations, Activities, Journeys, Journey Entry, Data Extensions and CloudPages.</span></li>
         <li><strong class="block">Settings have their own page</strong><span class="text-muted-foreground">Email versions, reuse DE, lint rules, backups and the API console are under Settings.</span></li>
         <li><strong class="block">Several tabs</strong><span class="text-muted-foreground">The toolbar icon opens a new tab each time; Ctrl+K jumps to any section.</span></li>
         <li><strong class="block">Where used</strong><span class="text-muted-foreground">Data > Where used shows what uses a data extension, field, email or content block, and what an automation touches.</span></li>
       </ul>
-      <div class="px-5 pb-5"><button class="w-full h-9 rounded-md bg-primary text-primary-foreground text-sm font-medium" @click="close">Got it</button></div>
+      <div class="shrink-0 border-t border-border px-5 py-4"><button class="w-full h-9 rounded-md bg-primary text-primary-foreground text-sm font-medium" @click="close">Got it</button></div>
     </div>
   </div>
 </template>
