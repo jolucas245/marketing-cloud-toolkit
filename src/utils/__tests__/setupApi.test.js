@@ -73,19 +73,22 @@ describe('custom domains', () => {
 })
 
 describe('account', () => {
-  it('reads endpoints in a useful order with the tenant subdomain', async () => {
-    const { fetch, urls } = recorder([{ count: 6, items: [
+  it('reads the installed package endpoints in a useful order with the tenant subdomain, leaving out SFMC\'s internal services', async () => {
+    const { fetch, urls } = recorder([{ count: 9, items: [
       { type: 'ftp', url: 'ftp://mctenant-abc.ftp.marketingcloudops.com' },
       { type: 'rest', url: 'https://restapi.s12.exacttarget.com' },
       { type: 'restAuth', url: 'https://mctenant-abc.auth.marketingcloudapis.com' },
       { type: 'restInternal', url: 'https://mctenant-abc.rest.marketingcloudapis.com' },
       { type: 'restProd', url: 'https://mctenant-abc.rest.marketingcloudapis.com' },
       { type: 'soap', url: 'https://mctenant-abc.soap.marketingcloudapis.com/Service.asmx' },
+      { type: 'jsrest', url: 'http://jsrest-s12.xt.local:3000' },
+      { type: 'spellcheck', url: 'https://spellcheck.s12.example' },
+      { type: 'editorSupportAssetHandler', url: 'https://editor.s12.example' },
     ] }])
     const r = await fetchTenantEndpoints('s12', fetch)
     expect(urls[0][0]).toBe('https://mc-domainwhitelist-admin-app.s12.marketingcloudapps.com/fuelapi/platform/v1/endpoints')
     expect(r.tenant).toBe('mctenant-abc')
-    expect(r.items.map((e) => e.type)).toEqual(['restAuth', 'restProd', 'soap', 'ftp', 'restInternal', 'rest'])
+    expect(r.items.map((e) => e.type)).toEqual(['restAuth', 'restProd', 'soap', 'ftp', 'rest'])
     expect(tenantSubdomain([{ url: 'https://restapi.s12.exacttarget.com' }])).toBe('')
   })
 

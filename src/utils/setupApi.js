@@ -102,29 +102,31 @@ export async function fetchCustomDomains(stack, fetch = sfmcFetch) {
   }
 }
 
+// The endpoints an installed package calls, as Salesforce documents them. SFMC's list
+// also holds its own internal services (restInternal, jsrest on an xt.local host,
+// spellcheck, editorSupportAssetHandler), which no package can reach: those stay out.
 const ENDPOINT_LABELS = {
   restAuth: 'REST authentication (OAuth token)',
   restProd: 'REST API',
-  restInternal: 'REST API (internal)',
-  rest: 'REST API (legacy stack URL)',
   soap: 'SOAP API',
   ftp: 'SFTP',
+  rest: 'REST API (legacy stack URL)',
 }
-const ENDPOINT_ORDER = ['restAuth', 'restProd', 'soap', 'ftp', 'restInternal', 'rest']
+const ENDPOINT_ORDER = Object.keys(ENDPOINT_LABELS)
 
 /**
- * The account's API endpoints, plus its tenant subdomain (the first label of the
- * auth, REST or SOAP host, e.g. mcq9c5q-b403hgdg8-6fnmtjbgm4).
+ * The account's API endpoints for installed packages, plus its tenant subdomain (the
+ * first label of the auth, REST or SOAP host, e.g. mcq9c5q-b403hgdg8-6fnmtjbgm4).
  */
 export async function fetchTenantEndpoints(stack, fetch = sfmcFetch) {
   const d = await fetch(ENDPOINTS(stack), 'GET')
   const items = (Array.isArray(d?.items) ? d.items : [])
-    .filter((e) => e?.url)
-    .map((e) => ({ type: e.type || '', label: ENDPOINT_LABELS[e.type] || e.type || 'Endpoint', url: String(e.url) }))
+    .filter((e) => e?.url && Object.hasOwn(ENDPOINT_LABELS, e.type))
+    .map((e) => ({ type: e.type, label: ENDPOINT_LABELS[e.type], url: String(e.url) }))
     .sort((a, b) => rank(a.type) - rank(b.type))
   return { items, tenant: tenantSubdomain(items) }
 }
-const rank = (t) => { const i = ENDPOINT_ORDER.indexOf(t); return i < 0 ? ENDPOINT_ORDER.length : i }
+const rank = (t) => ENDPOINT_ORDER.indexOf(t)
 
 export function tenantSubdomain(items) {
   for (const e of items || []) {
