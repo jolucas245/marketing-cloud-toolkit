@@ -14,7 +14,7 @@ export const FEATURE_GROUPS = [
       { title: 'Descriptive file names', since: '2.0.4', detail: 'Downloads are named with the business unit, what they contain, and the date and time.' },
       { title: 'Storage by section', since: '2.0.4', how: 'Settings > Storage', detail: 'What takes the space, by section and business unit. Delete one part, or keep only the newest versions of each email.' },
       { title: 'App sessions started for you', how: 'Automatic (Settings > Connection)', detail: 'When the Toolkit opens and at least one SFMC app already has a session, the apps without one are started in the background, one at a time in a tab that closes itself (at most every 10 minutes). The connection menu shows each app as Ready or Starting, and Start missing does it now.' },
-      { title: 'Sections in the sidebar', detail: 'Home, then Queries (Run Query, Query Builder, Saved queries), Data (Data Extensions, Create DE, Where used, DE storage), Contacts (Contacts, Contact journeys, Email validation), Automation (Automation overview, Automations, Activities, Saved Activities, Templates), Journeys (Journey overview, Journeys, Journey Entry), Content (Emails and CloudPages, each with a Saved versions tab, and Changes since 2.0.23) and Setup (Domains, since 2.0.21). Settings is at the bottom. Collapse the sidebar to icons with Collapse; in a narrow window it shows icons only.' },
+      { title: 'Sections in the sidebar', detail: 'Home, then Queries (Run Query, Query Builder, Saved queries), Data (Data Extensions, Create DE, Where used, DE storage), Contacts (Contacts, Email validation, Publication Lists), Automation (Automation overview, Automations, Activities, Saved Activities, Templates), Journeys (Journey overview, Journeys, Journey Entry, Contact journeys since 2.0.23), Content (Emails and CloudPages, each with a Saved versions tab, and Changes since 2.0.23) and Setup (Domains, since 2.0.21). Settings is at the bottom. Collapse the sidebar to icons with Collapse; in a narrow window it shows icons only.' },
       { title: 'Concepts', since: '2.0.20', how: 'Book icon in the top bar', detail: 'Plain explanations of the terms used in the section you are on, with a search box and All sections.' },
       { title: 'Folders', since: '2.0.20', how: 'Left side of Automations, Journeys, Data Extensions, Emails and CloudPages', detail: 'Open a folder to list what is in it, as in SFMC.' },
       { title: 'Search everything', how: 'Ctrl+K (Cmd+K on a Mac), or Search in the top bar', detail: 'Jump to a section, open a saved query or a saved email, or start a search for data extensions, automations, activities, CloudPages or journey entry events.' },
@@ -359,6 +359,8 @@ export const FEATURE_GROUPS = [
       { title: 'The journey canvas', how: 'View on a journey', detail: 'The journey drawn like Journey Builder: entry, every step and every path, with the path names on the arrows. Switch between Horizontal and Vertical; the choice is remembered.' },
       { title: 'What each step does', how: 'Click a step', detail: 'Emails show their subject, preheader and a preview from Content Builder; waits their duration or date; decision and random splits each path with its criteria or share; every step all of its settings.' },
       { title: 'Download the journey', detail: 'Every step with its settings, goals and exit criteria, as Markdown, Word, PDF or HTML. Since 2.0.16 HTML and PDF include the journey canvas.' },
+      { title: 'Is a contact in this journey?', since: '2.0.23', how: 'On a journey\'s page', detail: 'Check up to 25 Contact Keys against that journey only, in any version: whether each is in it now, which version, the last step and its status, and when they entered, with a link to Contact journeys for the full path. Nothing is read until you press Check.' },
+      { title: 'Contact paths', since: '2.0.23', how: 'Contact paths on a journey\'s page', detail: 'Pick the last 1, 7 or 30 days or your own dates and press Show paths: the canvas shows how many contacts reached each activity and took each route (thicker lines carry more), with failures and exits, from up to 5,000 rows of Journey Builder\'s history. Clear removes it. If Journey Builder will not search the whole journey, it offers email send counts per activity from the data views instead.' },
     ],
   },
   {
@@ -374,7 +376,7 @@ export const FEATURE_GROUPS = [
   {
     id: 'contact-journeys',
     title: 'Contact journeys',
-    intro: 'Contacts > Contact journeys. Read-only.',
+    intro: 'Journey > Contact journeys (under Contacts before 2.0.23). Read-only. Also opens from a journey\'s page for one contact within that journey.',
     items: [
       { title: 'One contact across journeys', since: '2.0.18', how: 'Enter a Contact Key, then Find', detail: 'The journeys the contact is in now, and every journey it went through in the last 7, 30 or 90 days, across all journeys or within one you pick.' },
       { title: 'The path it took', since: '2.0.18', how: 'Open a journey in the results', detail: 'Each step in order with its time, status and any error, and the same path outlined on the journey canvas with step numbers; steps it did not reach are dimmed.' },
@@ -409,6 +411,9 @@ export const FEATURE_GROUPS = [
       { title: 'Contacts', since: '2.0.18', how: 'Contacts tab', detail: 'Enter Contact Keys; every email address Contact Builder has for each contact is checked.' },
       { title: 'A data extension', since: '2.0.18', how: 'Data extension tab', detail: 'Pick a data extension and its email field (up to 50,000 rows). Results go into three fields you pick in that data extension (isValidEmail, invalidReason, APIresponse; rows matched by primary key), or into a new data extension with the keys, the email and those three fields.' },
       { title: 'Pick the data extension on the page', since: '2.0.21', how: 'Data extension tab', detail: 'Folders and search of sendable data extensions, with the picked one\'s rows, sendable relationship, retention, key, folder, dates and fields beside it. A new results data extension goes in the same folder by default, shown open in the folder tree.' },
+      { title: 'A copy of the data extension', since: '2.0.23', how: 'Data extension tab > A copy of <DE> with the results added', detail: 'The new data extension keeps every field, the sendable setting and the send relationship of the original, gets every row, and adds isValidEmail, invalidReason and APIresponse, so it can be used for sending or filtering. A clashing field name gets _2, and the page says so.' },
+      { title: 'Summary by category', since: '2.0.23', detail: 'How many addresses are valid, not valid (by the check that failed) and not checked. Click a line to see only those results; copy or download the counts.' },
+      { title: 'Runs in the background', since: '2.0.23', detail: 'A run keeps going while you use other Toolkit pages in the same tab. When it ends you get a notice with a link back to the results (and a Chrome notification if notifications are allowed). Activity history (from the bell) lists every task with its status and progress. Closing the tab stops a running task.' },
     ],
   },
   {

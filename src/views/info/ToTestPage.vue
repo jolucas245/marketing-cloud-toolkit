@@ -30,7 +30,7 @@ function report(item) {
   errorReport.value = {
     kind: 'problem',
     message: `[To Test] ${item.title}: failed`,
-    details: [`Test build: ${COMMIT || 'unknown'}`, `Item: ${item.id}${item.ref ? ` (${item.ref})` : ''}`, `Where: ${item.where}`,
+    details: [`Test build: ${COMMIT || 'unknown'}`, `Item: ${item.id}${item.ref ? ` (${item.ref})` : ''}${item.from ? `, raised by ${item.from}` : ''}`, `Where: ${item.where}`,
       'Steps:', ...item.steps.map((s, i) => `${i + 1}. ${s}`), `Expected: ${item.expect}`, '', 'What happened:', ''].join('\n'),
   }
 }
@@ -101,7 +101,7 @@ function toggle(v) { const s = new Set(open.value); s.has(v) ? s.delete(v) : s.a
           <li v-for="item in v.items.filter(shown)" :key="item.id" class="px-4 py-3 space-y-1.5" :data-test-item="item.id">
             <div class="flex flex-wrap items-start gap-2">
               <div class="flex-1 min-w-0">
-                <div class="text-xs text-muted-foreground">{{ item.area }}<template v-if="item.ref"> · {{ item.ref }}</template></div>
+                <div class="text-xs text-muted-foreground">{{ item.area }}<template v-if="item.ref"> · {{ item.ref }}</template><template v-if="item.from"> · raised by {{ item.from }}</template></div>
                 <div class="font-medium">{{ item.title }}</div>
               </div>
               <span v-if="item.live" class="rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 px-2 py-0.5 text-[11px] font-medium">Not checked on a live org</span>

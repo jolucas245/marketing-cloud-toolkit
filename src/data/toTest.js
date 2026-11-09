@@ -2,7 +2,8 @@
 // To Test page imports this, and that page exists only in test builds (__TEST_BUILD__),
 // so none of it ships to the Chrome Web Store.
 // Item: { id (stable, used to keep results), area, title, where, steps[], expect,
-//         live: true when never checked against a live org, ref: feedback numbers }
+//         live: true when never checked against a live org, ref: feedback numbers,
+//         from: who raised it (first name, or 'a user (no name given)'; never an email) }
 // Add the next version's items at the top when its work starts.
 
 export const TO_TEST = [
@@ -11,22 +12,58 @@ export const TO_TEST = [
     status: 'On main, not packaged',
     items: [
       {
-        id: '2.0.23-whats-new-pages', area: 'Shell', title: "What's New shows 3 items a page", ref: '#1083',
+        id: '2.0.23-whats-new-pages', area: 'Shell', title: "What's New shows 3 items a page", ref: '#1083', from: 'Mathes',
         where: 'App start after an update (or set _seenVersion to an older version)',
         steps: ['Open the app.', 'Click Next and Previous; press the right and left arrow keys; go to the last page; press Esc.'],
         expect: "3 items a page with Page N of M; this version's news first, then items marked Earlier update; Previous is off on page 1 and Next on the last page; Esc closes it.",
       },
       {
-        id: '2.0.23-saved-emails-room', area: 'Content', title: 'Saved Emails keep saving past 20 emails', ref: '#1086', live: true,
-        where: 'Content Builder, then Content > Saved Emails, and Settings > Storage',
+        id: '2.0.23-saved-emails-room', area: 'Content', title: 'Saved Emails keep saving past 20 emails', ref: '#1086', from: 'a user (no name given)', live: true,
+        where: 'Content Builder, then Content > Emails > Saved versions, and Settings > Storage',
         steps: ['Install the build over one that has many saved emails and note Settings > Storage before and after.', 'Save several emails in Content Builder.', 'Open a saved email: Preview, Code, Compare and Revert on a new and an old version.'],
-        expect: 'Email versions take about a third of the space they did, new saves appear, previews and Revert work for old and new versions. If storage is full, Saved Emails says which save was not kept.',
+        expect: 'Email versions take about a third of the space they did, new saves appear, previews and Revert work for old and new versions. If storage is full, Saved versions says which save was not kept.',
       },
       {
-        id: '2.0.23-changes', area: 'Content', title: 'Changes page', ref: '#1087', live: true,
+        id: '2.0.23-changes', area: 'Content', title: 'Changes page', ref: '#1087', from: 'Mathes', live: true,
         where: 'Content > Changes',
         steps: ['Leave Last 7 days and Modified, press Find changes.', 'Type part of your name in Person, then pick yourself from the list.', 'Switch to Created, then to a From date.', 'Press Open on an email, a CloudPage, an automation and a journey.'],
-        expect: 'Created by and Modified by show names (or emails) for Content Builder items, the counts per source match SFMC, and Open lands on the right item.',
+        expect: 'Created by and Modified by show names (or emails) for Content Builder items (automations may show none), the counts per source match SFMC, and Open lands on the right item.',
+      },
+      {
+        id: '2.0.23-contact-journeys-moved', area: 'Journeys', title: 'Contact journeys is under Journeys', ref: '#1088', from: 'Mathes',
+        where: 'Sidebar',
+        steps: ['Look for Contact journeys in the sidebar.', 'Open an old /contact-journeys link.'],
+        expect: 'Contact journeys is the last entry under Journeys, no longer under Contacts, and old links still open it.',
+      },
+      {
+        id: '2.0.23-journey-contact-check', area: 'Journeys', title: 'Is a contact in this journey?', ref: '#1088', from: 'Mathes', live: true,
+        where: 'Journeys > open a journey > Is a contact in this journey?',
+        steps: ['Open the panel and check the API console: nothing is read yet.', 'Paste 2 or 3 Contact Keys (one in the journey, one not) and press Check.', 'Click the Contact journeys link on a row.'],
+        expect: "Yes/No is right; the version and last step match Journey Builder's Journey History; the link opens Contact journeys for that contact in this journey with results loaded.",
+      },
+      {
+        id: '2.0.23-journey-paths', area: 'Journeys', title: 'Contact paths on the journey canvas', ref: '#1089', from: 'Mathes', live: true,
+        where: 'A published journey with recent entries > Contact paths',
+        steps: ['Pick Last 7 days and press Show paths.', 'Note whether it worked or said Journey Builder did not answer a search without contact keys, and whether the summary says "Searched the whole history".', 'Try 30 days on a busy journey (5,000-row cap), a custom date range, and the Email send counts from data views link.', 'Press Clear.'],
+        expect: "Counts on activities and routes roughly match Journey Builder's history; thicker lines carry more; the cap note shows when hit; the data view link opens SQL that runs; Clear removes the overlay. Nothing loads until Show paths.",
+      },
+      {
+        id: '2.0.23-validation-copy', area: 'Data', title: 'Email validation: a copy of the DE with the results', ref: '#1090', from: 'Mathes', live: true,
+        where: 'Email validation > Data extension > A copy of <DE> with the results added',
+        steps: ['Use a small sendable DE with a primary key, a Date, a Decimal and a default value.', 'Run it; then try a DE that already has an isValidEmail field.', 'Run once more and press Stop halfway.'],
+        expect: 'A new DE in the same folder with every field (types, lengths, keys, required, defaults), sendable with the same relationship, the three result fields at the end, and every row with its results; it can be picked as a send audience. A clashing field becomes isValidEmail_2 and the page says so. After Stop, every row is still copied and unchecked rows have empty results.',
+      },
+      {
+        id: '2.0.23-validation-summary', area: 'Data', title: 'Email validation summary by category', ref: '#1091', from: 'Mathes', live: true,
+        where: 'Email validation, any tab',
+        steps: ['Run a list with good, bad-domain and badly written addresses.', 'Click a summary line, then click it again.', 'Copy and download the summary.'],
+        expect: 'Total, Valid, Not valid split by Mail server, Syntax and List Detective, and Not checked, with bars and percentages; a click filters the results table and a second click shows all; Copy and CSV hold counts only.',
+      },
+      {
+        id: '2.0.23-background-jobs', area: 'Shell', title: 'Email validation in the background, notices and Activity history', ref: '#1092', from: 'Mathes', live: true,
+        where: 'Email validation, then other Toolkit pages; the bell; Activity history',
+        steps: ['Start a Data extension run of a few thousand rows and move to another Toolkit page.', 'Wait for it to end; click Open results in the message or in the bell.', 'With notifications allowed (Settings, watched automations switch), start a run and switch to another Chrome tab; click the Chrome notification.', 'Bell > Activity history; reload the tab during a run and reopen it; try to close the tab during a run.', "In DevTools: chrome.storage.local.get('toolkit_job_history')."],
+        expect: "The header pill shows the percent while it runs; a message and the bell link back to the results and summary; the Chrome notification brings back the Toolkit tab on the results; Activity history lists start, finish, status, progress, Stop and Results; after a reload it shows Stopped (tab closed); Chrome asks before closing during a run; the stored history has counts and names, no addresses.",
       },
     ],
   },
