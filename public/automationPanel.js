@@ -1,6 +1,6 @@
 // Automation Summary tab (feedback #45, ported from SFMC Automation Viewer): on an
-// Automation Studio automation page (#Instance/<id> in the address), a tab on the
-// right edge opens a summary of that automation with every step's activities (read by the
+// Automation Studio automation page (#Instance/<id> in Automation Studio's frame or in
+// the address), a tab on the right edge opens a summary of that automation with every step's activities (read by the
 // service worker: AUTOMATION_SUMMARY), with a link into Marketing Cloud Toolkit.
 // Runs in a shadow root so Automation Studio's styles and ours do not mix. Off with
 // Settings > Connection > "Automation Summary tab in Automation Studio".
@@ -21,7 +21,14 @@
   var loadedFor = '';
   var token = 0;
   var enabled = true;
-  var lastHref = '';
+  var lastKey = '';
+  // The URL Automation Studio's frame (mc.<stack>.marketingcloudapps.com, a cross-origin
+  // iframe this script does not run in) last reported. It posts {msg: 'urlChange', url}
+  // to the page on every route change, back and forward included, and the shell copies
+  // only some of them into the address (checkpoint: true), so the frame's own URL is what
+  // the user sees (live test, 2026-11-07). Null until it reports, and after the address
+  // leaves Automation Studio.
+  var frameUrl = null;
 
   function parse(href) {
     try {
@@ -36,10 +43,36 @@
     }
   }
 
+  function inAutomationStudio(href) {
+    try { return /#app\/Automation Studio(\/|$)/i.test(decodeURIComponent(new URL(href).hash)); } catch (e) { return false; }
+  }
+
+  // The automation on screen: Automation Studio's frame when it has reported, else the address.
+  function current() {
+    if (!inAutomationStudio(location.href)) return parse(location.href);
+    return frameUrl !== null ? parse(frameUrl) : parse(location.href);
+  }
+
+  function onMessage(e) {
+    if (e.source === window || !/^https:\/\/mc\.s\d+\.marketingcloudapps\.com$/i.test(e.origin || '')) return;
+    var d = e.data;
+    if (typeof d === 'string') {
+      if (d.indexOf('urlChange') < 0) return;
+      try { d = JSON.parse(d); } catch (x) { return; }
+    }
+    if (!d || d.msg !== 'urlChange' || typeof d.url !== 'string') return;
+    if (d.url.indexOf(e.origin + '/AutomationStudioFuel3/') !== 0 || !inAutomationStudio(location.href)) return;
+    frameUrl = d.url;
+    check();
+  }
+
   function statusName(v) {
     if (v === null || v === undefined || v === '') return '\u2014';
     var n = Number(v);
-    return Number.isInteger(n) && STATUS[n] !== undefined && String(n) === String(v).trim() ? STATUS[n] : String(v);
+    if (Number.isInteger(n) && STATUS[n] !== undefined && String(n) === String(v).trim()) return STATUS[n];
+    // PausedSchedule -> Paused schedule (as in the Toolkit, live test 2026-11-08).
+    var s = String(v);
+    return /^[A-Z][a-z]+(?:[A-Z][a-z]+)+$/.test(s) ? s.replace(/(?!^)([A-Z])/g, function (c) { return ' ' + c.toLowerCase(); }) : s;
   }
 
   function date(v) {
@@ -142,7 +175,7 @@
     var openBtn = el('button', 'btn', 'Open in Marketing Cloud Toolkit');
     openBtn.type = 'button';
     openBtn.addEventListener('click', function () {
-      var ctx = parse(location.href);
+      var ctx = current();
       if (ctx) send({ type: 'OPEN_APP', path: '/automations/' + encodeURIComponent(ctx.id) }).catch(function (e) { showError(e.message, !!e.orphaned); });
     });
     var reload = el('button', 'btn alt', 'Refresh');
@@ -174,7 +207,7 @@
     if (!root) return;
     root.querySelector('.wrap').classList.toggle('open', v);
     root.querySelector('.tab').setAttribute('aria-expanded', v ? 'true' : 'false');
-    if (v && loadedFor !== location.href) load();
+    if (v && loadedFor !== key(current())) load();
   }
 
   function body() { return root && root.querySelector('.body'); }
@@ -221,8 +254,10 @@
     return c;
   }
 
+  function key(ctx) { return ctx ? ctx.stack + '/' + ctx.id : ''; }
+
   function load() {
-    var ctx = parse(location.href);
+    var ctx = current();
     var b = body();
     if (!ctx || !b) return;
     var mine = ++token;
@@ -251,7 +286,7 @@
         b.appendChild(st);
         (s.activities || []).forEach(function (a) { b.appendChild(activityCard(a || {})); });
       });
-      loadedFor = location.href;
+      loadedFor = key(ctx);
     }).catch(function (e) {
       if (mine !== token) return;
       showError(e.orphaned ? e.message : 'Could not load the automation: ' + e.message, !!e.orphaned);
@@ -259,9 +294,12 @@
   }
 
   function check() {
-    if (location.href === lastHref && (!!host === !!(enabled && parse(location.href)))) return;
-    lastHref = location.href;
-    if (enabled && parse(location.href)) {
+    if (!inAutomationStudio(location.href)) frameUrl = null;
+    var ctx = current();
+    var k = key(ctx);
+    if (k === lastKey && (!!host === !!(enabled && ctx))) return;
+    lastKey = k;
+    if (enabled && ctx) {
       mount();
       if (open) load();
     } else {
@@ -278,6 +316,7 @@
       if (area === 'local' && SETTING in changes) { enabled = changes[SETTING].newValue !== false; check(); }
     });
   } catch (e) { /* extension context gone */ }
+  window.addEventListener('message', onMessage);
   window.addEventListener('hashchange', check);
   window.addEventListener('popstate', check);
   // Automation Studio also changes the address without events the isolated world sees.

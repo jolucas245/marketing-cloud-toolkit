@@ -1,9 +1,12 @@
 <script setup>
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
+import ErrorExplanation from './ErrorExplanation.vue'
 import { CheckCircle2, XCircle, ShieldCheck, Loader2 } from 'lucide-vue-next'
 defineProps({
   results:   { type: Object, default: null },
   isRunning: { type: Boolean, default: false },
+  // The validated SQL, for the "Likely cause" hints (live test, 2026-11-07).
+  sql:       { type: String, default: '' },
 })
 </script>
 
@@ -30,6 +33,7 @@ defineProps({
       <div v-else-if="results.fatalError"
         class="text-sm leading-relaxed p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400">
         <strong>Validation failed:</strong> {{ results.fatalError }}<ReportErrorButton />
+        <ErrorExplanation class="mt-2" :message="results.fatalError" :sql="sql" />
       </div>
 
       <template v-else>
@@ -50,8 +54,10 @@ defineProps({
         <template v-if="results.errors.length">
           <div class="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mt-2 mb-1">Errors</div>
           <div v-for="(e, i) in results.errors" :key="'e'+i"
-            class="text-xs leading-relaxed px-3 py-2 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 whitespace-pre-wrap">
-            {{ e.message }}
+            class="text-xs leading-relaxed px-3 py-2 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400">
+            <div class="whitespace-pre-wrap">{{ e.message }}</div>
+            <!-- Same explanation as a failed Run step (live test, 2026-11-07). -->
+            <ErrorExplanation class="mt-1.5" :message="e.message" :sql="sql" />
           </div>
         </template>
 

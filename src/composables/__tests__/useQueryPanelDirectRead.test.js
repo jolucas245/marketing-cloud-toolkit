@@ -72,6 +72,13 @@ describe('Direct read loads the rest of the rows (feedback #1076)', () => {
     await vi.waitFor(() => expect(p.isFetchingMore.value).toBe(false))
   })
 
+  it('says "in under a second" for a read below one second (live test, 2026-11-07: "in 0s")', async () => {
+    total = 10
+    const p = await panel()
+    await p.runQuery(0, { sql: 'SELECT * FROM Demo_Products' })
+    expect(p.completedSummary.value).toMatch(/^Read directly from Demo_Products in under a second · 10 rows · no Query Activity · \d+ SFMC calls$/)
+  })
+
   it('stops at 50,000 rows', async () => {
     total = 80000
     const p = await panel()

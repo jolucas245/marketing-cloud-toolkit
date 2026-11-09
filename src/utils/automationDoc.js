@@ -3,14 +3,15 @@
 // activities with their details.
 import { describeRecurrence } from './ical.js'
 import { activityBlocks, activityTypeLabel, describeActivity } from './activityTypes.js'
-import { formatDateTime } from './format.js'
+import { formatDateTime, isNoEndDate } from './format.js'
+import { automationStatusName } from './watches.js'
 import { fetchAutomation, fetchActivityDetails } from './automationApi.js'
 import { runInBatches } from './batchRunner.js'
 import { automationSvg } from './automationSvg.js'
 
 export function automationOverviewRows(d) {
   return [
-    ['Name', d.name], ['Key', d.key], ['Type', d.type], ['Status', d.status],
+    ['Name', d.name], ['Key', d.key], ['Type', d.type], ['Status', automationStatusName(d.status)],
     ['Last run', formatDateTime(d.lastRunTime)], ['Last run status', d.lastRunStatus],
     ['Created', formatDateTime(d.createdDate)], ['Modified', formatDateTime(d.modifiedDate)], ['ID', d.id],
   ].filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])
@@ -20,7 +21,8 @@ export function scheduleRows(s) {
   if (!s) return []
   return [
     ['Status', s.scheduleStatus], ['Recurrence', describeRecurrence(s.icalRecur) || s.icalRecur], ['Time zone', s.timezoneName],
-    ['Start', formatDateTime(s.startDate)], ['Next run', formatDateTime(s.scheduledTime)], ['End', formatDateTime(s.endDate)],
+    // SFMC's "no end date" is 2079-06-06 (live test, 2026-11-08: shown as Jun 5, 2079).
+    ['Start', formatDateTime(s.startDate)], ['Next run', formatDateTime(s.scheduledTime)], ['End', isNoEndDate(s.endDate) ? 'No end date' : formatDateTime(s.endDate)],
   ].map(([k, v]) => [k, v ? String(v) : '—'])
 }
 

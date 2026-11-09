@@ -134,7 +134,8 @@ const bars = (list, journey) => {
 // Home search: the Ctrl+K palette with the text typed here. "Try" offers recent saved queries.
 const homeSearch = ref('')
 function searchAll(text = homeSearch.value) { openPalette(text) }
-const tryChips = computed(() => queries.value.filter((q) => q.name).slice(0, 3).map((q) => q.name))
+// One chip per name: two saved queries can share one (live test, 2026-11-08).
+const tryChips = computed(() => [...new Set(queries.value.map((q) => q.name).filter(Boolean))].slice(0, 3))
 // Describe the query you need (feedback #1029): opens Run Query with AI Assist asking.
 const ai = useAi()
 const aiAsk = ref('')

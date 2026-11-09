@@ -39,4 +39,18 @@ describe('Run Query clean-up (feedback #30)', () => {
     expect(deletes[0]).toMatch(/queries\/q1$/)
     expect(deletes.some((c) => c.includes('d9'))).toBe(false)
   })
+  it('lists leftover SFMCQS_ automations and deletes them first, the way Automation Studio does (live test, 2026-11-08)', async () => {
+    const calls = stub((url) => {
+      if (url.includes('/automation/definition/?')) return { totalResults: 2, entry: [
+        { id: 'TElTVElE', name: 'SFMCQS_run_20261108_1_abc', createdDate: '2026-11-08T14:57:17Z' }, { id: 'T1RIRVI', name: 'Nightly SFMCQS_ report' }] }
+      return {}
+    })
+    const { listToolkitAutomations, deleteToolkitObjects } = await import('../cleanup.js')
+    const list = await listToolkitAutomations('s10')
+    expect(list).toEqual([{ id: 'TElTVElE', name: 'SFMCQS_run_20261108_1_abc', createdDate: '2026-11-08T14:57:17Z', modifiedDate: null }])
+    const r = await deleteToolkitObjects('s10', { automations: list, activities: [{ id: 'q1', name: 'SFMCQS_act_1' }] })
+    expect(r.deleted.map((x) => [x.kind, x.id])).toEqual([['automation', 'TElTVElE'], ['activity', 'q1']])
+    const deletes = calls.filter((c) => c.startsWith('DELETE'))
+    expect(deletes[0]).toBe('DELETE https://mc.s10.marketingcloudapps.com/AutomationStudioFuel3/fuelapi/legacy/v1/beta/automation/Delete/TElTVElE')
+  })
 })

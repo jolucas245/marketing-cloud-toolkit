@@ -46,7 +46,7 @@ async function load() {
 watch(stack, (s) => { if (s && !loaded.value && !loading.value) load() }, { immediate: true })
 
 const shown = computed(() => filterEventDefinitions(items.value, filters))
-const descs = computed(() => shown.value.map((it) => describeEventDefinition(it, stack.value)))
+const descs = computed(() => shown.value.map((it) => describeEventDefinition(it)))
 // All entry events load together (the filters work here); they are shown 50 at a time.
 const visibleCount = ref(RESULTS_PAGE_SIZE)
 watch(filters, () => { visibleCount.value = RESULTS_PAGE_SIZE }, { deep: true })
@@ -68,6 +68,8 @@ async function openJourney(ev) {
   try {
     const r = await findUsage(stack.value, { kind: 'event', event: ev })
     const journeys = r.sections.find((s) => s.id === 'journeys')?.items || []
+    // One item per journey, whose route opens its published version (or its newest;
+    // live test, 2026-11-07); several journeys show in the Where used panel.
     if (journeys.length === 1) router.push(journeys[0].route)
     else if (journeys.length) usage.start(stack.value, { kind: 'event', event: ev })
     else findNote[ev.id] = 'No journey uses this entry event.'
@@ -125,7 +127,7 @@ function getDoc() {
           <ActivityCard v-for="(d, i) in descs.slice(0, visibleCount)" :key="shown[i].id || i" :description="d" :show-all-fields="showAllFields">
             <template #actions>
               <span v-if="findNote[shown[i].id]" class="text-xs text-muted-foreground">{{ findNote[shown[i].id] }}</span>
-              <button class="inline-flex items-center gap-1 text-xs text-primary hover:underline shrink-0 disabled:opacity-50" title="Open the journey that uses this entry event (several show in Where used)" :disabled="!!finding" @click="openJourney(shown[i])">
+              <button class="inline-flex items-center gap-1 text-xs text-primary hover:underline shrink-0 disabled:opacity-50" title="Open the journey that uses this entry event, at its published version (several journeys show in Where used)" :disabled="!!finding" @click="openJourney(shown[i])">
                 <Loader2 v-if="finding === shown[i].id" class="h-3 w-3 animate-spin" /><ExternalLink v-else class="h-3 w-3" /> Open journey
               </button>
               <button class="inline-flex items-center gap-1 text-xs text-primary hover:underline shrink-0" title="Journeys that use this entry event" @click="usage.start(stack, { kind: 'event', event: shown[i] })"><Network class="h-3 w-3" /> Where used</button>

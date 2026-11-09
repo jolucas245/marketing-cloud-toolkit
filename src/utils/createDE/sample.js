@@ -230,7 +230,10 @@ export function suggestTextLength(maxLen) {
 /** Guesses one column's field: { type, length, scale, isNullable }. */
 export function guessField(values, hint = null) {
   const filled = values.map((v) => String(v ?? '').trim()).filter((v) => v !== '')
-  const isNullable = filled.length < values.length || !values.length
+  // Not required unless the user ticks it (or makes it a primary key): a sample with no
+  // blanks made every field required, and later imports with a blank failed (live test,
+  // 2026-11-07). SFMC's own wizard leaves fields nullable too.
+  const isNullable = true
   const maxLen = filled.reduce((m, v) => Math.max(m, v.length), 0)
   const text = () => ({ type: 'Text', length: suggestTextLength(maxLen), scale: 0, isNullable })
   if (!filled.length) return hint ? { ...fixedField(hint), isNullable: true } : { type: 'Text', length: 255, scale: 0, isNullable: true }

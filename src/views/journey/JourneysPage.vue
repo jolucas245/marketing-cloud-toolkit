@@ -17,7 +17,7 @@ import ContentFolderTree from '@/components/content/ContentFolderTree.vue'
 import { cachedList, storedList, saveList } from '@/utils/listCache.js'
 import { savedAgo } from '@/utils/localCache.js'
 import { journeyChanges, searchJourneys, JOURNEY_STATUSES, JOURNEY_PAGE_SIZE } from '@/utils/journeys.js'
-import { formatDateTime } from '@/utils/format.js'
+import { formatDateTime, plural, statusWords } from '@/utils/format.js'
 import SfmcErrorNotice from '@/components/results/SfmcErrorNotice.vue'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
 
@@ -122,7 +122,7 @@ const columns = [
         </div>
         <select v-model="status" class="h-8 rounded-md border border-border bg-background px-1 text-xs" aria-label="Status">
           <option value="">Any status</option>
-          <option v-for="s in JOURNEY_STATUSES" :key="s" :value="s">{{ s }}</option>
+          <option v-for="s in JOURNEY_STATUSES" :key="s" :value="s">{{ statusWords(s) }}</option>
         </select>
         <Button size="sm" class="h-8 text-xs" type="submit" :disabled="loading"><Loader2 v-if="loading" class="h-3.5 w-3.5 mr-1 animate-spin" /> Search</Button>
       </form>
@@ -137,7 +137,7 @@ const columns = [
       </div>
       <template v-else-if="searched !== null">
         <div class="mb-2 flex flex-wrap items-center gap-2">
-          <p class="text-xs text-muted-foreground flex-1">{{ total.toLocaleString() }} found{{ searched.query ? ` for "${searched.query}"` : '' }}{{ searched.status ? `, status ${searched.status}` : '' }}. <template v-if="listInfo?.mode === 'stored'">Stored {{ savedAgo(listInfo.savedAt) }}: Search reads only the changes.</template><template v-else-if="listInfo?.mode === 'delta'">{{ listInfo.changed }} change(s) read from SFMC.</template>
+          <p class="text-xs text-muted-foreground flex-1">{{ total.toLocaleString() }} found{{ searched.query ? ` for "${searched.query}"` : '' }}{{ searched.status ? `, status ${searched.status}` : '' }}. <template v-if="listInfo?.mode === 'stored'">Stored {{ savedAgo(listInfo.savedAt) }}: Search reads only the changes.</template><template v-else-if="listInfo?.mode === 'delta'">{{ listInfo.changed ? `${plural(listInfo.changed, 'change')} read from SFMC.` : 'No changes in SFMC since the last read.' }}</template>{{ ' ' }}
             <button type="button" class="underline hover:text-foreground" title="Read the whole list again from SFMC (statuses, last runs, deletions)" data-list-refresh @click="search('refresh')">Refresh</button></p>
           <WatchButton v-if="items.length" bulk type="journey" :stack="stack" :items="items.filter((j) => picked.has(j.id))" />
         </div>

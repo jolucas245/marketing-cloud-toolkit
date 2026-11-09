@@ -40,3 +40,27 @@ describe('SecretAlerts', () => {
     expect(home.find('[data-secret-alert]').exists()).toBe(true)
   })
 })
+
+describe('SecretAlerts on Home with many secrets (live test, 2026-11-07)', () => {
+  beforeEach(() => { for (const k of Object.keys(stored)) delete stored[k] })
+  const many = (n) => Array.from({ length: n }, (_, i) => ({ packageId: `p${i}`, name: `Package ${i}`, expires: new Date(Date.now() - (i + 1) * day).toISOString() }))
+
+  it('lists the first 5 and says how many more are on Installed Packages', async () => {
+    const { secretsState, SecretAlerts } = await setup()
+    secretsState.list = many(38)
+    await nextTick()
+    const home = mount(SecretAlerts, { props: { variant: 'home' }, ...stubs })
+    expect(home.findAll('li')).toHaveLength(5)
+    expect(home.get('[data-secret-more]').text()).toBe('33 more: see all installed package secrets')
+    expect(home.text()).toContain('38 installed package secrets expired or expiring')
+  })
+
+  it('lists all of a short list', async () => {
+    const { secretsState, SecretAlerts } = await setup()
+    secretsState.list = many(2)
+    await nextTick()
+    const home = mount(SecretAlerts, { props: { variant: 'home' }, ...stubs })
+    expect(home.findAll('li')).toHaveLength(2)
+    expect(home.get('[data-secret-more]').text()).toBe('All installed package secrets')
+  })
+})

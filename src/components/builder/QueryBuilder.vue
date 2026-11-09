@@ -12,6 +12,7 @@ import WhereBuilder from './WhereBuilder.vue'
 import QueryOptions from './QueryOptions.vue'
 import OutputColumns from './OutputColumns.vue'
 import { useStack } from '@/composables/useStack.js'
+import { tagQueryBusinessUnit } from '@/utils/queryBusinessUnit.js'
 import { saveBuilderRecord, getBuilderRecord, listSavedQueryRecords, defaultQueryOptions, plainClone } from '@/utils/builderStorage.js'
 import { resolveSelectionTables, fieldOptionsFromTables, buildSqlFromSelections } from '@/utils/sqlBuilder.js'
 import { graphToModel } from '@/utils/builderOrder.js'
@@ -419,6 +420,7 @@ async function doAutosave() {
     })
     if (id !== recordId.value) emit('saved', id)
     recordId.value = id
+    if (stack.value) tagQueryBusinessUnit(id, stack.value)
     if (!recordName.value) getBuilderRecord(id).then((r) => { if (r?.name) recordName.value = r.name }).catch(() => {})
     lastSavedAt.value = Date.now()
     saveStatus.value = 'saved'

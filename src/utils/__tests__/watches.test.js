@@ -9,6 +9,12 @@ describe('watched automations (feedback #50)', () => {
     expect(automationStatusName('Running')).toBe('Running')
     expect(automationStatusName(null)).toBe('')
   })
+  it('splits Automation Studio\'s list names into words (live test, 2026-11-08)', () => {
+    expect(automationStatusName('PausedSchedule')).toBe('Paused schedule')
+    expect(automationStatusName('InactiveTrigger')).toBe('Inactive trigger')
+    expect(automationStatusName('Building')).toBe('Building')
+    expect(automationStatusName('ETL_Run')).toBe('ETL_Run')
+  })
   it('notices pausing, activation, failed runs; runs only when asked; nothing on the first look', () => {
     const prev = { status: 6, lastRunTime: '2026-10-19T10:00:00', lastRunStatus: 'Complete' }
     expect(diffAutomation(null, prev)).toEqual([])

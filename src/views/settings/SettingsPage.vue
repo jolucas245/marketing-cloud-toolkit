@@ -207,7 +207,7 @@ function setDebounce(e) {
       <div class="flex items-start gap-3">
         <div class="flex-1">
           <div class="text-sm font-medium">Save CloudPage versions</div>
-          <p class="text-xs text-muted-foreground">Each time you save a CloudPage (landing page, web page or code resource), a copy is kept in this browser under Content > Saved CloudPages, to compare, revert or restore yourself (the 10 newest versions per page). On by default.</p>
+          <p class="text-xs text-muted-foreground">Each time you save a CloudPage (landing page, web page or code resource), a copy is kept in this browser (Content > CloudPages, Saved versions tab), to compare, revert or restore yourself (the 10 newest versions per page). On by default.</p>
         </div>
         <Switch :model-value="cloudPageSaver && !policy.disableHistory" :disabled="policy.disableHistory" aria-label="Save CloudPage versions" @update:model-value="cloudPageSaver = $event" />
       </div>
@@ -249,7 +249,7 @@ function setDebounce(e) {
       <div class="flex items-start gap-3">
         <div class="flex-1">
           <div class="text-sm font-medium">Keep query history</div>
-          <p class="text-xs text-muted-foreground">Each saved query keeps the SQL of its runs, in this browser only. When off, a run keeps only the names of the data extension and Query Activity it created in SFMC (so Delete Toolkit runs can remove them), not its SQL. Query results are never stored in the browser.</p>
+          <p class="text-xs text-muted-foreground">Each saved query keeps the SQL of its runs, in this browser only. When off, a run keeps only the names of the data extension and Query Activity it created in SFMC (so Settings > Clean up can remove them), not its SQL. Query results are never stored in the browser.</p>
         </div>
         <Switch :model-value="keepHistory && !policy.disableHistory" :disabled="policy.disableHistory" aria-label="Keep query history" @update:model-value="keepHistory = $event" />
       </div>

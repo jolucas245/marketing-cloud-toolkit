@@ -75,20 +75,21 @@ watch(() => props.stack, () => { de.value = null; rows.value = [] })
 
 <template>
   <div class="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4" @mousedown.self="emit('close')">
-    <div role="dialog" aria-modal="true" :aria-label="title" class="flex flex-col w-full max-w-5xl h-[80vh] rounded-2xl border border-border bg-card shadow-xl" data-de-picker>
+    <div role="dialog" aria-modal="true" :aria-label="title" class="flex flex-col w-full max-w-5xl h-[80vh] overflow-hidden rounded-2xl border border-border bg-card shadow-xl" data-de-picker>
       <div class="flex items-center gap-2 px-4 py-3 border-b border-border">
         <Database class="h-4 w-4 text-primary" />
         <h2 class="font-semibold flex-1">{{ title }}</h2>
         <button type="button" class="p-1 rounded hover:bg-accent" aria-label="Close" @click="emit('close')"><X class="h-4 w-4" /></button>
       </div>
-      <div class="flex-1 min-h-0 grid" :class="withRow ? '[grid-template-columns:minmax(240px,320px)_1fr] max-[760px]:grid-cols-1' : 'grid-cols-1'">
+      <div class="flex-1 min-h-0 grid" :class="withRow ? '[grid-template-columns:minmax(240px,320px)_minmax(0,1fr)] max-[760px]:grid-cols-1' : 'grid-cols-1'">
         <div class="min-h-0 overflow-hidden border-r border-border flex flex-col">
           <DEBrowser :stack="stack" :selected-ids="de ? [de.id] : []" hide-data-views :sendable-only="sendableOnly" selected-label="selected" class="flex-1 min-h-0" @select-de="chooseDE" />
           <div v-if="!withRow && (loading || error)" class="p-3 text-xs border-t border-border" :class="error ? 'text-red-700 dark:text-red-300' : 'text-muted-foreground'">
             <Loader2 v-if="loading" class="h-3 w-3 animate-spin inline" /> {{ error || 'Reading the data extension' }}
           </div>
         </div>
-        <div v-if="withRow" class="min-h-0 flex flex-col">
+        <!-- min-w-0: a wide row table scrolls here instead of widening the dialog past its edge (live test, 2026-11-07). -->
+        <div v-if="withRow" class="min-h-0 min-w-0 flex flex-col">
           <div v-if="!de" class="m-auto text-muted-foreground p-6 text-center">Pick a data extension on the left, then a row.</div>
           <template v-else>
             <div class="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-border text-xs">

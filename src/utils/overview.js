@@ -2,7 +2,7 @@
 // counted by status, what needs a look, run trends from the run log, and which
 // published journeys send email, SMS or push.
 import { searchAutomations, loadMoreAutomations, fetchRunHistory } from './automationApi.js'
-import { searchJourneys, fetchJourney, JOURNEY_PAGE_SIZE } from './journeys.js'
+import { searchJourneys, fetchJourney, groupJourneyVersions, JOURNEY_PAGE_SIZE } from './journeys.js'
 import { isFailure } from './watches.js'
 import { runInBatches } from './batchRunner.js'
 import { LIVE_JOURNEY } from './summaries.js'
@@ -101,19 +101,25 @@ export async function runTrends(stack, list, { days = 30, max = 40, now = Date.n
 }
 
 /** Every journey's latest version (up to 2,000). */
+/**
+ * Every journey, one row each: its live version (published, scheduled, paused...) when
+ * it has one, else its newest, with `versionCount`. The newest version alone counted a
+ * published journey with a newer draft as a draft (live test, 2026-11-08: "Welcome
+ * Journey", version 3 draft, version 2 published). onProgress counts versions read.
+ */
 export async function listAllJourneys(stack, onProgress = () => {}) {
   let page = 1
   let items = []
   let total = Infinity
   while (items.length < Math.min(total, MAX_ITEMS)) {
-    const r = await searchJourneys(stack, { page })
+    const r = await searchJourneys(stack, { page, allVersions: true })
     items = items.concat(r.items)
     total = r.total
     onProgress(items.length, total)
     if (r.items.length < JOURNEY_PAGE_SIZE) break
     page++
   }
-  return items
+  return groupJourneyVersions(items).map((g) => ({ ...g.primary, versionCount: g.versions.length }))
 }
 
 const CHANNELS = [['email', /EMAIL/], ['sms', /SMS/], ['push', /PUSH|INAPP|INBOX/], ['whatsapp', /WHATSAPP/]]

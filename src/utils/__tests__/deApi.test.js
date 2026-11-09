@@ -99,6 +99,12 @@ describe('deSearchTerms (feedback #22)', () => {
     expect(['Master - Backup', 'Old master - backup 2', 'Master', 'Master Backup'].filter(t.filter)).toEqual(['Master - Backup', 'Old master - backup 2'])
     expect(deSearchTerms('Customer - old').term).toBe('Customer')
   })
+  it('matches text with an underscore here, since SFMC treats _ as a wildcard (live test, 2026-11-07)', async () => {
+    const { deSearchTerms } = await import('../deApi.js')
+    const t = deSearchTerms('Demo_')
+    expect(t.term).toBe('Demo_')
+    expect(['Demo_Orders', 'DemoDE', 'demo_customers', 'My_Demo_List'].filter(t.filter)).toEqual(['Demo_Orders', 'demo_customers', 'My_Demo_List'])
+  })
   it('filters the page SFMC returns', async () => {
     vi.resetModules()
     const calls = []

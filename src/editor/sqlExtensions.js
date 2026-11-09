@@ -1,13 +1,13 @@
-import { sql, MSSQL } from '@codemirror/lang-sql'
+import { MSSQL } from '@codemirror/lang-sql'
 import { snippetCompletion } from '@codemirror/autocomplete'
 import { linter, lintGutter } from '@codemirror/lint'
-import { hoverTooltip, keymap, showTooltip, EditorView } from '@codemirror/view'
+import { hoverTooltip, keymap, showTooltip, tooltips, EditorView } from '@codemirror/view'
 import { StateField, StateEffect } from '@codemirror/state'
 
-import { lintSql, fixAll } from '../utils/sqlLint.js'
+import { lintSql, fixAll, FORBIDDEN_FUNCS } from '../utils/sqlLint.js'
 import { disabledRules, setRuleDisabled, onLintSettingsChange } from './lintSettings.js'
 import { columnList, fieldRef } from '../utils/insertFields.js'
-import { SQL_FUNCTIONS, signatureAt, hoverDocAt } from '../utils/sqlDocs.js'
+import { SQL_FUNCTIONS, SQL_KEYWORDS, SQL_DATA_TYPES, signatureAt, hoverDocAt } from '../utils/sqlDocs.js'
 import { FIELD_VALUES } from '../utils/dataViews.js'
 import { completionContext, referencedTables } from '../utils/sqlContext.js'
 import { bareTableName } from '../utils/schemaCatalog.js'
@@ -35,12 +35,22 @@ function fieldLabel(name) {
   return needsBrackets(name) ? `[${name.replace(/]/g, ']]')}]` : name
 }
 
-const FUNCTION_OPTIONS = Object.values(SQL_FUNCTIONS).map(f => {
+// Only the functions documented for SFMC SQL (utils/sqlDocs.js), less the ones SFMC
+// refuses (QS lint). CodeMirror's MSSQL word list offered REGEXP_SUBSTR, CURSOR_STATUS,
+// @@FETCH_STATUS and the like, even right after FROM (live test, 2026-11-07).
+export const FUNCTION_OPTIONS = Object.values(SQL_FUNCTIONS).filter(f => !FORBIDDEN_FUNCS.has(f.name)).map(f => {
   const noArgs = /\(\s*\)$/.test(f.signature || '')
   return snippetCompletion(noArgs ? `${f.name}()` : `${f.name}(\${})`, {
     label: f.name, type: 'function', detail: f.returns || '', info: f.signature, boost: -1,
   })
 })
+
+// Keywords and data types of SFMC SQL, in place of CodeMirror's MSSQL word list.
+// A keyword that is also a function (LEFT, RIGHT) is offered once, as the function.
+export const KEYWORD_OPTIONS = [
+  ...SQL_KEYWORDS.filter(k => !SQL_FUNCTIONS[k]).map(k => ({ label: k, type: 'keyword', boost: -1 })),
+  ...SQL_DATA_TYPES.map(t => ({ label: t, type: 'type', detail: 'data type', boost: -2 })),
+]
 
 // Fields for every table in the query, keyed by alias (or the table's own name).
 async function tablesInScope(doc, catalog) {
@@ -59,7 +69,7 @@ function findQualified(scoped, qualifier) {
     ?? scoped.find(t => bareTableName(t.name).toLowerCase() === q)
 }
 
-function makeCompletionSource(catalog) {
+export function makeCompletionSource(catalog) {
   return async (context) => {
     const doc = context.state.doc.toString()
     const c = completionContext(doc, context.pos)
@@ -115,7 +125,7 @@ function makeCompletionSource(catalog) {
     }
 
     // Columns: fields of every table in scope (alias-qualified when there is more
-    // than one table), then functions. Keywords come from the SQL language itself.
+    // than one table), then functions and keywords.
     const multi = scoped.length > 1
     const options = []
     for (const t of scoped) {
@@ -142,7 +152,7 @@ function makeCompletionSource(catalog) {
         boost: -2,
       })
     }
-    options.push(...FUNCTION_OPTIONS)
+    options.push(...FUNCTION_OPTIONS, ...KEYWORD_OPTIONS)
     return { from: c.from, options, validFor: /^[\w.\[\]]*$/ }
   }
 }
@@ -266,7 +276,25 @@ export function formatCommand(view) {
   return r
 }
 
+// Tooltips stay inside the app's page area (<main>), so a hover or lint message never
+// covers the app header or the sidebar; outside the app shell, inside the window.
+export function editorTooltipSpace(view) {
+  const win = { top: 0, left: 0, right: window.innerWidth, bottom: window.innerHeight }
+  const main = view.dom.closest?.('main')
+  if (!main) return win
+  const r = main.getBoundingClientRect()
+  if (!(r.width > 0 && r.height > 0)) return win
+  return {
+    top: Math.max(win.top, r.top), left: Math.max(win.left, r.left),
+    right: Math.min(win.right, r.right), bottom: Math.min(win.bottom, r.bottom),
+  }
+}
+
 const theme = EditorView.baseTheme({
+  // A lint message spanned the whole window and covered the app header (live test,
+  // 2026-11-07): hover and lint tooltips get a readable width and wrap.
+  '.cm-tooltip.cm-tooltip-hover, .cm-tooltip.cm-tooltip-lint': { maxWidth: 'min(480px, calc(100vw - 32px))' },
+  '.cm-tooltip-lint .cm-diagnostic': { whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' },
   '.cm-sql-doc': { maxWidth: '420px', padding: '6px 8px', fontSize: '12px', lineHeight: '1.45' },
   '.cm-sql-doc > div + div': { marginTop: '4px' },
   '.cm-sql-doc-sig': { fontFamily: 'JetBrains Mono, Fira Code, monospace', fontWeight: '600' },
@@ -279,10 +307,13 @@ const theme = EditorView.baseTheme({
  * @param {{ getLintOptions?: () => object, onFormat?: (result) => void }} opts
  */
 export function sfmcSqlExtensions(catalog, opts = {}) {
-  const lang = sql({ dialect: MSSQL, upperCaseKeywords: true })
+  // The MSSQL grammar only: sql() would add CodeMirror's keyword completion with the
+  // whole MSSQL word list, which is not what SFMC supports. makeCompletionSource offers
+  // tables after FROM/JOIN and SFMC's functions and keywords elsewhere.
   return [
-    lang,
-    lang.language.data.of({ autocomplete: makeCompletionSource(catalog) }),
+    MSSQL.extension,
+    MSSQL.language.data.of({ autocomplete: makeCompletionSource(catalog) }),
+    tooltips({ tooltipSpace: editorTooltipSpace }),
     makeLinter(catalog, opts.getLintOptions),
     lintGutter(),
     makeHover(catalog),

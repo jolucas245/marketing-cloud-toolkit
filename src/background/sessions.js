@@ -46,11 +46,24 @@ export async function probeSession(app, stack) {
   }
 }
 
+// How long one landing may take: the app's own `landingTimeoutMs` (a number, or a
+// function of the landing URL) when it has one, else the shared default.
+export function landingTimeout(app, landingUrl) {
+  const t = typeof app.landingTimeoutMs === 'function' ? app.landingTimeoutMs(landingUrl) : app.landingTimeoutMs
+  return Number.isFinite(t) && t > 0 ? t : timing.landingTimeoutMs
+}
+
+// The SESSION_UNAVAILABLE error, with the app's own hint (what to open in SFMC) if any.
+function unavailable(app, stack) {
+  const hint = app.sessionHint ? ` ${app.sessionHint}` : ''
+  return new SfmcAuthError(SESSION_UNAVAILABLE, `Could not start a ${app.name} session on stack ${stack}.${hint}`)
+}
+
 async function tryLanding(app, stack, landingUrl) {
   const tab = await createTab({ url: landingUrl, active: false })
   if (!tab) return false
   try {
-    const deadline = Date.now() + timing.landingTimeoutMs
+    const deadline = Date.now() + landingTimeout(app, landingUrl)
     while (Date.now() < deadline) {
       await delay(timing.pollMs)
       if (await probeSession(app, stack)) return true
@@ -68,7 +81,7 @@ export function ensureSession(app, stack, { onLoggedOut } = {}) {
   if (inFlight.has(key)) return inFlight.get(key)
   const last = failedAt.get(key)
   if (last && Date.now() - last < timing.cooldownMs) {
-    return Promise.reject(new SfmcAuthError(SESSION_UNAVAILABLE, `Could not start a ${app.name} session on stack ${stack}.`))
+    return Promise.reject(unavailable(app, stack))
   }
   const promise = (async () => {
     if (await probeSession(app, stack)) return
@@ -79,7 +92,7 @@ export function ensureSession(app, stack, { onLoggedOut } = {}) {
     for (const url of app.landings(stack)) {
       if (await tryLanding(app, stack, url)) return
     }
-    throw new SfmcAuthError(SESSION_UNAVAILABLE, `Could not start a ${app.name} session on stack ${stack}.`)
+    throw unavailable(app, stack)
   })()
     .then(() => { failedAt.delete(key) })
     .catch((err) => { failedAt.set(key, Date.now()); throw err })
@@ -100,10 +113,16 @@ export async function sessionStatus(stack) {
   return { stack, loggedIn, apps }
 }
 
+// Starts an app's session even during the cooldown. An app with `retryGapMs` keeps a
+// failure younger than that: the page's automatic reconnect (withReconnect) comes
+// right after the failed start and would only repeat it; a later Retry starts again.
 export async function connectApp(stack, appId, opts) {
   const app = findApp(appId)
   if (!app) throw new Error(`Unknown SFMC app: ${appId}`)
-  failedAt.delete(`${stack}:${app.id}`)
+  const key = `${stack}:${app.id}`
+  const last = failedAt.get(key)
+  if (app.retryGapMs && last && Date.now() - last < app.retryGapMs) throw unavailable(app, stack)
+  failedAt.delete(key)
   await ensureSession(app, stack, opts)
 }
 

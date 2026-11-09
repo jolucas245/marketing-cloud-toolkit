@@ -279,7 +279,7 @@ whenStack(load)
     <!-- Custom domains -->
     <template v-if="tab === 'custom'">
       <SfmcErrorNotice v-if="customError" :error="customError" :retrying="loading" @retry="load" />
-      <p v-if="custom" class="text-xs text-muted-foreground">Your subdomains for links, images, web versions and CloudPages, each with an SSL certificate.<template v-if="custom.lastUpdate"> Last updated in SFMC {{ formatDateTime(custom.lastUpdate) }}.</template></p>
+      <p v-if="custom" class="text-xs text-muted-foreground">Your subdomains for links, images, web versions and CloudPages, each with an SSL certificate.<template v-if="formatDateTime(custom.lastUpdate)"> Last updated in SFMC {{ formatDateTime(custom.lastUpdate) }}.</template></p>
       <p v-if="custom && !customItems.length" class="text-xs text-muted-foreground">No custom domains.</p>
       <div v-if="customRows.length" class="overflow-x-auto">
         <table class="w-full text-xs">

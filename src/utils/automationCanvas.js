@@ -36,7 +36,7 @@ export function automationSource(details) {
     const lines = []
     const recur = describeRecurrence(s.icalRecur) || text(s.icalRecur)
     if (recur) lines.push(recur)
-    if (s.scheduledTime) lines.push(`Next run ${formatDateTime(s.scheduledTime)}`)
+    if (formatDateTime(s.scheduledTime)) lines.push(`Next run ${formatDateTime(s.scheduledTime)}`)
     if (s.timezoneName) lines.push(text(s.timezoneName))
     if (s.scheduleStatus) lines.push(`Schedule ${text(s.scheduleStatus).toLowerCase()}`)
     return { kind: 'schedule', title: 'Schedule', lines }

@@ -7,6 +7,29 @@ import { formatDateTime } from './format.js'
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}|$)/
 const NUMBER = /^-?\d+(?:\.\d+)?$/
+// SFMC's own date text in DE rows and query results: "7/23/2025 12:00:00 AM",
+// "7/23/2025 4:05 PM", "7/23/2025 16:05" or "7/23/2025" (US month/day order).
+// Read as text these sort month, day, year (live test, 2026-11-07).
+const US_DATE = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T]+(\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3})\d*)?)?\s*([AP]M)?)?$/i
+
+/** Time of an SFMC US date ("M/D/YYYY[ h:mm[:ss] [AM|PM]]"), or null when it is not one. */
+export function parseUsDate(s) {
+  const m = US_DATE.exec(s)
+  if (!m) return null
+  const [, mo, d, y, h = '0', mi = '0', sec = '0', ms = '0', ampm] = m
+  let hour = Number(h)
+  if (ampm) {
+    if (hour < 1 || hour > 12) return null
+    hour = (hour % 12) + (ampm.toUpperCase() === 'PM' ? 12 : 0)
+  }
+  const month = Number(mo) - 1
+  const day = Number(d)
+  if (month > 11 || day < 1 || hour > 23 || Number(mi) > 59 || Number(sec) > 59) return null
+  const date = new Date(Number(y), month, day, hour, Number(mi), Number(sec), Number(ms.padEnd(3, '0')))
+  // Rejects 2/30/2026 and the like, which Date would roll into March.
+  if (date.getMonth() !== month || date.getDate() !== day) return null
+  return date.getTime()
+}
 
 // Columns without a label (tick boxes, action links) are neither sorted nor filtered.
 export const isSortable = (c) => c.sortable !== false && !!c.label
@@ -25,6 +48,8 @@ export function sortKey(v, type) {
   if (v instanceof Date) return v.getTime()
   const s = String(v).trim()
   if (s === '') return null
+  const us = parseUsDate(s)
+  if (us !== null) return us
   if (type === 'date' || ISO_DATE.test(s)) {
     const t = Date.parse(s)
     if (!Number.isNaN(t)) return t

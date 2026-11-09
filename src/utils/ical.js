@@ -17,6 +17,17 @@ export function describeRecurrence(ical) {
   if (parts.BYDAY) text += ` on ${parts.BYDAY.split(',').map((d) => DAYS[d.replace(/^[-+]?\d+/, '')] || d).join(', ')}`
   if (parts.BYMONTHDAY) text += ` on day ${parts.BYMONTHDAY.split(',').join(', ')}`
   if (parts.COUNT) text += `, ${parts.COUNT} times`
-  if (parts.UNTIL) text += `, until ${parts.UNTIL}`
+  const until = untilDate(parts.UNTIL)
+  if (until) text += `, until ${until}`
+  else if (parts.UNTIL && !/^\d{8}/.test(parts.UNTIL)) text += `, until ${parts.UNTIL}`
   return text
+}
+
+// UNTIL is 20790606T030000 style. SFMC writes 2079-06-06 (the largest SQL smalldatetime)
+// for a schedule with no end date, so that one is left out (live test, 2026-11-07).
+function untilDate(v) {
+  const m = /^(\d{4})(\d{2})(\d{2})/.exec(String(v || ''))
+  if (!m || Number(m[1]) >= 2079) return ''
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }

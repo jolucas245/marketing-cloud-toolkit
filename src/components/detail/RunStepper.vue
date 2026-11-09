@@ -1,7 +1,7 @@
 <script setup>
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { ref } from 'vue'
-import { explainRunError } from '@/utils/runErrors.js'
+import ErrorExplanation from './ErrorExplanation.vue'
 import { AlertTriangle, Copy, Check, LogIn, RefreshCw } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
 
@@ -155,13 +155,7 @@ function toggleWarnings(idx) {
             </template>
             <template v-else>
               <span class="text-[10px] text-red-700 dark:text-red-400 leading-snug wrap-break-word">{{ stepErrors[idx] }}<ReportErrorButton :error="stepErrors[idx]" /></span>
-              <div v-if="explainRunError(stepErrors[idx], sql)" class="w-full text-left text-[10px] leading-snug text-foreground bg-card border border-border rounded p-1.5 space-y-0.5">
-                <div><b>Likely cause:</b> {{ explainRunError(stepErrors[idx], sql).cause }}</div>
-                <div v-if="explainRunError(stepErrors[idx], sql).fix"><b>Fix:</b> {{ explainRunError(stepErrors[idx], sql).fix }}</div>
-                <ul v-if="explainRunError(stepErrors[idx], sql).sqlHints.length" class="list-disc pl-4 text-muted-foreground">
-                  <li v-for="h in explainRunError(stepErrors[idx], sql).sqlHints" :key="h">{{ h }}</li>
-                </ul>
-              </div>
+              <ErrorExplanation :message="stepErrors[idx]" :sql="sql" />
               <Button variant="outline" size="sm" class="h-6 text-[10px] border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40" @click="emit('retry', idx)">
                 <RefreshCw class="h-3 w-3 mr-1" /> Retry
               </Button>

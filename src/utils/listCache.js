@@ -3,6 +3,7 @@
 // filters) for 30 days. Searching again asks SFMC only for what changed since the newest
 // stored item (`changes(since)`) and merges it in; Refresh (`force`) reads it all again,
 // which also drops deleted items (no list in SFMC reports deletions).
+import { plural } from './format.js'
 import { cacheKey, cacheScope, readCache, writeCache, newestModified, mergeChanges } from './localCache.js'
 
 const keyFor = async (stack, kind, params) => cacheKey(await cacheScope(stack), `list-${kind}`, JSON.stringify(params))
@@ -47,7 +48,7 @@ export async function cachedList({ stack, kind, params, full, changes, force = f
 /** "Saved 3 days ago · 2 changes read" style note. */
 export function listNote(r, ago) {
   if (!r?.savedAt) return ''
-  if (r.mode === 'delta') return `Stored list, updated with ${r.changed} change(s) from SFMC`
+  if (r.mode === 'delta') return r.changed ? `Stored list, updated with ${plural(r.changed, 'change')} from SFMC` : 'Stored list, no changes in SFMC since the last read'
   if (r.mode === 'stored') return `Stored list from ${ago(r.savedAt)}: Search reads only the changes`
   return ''
 }

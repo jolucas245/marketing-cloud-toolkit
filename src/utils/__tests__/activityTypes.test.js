@@ -24,8 +24,11 @@ describe('activityTypes', () => {
   })
 
   it('maps import destination and update types', () => {
-    const d = describeActivity(43, { name: 'Imp', destinationObjectTypeId: 310, updateTypeId: 3, fieldMappings: [{ name: 'A', type: 'Ordinal', value: '1' }] }, 's10')
-    expect(rows(d.main)).toMatchObject({ 'Destination type': 'Data Extension', 'Update type': 'Add and Update' })
+    const d = describeActivity(43, { name: 'Imp', destinationObjectTypeId: 310, destinationName: 'Target DE', updateTypeId: 0, fieldMappings: [{ name: 'A', type: 'Ordinal', value: '1' }] }, 's10')
+    expect(rows(d.main)).toMatchObject({ 'Destination type': 'Data Extension', 'Target': 'Target DE', 'Update type': 'Add and Update' })
+    // Checked against Automation Studio's Data Action (live test, 2026-11-07).
+    expect(rows(describeActivity(43, { name: 'I', updateTypeId: 1 }, 's10').main)['Update type']).toBe('Add Only')
+    expect(rows(describeActivity(43, { name: 'I', updateTypeId: 4 }, 's10').main)['Update type']).toBe('Overwrite')
     expect(d.tables[0]).toMatchObject({ title: 'Field mappings', rows: [['A', 'Ordinal', '1']], extra: true })
   })
 
@@ -70,7 +73,11 @@ describe('links and run data (feedback #35 to #37)', () => {
   it('leaves out DE refs without a name, and has none for other types', async () => {
     const { describeActivity } = await import('../activityTypes.js')
     expect(describeActivity(303, { name: 'F' }, 's1').deRefs).toEqual({})
-    expect(describeActivity(43, { targetDataExtension: { name: 'Imp', id: 'i1' } }, 's1').deRefs['Target data extension']).toMatchObject({ name: 'Imp', id: 'i1' })
+    expect(describeActivity(43, { targetDataExtension: { name: 'Imp', id: 'i1' } }, 's1').deRefs['Target']).toMatchObject({ name: 'Imp', id: 'i1' })
+    // An import into a list has no data extension to link (live test, 2026-11-08).
+    expect(describeActivity(43, { destinationObjectTypeId: 13, destinationName: 'Newsletter' }, 's1').deRefs).toEqual({})
+    const list = describeActivity(43, { destinationObjectTypeId: 13, destinationId: 7135 }, 's1')
+    expect(rows(list.main).Target).toBe('List ID 7135')
     expect(describeActivity(9999, { a: 1 }, 's1')).toMatchObject({ deRefs: {}, run: null })
   })
   it('builds Automation Studio and Contact Builder links', async () => {
@@ -79,5 +86,35 @@ describe('links and run data (feedback #35 to #37)', () => {
     expect(automationUrl('s13')).toBe('https://mc.s13.exacttarget.com/cloud/#app/Automation%20Studio/AutomationStudioFuel3/')
     expect(contactBuilderDEUrl('s13', 'd1')).toBe('https://mc.s13.marketingcloudapps.com/contactsmeta/admin.html#admin/data-extension/d1/properties/')
     expect(contactBuilderDEUrl('s13', null)).toBeNull()
+  })
+  // Automation Studio shows its list for #Instance/<GUID>; it needs its list ID (live test, 2026-11-07).
+  it('links an automation by the list ID Automation Studio uses, given the REST GUID', async () => {
+    const { automationUrl, automationStudioId } = await import('../activityTypes.js')
+    // Pairs read on s10: the list's #Instance/<id> link and the REST id of the same automation.
+    const pairs = [
+      ['6ffd69f0-a04e-48d9-9822-930ff4e3e474', 'OEduOWIwNmcyVWlZSXBNUDlPUGtkQToyNTow'],
+      ['55f9fbb6-ab39-461a-98ef-1a90f9aa1256', 'dHZ2NVZUbXJHa2FZN3hxUS1hb1NWZzoyNTow'],
+      ['ff471211-4b9d-413b-88f0-2a11e97eacd1', 'RVJKSF81MUxPMEdJOENvUjZYNnMwUToyNTow'],
+      ['11f41efd-9daa-4a3c-8efc-5935b76828fa', 'X1I3MEVhcWRQRXFPX0ZrMXQyZ28tZzoyNTow'],
+    ]
+    for (const [guid, listId] of pairs) {
+      expect(automationStudioId(guid)).toBe(listId)
+      expect(automationStudioId(guid.toUpperCase())).toBe(listId)
+      expect(automationStudioId(listId)).toBe(listId)
+    }
+    expect(automationUrl('s10', '6ffd69f0-a04e-48d9-9822-930ff4e3e474'))
+      .toBe('https://mc.s10.exacttarget.com/cloud/#app/Automation%20Studio/AutomationStudioFuel3/%23Instance/OEduOWIwNmcyVWlZSXBNUDlPUGtkQToyNTow')
+    expect(automationStudioId(null)).toBe('')
+  })
+})
+
+describe('step-only note (live test, 2026-11-07)', () => {
+  it('does not claim a missing API when SFMC refused the details of a Query activity', () => {
+    const d = describeActivity(300, { name: 'Gone', objectTypeId: 300, activityObjectId: 'q-1', _fromStep: 'error' }, 's10')
+    expect(d.note).toMatch(/did not return the details/)
+    expect(d.note).not.toMatch(/no API/)
+  })
+  it('still says so for a type without a details API', () => {
+    expect(describeActivity(999, { name: 'X', _fromStep: true }, 's10').note).toMatch(/no API/)
   })
 })

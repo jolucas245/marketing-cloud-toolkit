@@ -9,6 +9,7 @@ import { sortRows, filterRows, nextSort } from '@/utils/tableSort.js'
 import { filterRows as searchRows } from '@/utils/deRows.js'
 import { rowsAsTsv, rangeSelect } from '@/utils/rowSelection.js'
 import { downloadWorkbook } from '@/utils/exportDoc.js'
+import { resultsWorkbookSheets } from '@/utils/resultsWorkbook.js'
 import { showToast } from '@/composables/useToast.js'
 import { useStack } from '@/composables/useStack.js'
 import { exportBaseName } from '@/utils/exportName.js'
@@ -121,7 +122,8 @@ async function copyPicked() {
 async function downloadExcel() {
   try {
     const { stack } = useStack()
-    await downloadWorkbook([{ name: props.filename || 'Rows', columns: props.columns, rows: exportRows.value.map((r) => props.columns.map((c) => r[c] ?? '')) }],
+    // Run Query: SQL on the first sheet, the rows shown (or ticked) on the second.
+    await downloadWorkbook(resultsWorkbookSheets({ sql: props.sql, columns: props.columns, rows: exportRows.value, name: props.filename }),
       `${await exportBaseName(stack.value, `${props.filePrefix}-${props.filename || 'results'}`)}.xlsx`)
   } catch (e) {
     showToast(`Export failed: ${e.message}`)
@@ -226,9 +228,10 @@ function downloadCSV() {
           <Download class="h-3 w-3" />
           CSV{{ selectable && pickedRows.length ? ` (${pickedRows.length})` : '' }}
         </Button>
-        <Button v-if="selectable" variant="outline" size="sm" :disabled="columns.length === 0" @click="downloadExcel" class="h-7 rounded-full px-2.5 text-xs gap-1.5">
+        <Button variant="outline" size="sm" :disabled="columns.length === 0" @click="downloadExcel" class="h-7 rounded-full px-2.5 text-xs gap-1.5"
+          :title="sql.trim() ? 'Excel: the SQL on the first sheet, the rows shown on the second' : 'Excel: the rows shown'">
           <FileSpreadsheet class="h-3 w-3" />
-          Excel{{ pickedRows.length ? ` (${pickedRows.length})` : '' }}
+          Excel{{ selectable && pickedRows.length ? ` (${pickedRows.length})` : '' }}
         </Button>
         <Button variant="outline" size="sm" :disabled="!canExport" @click="downloadMarkdown"
           class="h-7 rounded-full px-2.5 text-xs gap-1.5" :title="`Download the SQL and up to ${MARKDOWN_ROW_LIMIT} rows as Markdown`">

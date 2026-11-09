@@ -58,4 +58,37 @@ describe('Schema search beside Run Query (feedback #72)', () => {
     expect(w.text()).toContain('JobID')
     expect(w.text()).toContain('Number')
   })
+
+  // "Joined as de." was shown in red like an error (live test, 2026-11-07).
+  it('shows a join that worked as a success, one without ON as a warning and a failure as an error', async () => {
+    const { default: SchemaPanel } = await import('../SchemaPanel.vue')
+    const editor = fakeEditor()
+    const results = [
+      { alias: 'orders', matched: true },
+      { alias: 'orders', matched: false },
+      { error: 'Demo_Orders is already in the query.' },
+    ]
+    editor.joinTable = vi.fn(async () => results.shift())
+    const w = mount(SchemaPanel, { props: { editor, stack: 's13' } })
+    await w.find('input').setValue('_se')
+    await new Promise((r) => setTimeout(r, 300))
+    await flushPromises()
+    await w.findAll('li button')[0].trigger('click')
+    await flushPromises()
+    const join = () => w.findAll('button').find((b) => b.text() === 'Join').trigger('click').then(flushPromises)
+    await join()
+    let note = w.find('[data-note]')
+    expect(note.text()).toBe('Joined as orders.')
+    expect(note.classes()).toContain('text-emerald-700')
+    expect(note.classes()).not.toContain('text-red-600')
+    expect(note.attributes('role')).toBe('status')
+    await join()
+    note = w.find('[data-note]')
+    expect(note.text()).toBe('Joined as orders; set its ON condition.')
+    expect(note.classes()).toContain('text-amber-700')
+    await join()
+    note = w.find('[data-note]')
+    expect(note.classes()).toContain('text-red-600')
+    expect(note.attributes('role')).toBe('alert')
+  })
 })

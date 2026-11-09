@@ -53,7 +53,7 @@ export const FEATURE_GROUPS = [
     items: [
       { title: 'Save as query activity', since: '2.0.12', how: 'The save-to-SFMC button in a panel', detail: 'Name a Query Activity, pick its folder, write to a new data extension (name and folder; fields from the query) or an existing one, and choose Overwrite, Update or Append. Review, then create. Nothing is run or scheduled. Since 2.0.14 the review checks the target first: required fields the query leaves out, columns with no field (dropped silently), text going into Number or Date fields, values longer than a field, Update without a primary key, a query that reads its own target, and keys a join can return twice.' },
       { title: 'Why did the run fail?', since: '2.0.14', detail: 'A failed run explains SFMC\'s error: the likely cause and the fix (dates from text, division by zero, overflow, duplicate keys, LEFT with CHARINDEX, and more). When SFMC gives no reason, it points at the parts of the SQL that usually fail a run.' },
-      { title: 'Fix all', since: '2.0.14', how: 'The wand button in a panel', detail: 'Applies every one-click fix the SQL checks offer, in one step you can undo. Fixes that change the result (such as adding a date filter) are left to you.' },
+      { title: 'Fix all', since: '2.0.14', how: 'Edit > Fix all in a panel', detail: 'Applies every one-click fix the SQL checks offer, in one step you can undo. Fixes that change the result (such as adding a date filter) are left to you.' },
       { title: 'Stale results', since: '2.0.14', detail: 'When you edit the SQL after a run, the results are greyed with a note, so you do not export rows from an older query.' },
       { title: 'Save results to a data extension', since: '2.0.14', how: 'Save to data extension above the results', detail: 'Copies the rows loaded in the results into an existing data extension (Append, or Update by primary key) or a new one made from the query\'s columns.' },
       { title: 'Shared snippets', since: '2.0.14', how: 'The people button in a panel', detail: 'SQL your team shares, kept in a Toolkit_Shared_Snippets data extension in the business unit (created on first use). Insert one at the cursor, share the selection or the query, and delete your own.' },
@@ -68,6 +68,7 @@ export const FEATURE_GROUPS = [
       { title: 'Search the results', since: '2.0.21', how: 'Search rows box above the results', detail: 'Finds the text in any column of the loaded rows; works with the column filters, and CSV, Excel and Markdown keep only the matching rows. Esc clears it.' },
       { title: 'Delete old runs from SFMC', since: '2.0.21', how: 'Settings > Running queries', detail: 'On by default (feedback #1081). Once a day, runs you made in this browser more than 7 days ago (or the days you set) lose their data extension and Query Activity in SFMC; the run stays in the query\'s history with its SQL, marked Cleaned up from SFMC.' },
       { title: 'Data retention on new data extensions', since: '2.0.3', how: 'Settings > Running queries', detail: 'Off by default. Switched on, SFMC deletes each row of a new Run Query data extension after the number of days you set.' },
+      { title: 'Excel download', how: 'Excel above the results', detail: 'The SQL on the first sheet, one line per row, and the rows shown on the second (after search, filters and sorting).' },
       { title: 'Export with no rows', since: '2.0.3', detail: 'When a query returns nothing, Copy for AI and MD still give the SQL and the columns, and CSV gives the header.' },
       {
         title: 'Up to 6 queries side by side',
@@ -147,7 +148,7 @@ export const FEATURE_GROUPS = [
       {
         title: 'SFMC checks as you type',
         how: 'Underlines and gutter markers; hover to read them',
-        detail: 'About 40 rules catch what SFMC rejects or handles badly: more than one statement, variables, temp tables, WITH, a computed column without an alias, duplicate column names, ORDER BY in a subquery without TOP, = NULL, NOT IN with a subquery, a tracking data view without a date filter, functions SFMC does not support, and more. Each message shows its rule code (QS001 and so on). SELECT * is allowed.',
+        detail: '64 rules catch what SFMC rejects or handles badly: more than one statement, variables, temp tables, WITH, a computed column without an alias, duplicate column names, ORDER BY in a subquery without TOP, = NULL, NOT IN with a subquery, a tracking data view without a date filter, functions SFMC does not support, and more. Each message shows its rule code (QS001 and so on). SELECT * is allowed.',
       },
       {
         title: 'One-click fixes',
@@ -206,9 +207,9 @@ export const FEATURE_GROUPS = [
         detail: 'Tables as cards on a canvas you can zoom and pan, like Diagramforce. Tick fields for the output on the cards, drag from a field to a field on another card to join them (a table can join any earlier one), and click a join\'s label to change its type or conditions. Auto layout arranges the cards along the joins; Fit, the minimap and a filter link per field help on big queries. The crown makes a card the FROM table. List and Visual show the same query.',
       },
       { title: 'From SQL', since: '2.0.14', how: 'From SQL in the toolbar (paste, or since 2.0.15 pick a Query Activity or a saved query), Open in Query Builder in Run Query or a saved query, or Apply to builder after editing the SQL', detail: 'Paste a SELECT and it opens as tables and joins: data extensions are looked up in SFMC (a table that is not found gets a grey card with the fields the query uses), aliases, columns, AS names, filters (with AND/OR groups), GROUP BY, HAVING, ORDER BY, DISTINCT and TOP are kept. Expressions the builder cannot model (CASE, functions, BETWEEN, subqueries in WHERE) are kept as written. Comments and formatting are not kept; a note lists anything to check.' },
-      { title: 'Subqueries and UNION', since: '2.0.14', how: 'Subquery on the canvas; + UNION or + SELECT in the toolbar', detail: 'A SELECT in FROM is a dashed card with its columns as fields (edit its SQL with the pencil). UNION, UNION ALL, EXCEPT and INTERSECT give one tab per SELECT.' },
+      { title: 'Subqueries and UNION', since: '2.0.14', how: 'New > Subquery or New > Another SELECT (UNION) in the toolbar; + SELECT in the tab bar once there are two', detail: 'A SELECT in FROM is a dashed card with its columns as fields (edit its SQL with the pencil). UNION, UNION ALL, EXCEPT and INTERSECT give one tab per SELECT.' },
       { title: 'Output columns', since: '2.0.14', how: 'Step 2 in List mode, or Filters & options in Visual mode', detail: 'Put the output columns in order and give them names (AS).' },
-      { title: 'Open in Diagramforce', since: '2.0.14', how: 'Diagramforce in the toolbar, or the share button in Run Query', detail: 'Opens the query as a diagram on diagramforce.com (Mateusz Dabrowski\'s free diagram editor): the data model (tables with the fields used, or all fields, and join lines) or the lineage (which source fields feed each output column). Only table and field names are sent, never data.' },
+      { title: 'Open in Diagramforce', since: '2.0.14', how: 'Diagramforce in the toolbar, or the share button in Run Query', detail: 'Opens the query as a diagram on diagramforce.com (Mateusz Dąbrowski\'s free diagram editor): the data model (tables with the fields used, or all fields, and join lines) or the lineage (which source fields feed each output column). Only table and field names are sent, never data.' },
       {
         title: 'Generated SQL',
         detail: 'Shown in a panel you can dock right or bottom, or hide, and edit by hand. Copy it, Save it to Saved queries (it reopens in the Builder), or send it to Run Query. Your work is saved automatically, and the query you were building reopens; New query starts another.',
@@ -243,7 +244,7 @@ export const FEATURE_GROUPS = [
     title: 'Automation Templates',
     intro: 'Automation > Templates. The Toolkit creates the data extensions, Query activities and automation; it never schedules or runs them.',
     items: [
-      { title: 'Orphan contacts', since: '2.0.3', detail: 'After Mateusz Dabrowski\'s Contact Deletion article: collects contacts whose Salesforce record is gone (Leads and Users no longer synced, Contacts deleted in CRM) into a sendable Contact Deletion Pending data extension, with an optional archive of hashed emails. Shows how to make the All Contacts mobile list it reads, and how to delete the contacts in Contact Builder.' },
+      { title: 'Orphan contacts', since: '2.0.3', detail: 'After Mateusz Dąbrowski\'s Contact Deletion article: collects contacts whose Salesforce record is gone (Leads and Users no longer synced, Contacts deleted in CRM) into a sendable Contact Deletion Pending data extension, with an optional archive of hashed emails. Shows how to make the All Contacts mobile list it reads, and how to delete the contacts in Contact Builder.' },
       { title: 'Unengaged subscribers', since: '2.0.5', detail: 'Subscribers sent email in the last N days who neither opened nor clicked (with a minimum number of sends), in a sendable data extension for re-engagement or suppression.' },
       { title: 'Held and bouncing subscribers', since: '2.0.5', detail: 'Subscribers marked Held or Bounced, and anyone with a recent hard bounce, with bounce count, last bounce date and reason.' },
       { title: 'Automation run log', since: '2.0.5', detail: 'Every automation run and every activity run, with status and error details, copied daily so they are kept beyond six months.' },
@@ -260,9 +261,9 @@ export const FEATURE_GROUPS = [
     intro: 'Automation > Activities.',
     items: [
       { title: 'Filters on every stack', since: '2.0.3', detail: 'Filter activities load where SFMC refuses to sort them.' },
-      { title: 'Activities by type', detail: 'Query, Script, Import, Data Extract, File Transfer and Filter. Search by name, list all (newest first), or Fetch all to load every one (up to 2,000).' },
+      { title: 'Activities by type', detail: 'Query, Script, Import, Data Extract, File Transfer and Filter. Search by name, or search with an empty box to list them all (newest first, 50 at a time).' },
       { title: 'Details for each', detail: 'The same details as in an automation, with All fields to show every property. Filters can load their filter definitions.' },
-      { title: 'Run once', since: '2.0.13', how: 'Run once on a Data Extract, Import, File Transfer or Script card', detail: 'Starts the activity in SFMC after a confirm, the same as when its automation runs it. Checked for Data Extracts; Imports, File Transfers and Scripts use the same request and show SFMC\'s message if it is refused. SQL Query activities keep Run this query.' },
+      { title: 'Run once', since: '2.0.13', how: 'Run once on a Data Extract, Import or Script card', detail: 'Starts the activity in SFMC after a confirm, the same as when its automation runs it. Checked for Data Extracts; Imports and Scripts use the same request and show SFMC\'s message if it is refused. File Transfers cannot be started this way (SFMC has no start request for them). SQL Query activities keep Run this query.' },
     ],
   },
   {
@@ -382,7 +383,7 @@ export const FEATURE_GROUPS = [
   {
     id: 'contacts',
     title: 'Contacts',
-    intro: 'Data > Contacts. Reads Contact Builder; changes nothing.',
+    intro: 'Contacts > Contacts. Reads Contact Builder; changes nothing.',
     items: [
       { title: 'Contact count', since: '2.0.8', detail: 'How many contacts the account has in Contact Builder.' },
       { title: 'Find a contact', since: '2.0.8', how: 'Enter a Contact Key, then Search', detail: 'The contact\'s ID, dates and the attribute values Contact Builder returns.' },
@@ -435,7 +436,7 @@ export const FEATURE_GROUPS = [
   {
     id: 'saved-cloudpages',
     title: 'CloudPage versions',
-    intro: 'Content > Saved CloudPages. Turn saving on or off in Settings > Emails and CloudPages.',
+    intro: 'Content > CloudPages, Saved versions tab. Turn saving on or off in Settings > Emails and CloudPages.',
     items: [
       { title: 'Every CloudPage save is kept', since: '2.0.20', how: 'Automatic', detail: 'Each save of a landing page, web page or code resource becomes a version, the 10 newest per page, in this browser only. Preview a version (scripts off).' },
       { title: 'Code and compare', since: '2.0.20', how: 'Code, or Compare with', detail: 'See the code of any version, or compare two versions: code side by side with changes marked, or the two previews next to each other. Saved Emails has the same.' },

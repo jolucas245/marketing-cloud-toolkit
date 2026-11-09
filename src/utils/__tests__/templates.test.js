@@ -139,7 +139,8 @@ describe('createFromPlan', () => {
       { kind: 'de', id: 'd1', name: 'A' }, { kind: 'query', id: 'q1', name: 'B' }, { kind: 'automation', id: 'a1', name: 'C' }, { kind: 'de', id: null, name: 'D' },
     ])
     expect(calls.map((c) => c.method + ' ' + c.url.split('/fuelapi')[1])).toEqual([
-      'DELETE /automation/v1/automations/a1', 'DELETE /automation/v1/queries/q1', 'DELETE /internal/v1/customobjects/d1'])
+      // Automation Studio's own delete: the REST DELETE answers 404 (live test, 2026-11-08).
+      'DELETE /legacy/v1/beta/automation/Delete/a1', 'DELETE /automation/v1/queries/q1', 'DELETE /internal/v1/customobjects/d1'])
     expect(failed.map((f) => f.name)).toEqual(['D'])
   })
 })

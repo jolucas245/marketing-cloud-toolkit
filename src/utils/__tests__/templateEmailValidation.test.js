@@ -102,7 +102,8 @@ describe('createFromPlan with a Script activity', () => {
     const failed = await deleteCreated('s10', [{ kind: 'de', id: 'd1' }, { kind: 'script', id: 'ssjs-1' }, { kind: 'automation', id: 'a1' }])
     expect(failed).toEqual([])
     expect(calls.map((c) => `${c.method} ${c.url.split('/fuelapi')[1]}`)).toEqual([
-      'DELETE /automation/v1/automations/a1', 'DELETE /automation/v1/scripts/ssjs-1', expect.stringMatching(/^DELETE .*d1/),
+      // Automation Studio's own delete: the REST DELETE answers 404 (live test, 2026-11-08).
+      'DELETE /legacy/v1/beta/automation/Delete/a1', 'DELETE /automation/v1/scripts/ssjs-1', expect.stringMatching(/^DELETE .*d1/),
     ])
   })
 })

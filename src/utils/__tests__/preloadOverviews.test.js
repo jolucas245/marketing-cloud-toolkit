@@ -8,7 +8,7 @@ vi.mock('../overview.js', () => ({
 }))
 
 const { preloadOverviews, preloadOverviewPage } = await import('../preloadOverviews.js')
-const { pageCacheKey, readPageCache, writePageCache, clearPageCache, pendingPageCache } = await import('../pageCache.js')
+const { pageCacheKey, readPageCache, writePageCache, clearPageCache, pendingPageCache, setPendingPageCache } = await import('../pageCache.js')
 
 describe('preloadOverviews (feedback #78)', () => {
   beforeEach(() => { clearPageCache(); calls.automations = 0; calls.journeys = 0; calls.failJourneys = false })
@@ -32,6 +32,18 @@ describe('preloadOverviews (feedback #78)', () => {
     expect(await preloadOverviews('s13')).toEqual(['automation-overview'])
     expect(readPageCache(pageCacheKey('journey-overview', 's13', 7))).toBeNull()
     expect(pendingPageCache(pageCacheKey('journey-overview', 's13', 7))).toBeNull()
+  })
+
+  it('waits for a read already in progress instead of skipping it (live test, 2026-11-08: Home showed "—" for journeys)', async () => {
+    let release
+    const key = pageCacheKey('journey-overview', 's13', 7)
+    setPendingPageCache(key, new Promise((r) => { release = r }).then(() => writePageCache(key, { list: [{ id: 'j9' }], sends: null })))
+    const done = preloadOverviews('s13')
+    await new Promise((r) => setTimeout(r, 0))
+    release()
+    expect(await done).toEqual(['automation-overview', 'journey-overview'])
+    expect(readPageCache(key).list).toEqual([{ id: 'j9' }])
+    expect(calls.journeys).toBe(0)
   })
 
   it('does nothing without a stack', async () => {

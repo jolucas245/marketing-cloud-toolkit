@@ -296,6 +296,9 @@ const saveItems = computed(() => [
 
 // Schema search beside the editor (feedback #72), open or closed for every panel.
 const SCHEMA_KEY = 'toolkit_schemaPanel'
+// Header, search or table details and about six fields, but never more than 70% of
+// the panel, so a small panel (2x2, 2x3) keeps room for the results.
+const SCHEMA_MIN_HEIGHT = 'min(20rem, 70%)'
 const schemaPanel = ref(null)
 const showSchema = ref((() => { try { return localStorage.getItem(SCHEMA_KEY) === '1' } catch { return false } })())
 function setSchema(on) {
@@ -471,7 +474,9 @@ function openSchema() {
     <div v-if="clearedText" class="px-3 py-1.5 text-xs flex items-center gap-2 bg-muted border-b border-border shrink-0">Cleared. <button class="text-primary hover:underline font-medium" @click="undoClear">Undo</button><button class="ml-auto text-muted-foreground hover:text-foreground" title="Dismiss" @click="clearedText = ''"><X class="h-3.5 w-3.5" /></button></div>
     <div v-if="formatNote" class="px-3 py-1.5 text-xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-b border-border shrink-0">{{ formatNote }}</div>
     <div v-show="activeTab === 'editor'" class="flex-1 flex flex-col min-h-0">
-      <div class="overflow-hidden shrink-0 flex min-w-0" :style="{ height: editorHeightPct + '%' }">
+      <!-- With the schema search open the row is at least SCHEMA_MIN_HEIGHT tall: at the
+           default 25% it showed one field before scrolling (live test, 2026-11-07). -->
+      <div class="overflow-hidden shrink-0 flex min-w-0" :style="{ height: editorHeightPct + '%', minHeight: showSchema ? SCHEMA_MIN_HEIGHT : null }" data-editor-row>
         <div class="flex-1 min-w-0 h-full">
           <QueryEditor ref="editorRef" :modelValue="queryText" :stack="stack" @update:modelValue="onEditorChange" @format="onFormatResult" @run="runFromKey" @schema-search="openSchema" />
         </div>
@@ -485,7 +490,7 @@ function openSchema() {
           <span class="text-muted-foreground flex-1">{{ fixCount === 1 ? '1 problem' : `${fixCount} problems` }} found by {{ runProblems.length ? 'the last check or run' : 'the SQL checks' }}.</span>
           <AiButton size="sm" label="Fix with AI" title="Fix with AI (experimental): Gemini Nano in Chrome suggests a fixed query; you see the changes before applying them" @click="openAi('fix')" />
         </div>
-        <ValidationPanel v-if="resultsMode === 'validating' || resultsMode === 'validation'" :results="validationResults" :isRunning="resultsMode === 'validating'" />
+        <ValidationPanel v-if="resultsMode === 'validating' || resultsMode === 'validation'" :results="validationResults" :isRunning="resultsMode === 'validating'" :sql="queryText" />
         <RunStepper v-else-if="showRunStepper" :stepStatuses="stepStatuses" :stepErrors="stepErrors" :stepDetails="stepDetails" :elapsedSeconds="elapsedSeconds" :completedSummary="null" :sql="queryText" @retry="runQuery" @login="openSfmcLogin" @prompt="answerPrompt" />
         <template v-else-if="resultsMode === 'results'">
           <div class="flex items-center gap-2 border-b border-border px-1">

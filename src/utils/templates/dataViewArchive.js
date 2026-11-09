@@ -76,7 +76,7 @@ export const dataViewArchive = {
   ],
 
   after: (o) => [
-    `Schedule "${o.automationName}" to run daily in Automation Studio (it is not scheduled and was not run).`,
+    `Set a daily schedule for "${o.automationName}" in Automation Studio (it is not scheduled and was not run).`,
     `Each run copies the last ${o.days} days, so a missed day is picked up by the next run.`,
     'If you made these with an earlier version of the Toolkit, delete the old archive data extensions, queries and automation and run this template again: the queries now keep one row per key, and _Job\'s DynamicEmailSubject and EventID are text.',
     'To copy everything the data views still hold (about six months), change the number of days in each query to 180, run the automation once, then change it back.',

@@ -74,7 +74,7 @@ async function load(force = false) {
     ;(details.value.steps || []).forEach((step, si) => (step.activities || []).forEach((a, ai) => {
       const raw = stored.value.activities?.[key(si, ai)]
       acts[key(si, ai)] = raw?.error
-        ? { status: 'error', error: raw.error, desc: describeActivity(a.objectTypeId, { ...a, _fromStep: true }, stack.value) }
+        ? { status: 'error', error: raw.error, desc: describeActivity(a.objectTypeId, { ...a, _fromStep: 'error' }, stack.value) }
         : { status: 'ok', desc: describeActivity(a.objectTypeId, raw?.details ?? { ...a, _fromStep: true }, stack.value) }
     }))
     // The running bar asks SFMC only when the stored copy says it is running.
@@ -87,7 +87,9 @@ async function load(force = false) {
     // notifications need the list ID, so switch to it when it can be found (feedback #1042).
     if (isAutomationGuid(id.value)) {
       const legacy = await legacyAutomationId(stack.value, { ...r.details, id: id.value }).catch(() => null)
-      if (legacy && legacy !== id.value) { router.replace({ ...route, params: { ...route.params, id: legacy } }); return }
+      // An explicit path: with the route's own `path` in it, Vue Router ignored the new
+      // params and the page stayed on "Loading the automation" (live test, 2026-11-08).
+      if (legacy && legacy !== id.value) { router.replace({ path: `/automations/${encodeURIComponent(legacy)}`, query: route.query, hash: route.hash }); return }
     }
     details.value = r.details
     notifications.value = r.notifications
@@ -115,7 +117,7 @@ async function load(force = false) {
       acts[k] = { status: 'ok', desc: describeActivity(a.objectTypeId, r.value, stack.value) }
     } catch (e) {
       activities[k] = { error: e.message }
-      acts[k] = { status: 'error', error: e.message, desc: describeActivity(a.objectTypeId, { ...a, _fromStep: true }, stack.value) }
+      acts[k] = { status: 'error', error: e.message, desc: describeActivity(a.objectTypeId, { ...a, _fromStep: 'error' }, stack.value) }
     }
   })
   const rec = await writeCache(autoKey, JSON.parse(JSON.stringify({ details: details.value, notifications: notifications.value, activities })))

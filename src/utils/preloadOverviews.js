@@ -34,7 +34,7 @@ export async function preloadOverviewPage(stack, buId, page, { now = () => Date.
   return { list: readPageCache(key)?.list || [], cached: false }
 }
 
-/** One page after the other; resolves to the pages it read. */
+/** One page after the other; resolves to the pages it read or waited for. */
 export async function preloadOverviews(stack, { now = () => Date.now(), maxAgeMs = PRELOAD_MAX_AGE_MS } = {}) {
   if (!stack) return []
   const bu = await fetchCurrentBU(stack).catch(() => null)
@@ -44,8 +44,10 @@ export async function preloadOverviews(stack, { now = () => Date.now(), maxAgeMs
     const key = pageCacheKey(job.page, stack, bu.accountId)
     const saved = readPageCache(key)
     if (saved?.list && now() - saved.savedAt < maxAgeMs) continue
-    if (pendingPageCache(key)) continue
-    const p = setPendingPageCache(key, job.read(stack).then((list) => { writePageCache(key, job.patch(list)) }))
+    // A read already in progress (the idle preload, or Home's own) is waited for, not
+    // skipped: Home read the cache right after and showed "—" for journeys while the
+    // other read was still going (live test, 2026-11-08).
+    const p = pendingPageCache(key) || setPendingPageCache(key, job.read(stack).then((list) => { writePageCache(key, job.patch(list)) }))
     try { await p; read.push(job.page) } catch { /* quiet: the page reads again when opened */ }
   }
   return read

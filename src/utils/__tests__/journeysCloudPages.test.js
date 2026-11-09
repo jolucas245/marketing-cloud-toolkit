@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { filterEventDefinitions, describeEventDefinition, eventIconUrl } from '../journeyApi.js'
+import { filterEventDefinitions, describeEventDefinition } from '../journeyApi.js'
 import { cloudPageSearchBody, toCloudPage, urlFromSites, CLOUD_PAGE_ASSET_TYPE_IDS } from '../cloudPagesApi.js'
 
 const now = new Date(2026, 9, 14, 12)
@@ -23,13 +23,13 @@ describe('event definition filters', () => {
     expect(names({ category: 'Audience' })).toEqual(['Welcome Entry', 'Old schedule'])
     expect(names({ scheduledFrom: true })).toEqual(['Welcome Entry'])
   })
-  it('describes an event definition and its icon', () => {
-    const d = describeEventDefinition({ ...events[0], iconUrl: 'images/icon.svg', interactionCount: 3 }, 's10')
+  it('describes an event definition', () => {
+    const d = describeEventDefinition({ ...events[0], iconUrl: 'images/icon.svg', interactionCount: 3 })
     expect(d.typeLabel).toBe('Data Extension (Email Audience)')
-    expect(Object.fromEntries(d.main)['Journey status']).toBe('Active (1 published journey)')
+    expect(Object.fromEntries(d.main)['Journey status']).toBe('Active (1 published version)')
     expect(d.tables[0].title).toBe('Schedule')
-    expect(eventIconUrl('s10', { iconUrl: 'images/icon.svg' })).toBe('https://jbinteractions.s10.marketingcloudapps.com/images/icon.svg')
-    expect(eventIconUrl('s10', { iconUrl: 'javascript:alert(1)' })).toBe('https://jbinteractions.s10.marketingcloudapps.com/javascript:alert(1)')
+    // Journey Builder's icon URL is no longer used (white glyph; live test, 2026-11-07).
+    expect(d.icon).toBeNull()
   })
 })
 

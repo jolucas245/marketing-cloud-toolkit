@@ -4,7 +4,7 @@
 // criteria, and every setting. Read-only.
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, nextTick, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import PrevNext from '@/components/shell/PrevNext.vue'
 import { ArrowLeft, Loader2, ExternalLink, X, Columns3, Rows3 } from 'lucide-vue-next'
 import JourneyCanvas from '@/components/journey/JourneyCanvas.vue'
@@ -14,7 +14,9 @@ import DownloadMenu from '@/components/results/DownloadMenu.vue'
 import WatchButton from '@/components/automation/WatchButton.vue'
 import { openInSfmc } from '@/utils/sfmcLinks.js'
 import { useStack } from '@/composables/useStack.js'
-import { fetchJourney, journeyGraph, layoutJourney, describeJourneyNode, journeyOverviewRows, journeyBuilderUrl, journeyDoc, nodeEmailId, fetchJourneyEmailAsset } from '@/utils/journeys.js'
+import { searchJourneys, primaryVersion, LIVE_VERSION } from '@/utils/journeys.js'
+import { statusWords } from '@/utils/format.js'
+import { fetchJourney, journeyGraph, layoutJourney, describeJourneyNode, journeyOverviewRows, journeyBuilderUrl, journeyDoc, nodeEmailId, fetchJourneyEmailAsset, sendNames, hasEmailStep } from '@/utils/journeys.js'
 import { compile } from '@/utils/emailCompiler.js'
 import { journeySvg } from '@/utils/journeySvg.js'
 import AiButton from '@/components/ai/AiButton.vue'
@@ -24,6 +26,7 @@ import { AI_TEXT_SYSTEM, buildAiTaskPrompt, docText } from '@/utils/aiAssist.js'
 
 const ORIENTATION_KEY = 'toolkit_journey_orientation'
 const route = useRoute()
+const router = useRouter()
 const { stack } = useStack()
 
 const journey = ref(null)
@@ -74,20 +77,53 @@ async function load() {
   selected.value = null
   try {
     const result = await fetchJourney(stack.value, String(route.params.id), route.query.version)
-    if (generation === loadGeneration) journey.value = result
+    if (generation === loadGeneration) {
+      journey.value = result
+      if (versions.value[0]?.id !== result?.id) loadVersions(result)
+    }
   } catch (e) {
     if (generation === loadGeneration) error.value = `Could not load this journey: ${e.message}`
   } finally {
     if (generation === loadGeneration) loading.value = false
   }
 }
+// Every version of this journey, to switch between them: the list opens the newest,
+// which can be a draft while an older version is the published one (live test,
+// 2026-11-08: "Welcome Journey", version 3 draft, version 2 published).
+const versions = ref([])
+async function loadVersions(j) {
+  versions.value = []
+  if (!j?.id || !j.name) return
+  try {
+    const r = await searchJourneys(stack.value, { query: j.name, allVersions: true })
+    const mine = r.items.filter((v) => v.id === j.id).sort((a, b) => (Number(b.version) || 0) - (Number(a.version) || 0))
+    if (journey.value?.id === j.id) versions.value = mine
+  } catch { /* the page works without the version list */ }
+}
+const liveVersion = computed(() => {
+  const p = primaryVersion(versions.value)
+  return p && LIVE_VERSION.test(String(p.status || '')) ? p : null
+})
+function pickVersion(v) { router.push({ path: route.path, query: { ...route.query, version: String(v) } }) }
+
 watch([() => route.params.id, () => route.query.version, stack], () => { if (route.path.startsWith('/journeys/')) load() }, { immediate: true })
 
 const graph = computed(() => (journey.value ? journeyGraph(journey.value) : { nodes: [], edges: [] }))
 const layout = computed(() => layoutJourney(graph.value))
 const selectedNode = computed(() => graph.value.nodes.find((n) => n.key === selected.value) || null)
 const nameOf = (k) => graph.value.nodes.find((n) => n.key === k)?.name || k
-const selectedDesc = computed(() => (selectedNode.value ? describeJourneyNode(selectedNode.value, nameOf) : null))
+// Send classification, sender and delivery profile names for email steps (live test,
+// 2026-11-07: they showed as IDs). Read once per stack; until then the IDs show.
+const profileNames = ref(null)
+watch([journey, stack], async ([j, s]) => {
+  if (!j || !s || !hasEmailStep(j) || profileNames.value?.stack === s) return
+  try {
+    const read = await sendNames(s)
+    if (stack.value === s) profileNames.value = { stack: s, names: read }
+  } catch { /* the IDs stay */ }
+}, { immediate: true })
+const names = computed(() => (profileNames.value?.stack === stack.value ? profileNames.value.names : null))
+const selectedDesc = computed(() => (selectedNode.value ? describeJourneyNode(selectedNode.value, nameOf, names.value) : null))
 
 // Email preview for an email node, from its Content Builder asset.
 const preview = ref({ status: 'idle' }) // idle | loading | ok | none | error
@@ -106,11 +142,11 @@ watch(selectedNode, async (n) => {
   }
 })
 
-const getDoc = () => journeyDoc(journey.value, graph.value, layout.value, journeySvg(graph.value, layout.value, orientation.value))
+const getDoc = () => journeyDoc(journey.value, graph.value, layout.value, journeySvg(graph.value, layout.value, orientation.value), names.value)
 // Summarize with AI (feedback #1029, experimental): the download's text, without the picture.
 const ai = useAi()
 const summaryOpen = ref(false)
-const summaryPrompt = (extra) => buildAiTaskPrompt('journey', { text: docText(journeyDoc(journey.value, graph.value, layout.value, '')) + (extra.trim() ? `\n\nAlso answer: ${extra.trim()}` : '') })
+const summaryPrompt = (extra) => buildAiTaskPrompt('journey', { text: docText(journeyDoc(journey.value, graph.value, layout.value, '', names.value)) + (extra.trim() ? `\n\nAlso answer: ${extra.trim()}` : '') })
 </script>
 
 <template>
@@ -121,7 +157,13 @@ const summaryPrompt = (extra) => buildAiTaskPrompt('journey', { text: docText(jo
       <h1 class="text-sm font-semibold truncate">{{ journey?.name || 'Journey' }}</h1>
       <template v-if="journey">
         <StatusBadge :status="journey.status" />
-        <span class="text-xs text-muted-foreground">Version {{ journey.version }}</span>
+        <select v-if="versions.length > 1" :value="String(journey.version)" aria-label="Version" class="h-7 rounded-md border border-border bg-background px-1 text-xs" @change="pickVersion($event.target.value)">
+          <option v-for="v in versions" :key="v.version" :value="String(v.version)">Version {{ v.version }} · {{ statusWords(v.status) }}</option>
+        </select>
+        <span v-else class="text-xs text-muted-foreground">Version {{ journey.version }}</span>
+        <button v-if="liveVersion && String(liveVersion.version) !== String(journey.version)" type="button" data-live-version class="text-xs text-primary hover:underline" @click="pickVersion(liveVersion.version)">
+          Version {{ liveVersion.version }} is {{ statusWords(liveVersion.status).toLowerCase() }}: show it
+        </button>
         <div class="flex-1" />
         <div class="flex items-center gap-0.5 border border-border rounded-md p-0.5" role="group" aria-label="Layout">
           <button class="flex items-center gap-1 text-xs px-2 py-0.5 rounded" :class="orientation === 'horizontal' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'"

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   fieldProblem, cellProblem, checkCreateForm, isFormValid, buildCreateBody, rowsToLoad, createDE, blankSettings, LOAD_BATCH, lengthErrorField,
-  buildFields, isTypeRefusal, CURRENT_DATE_DEFAULT,
+  buildFields, isTypeRefusal, CURRENT_DATE_DEFAULT, defaultSendField,
 } from '../createDE/createDE.js'
 
 const f = (o) => ({ name: 'F', type: 'Text', length: 50, scale: 0, isPrimaryKey: false, isNullable: true, defaultValue: '', ...o })
@@ -151,5 +151,22 @@ describe('Current date default (feedback #133)', () => {
     expect(fieldProblem(d)).toBe('')
     expect(cellProblem('', d)).toBe('')
     expect(buildFields([f({ name: 'T', currentDate: true })])[0].defaultValue).toBe(null)
+  })
+})
+
+describe('defaultSendField (live test, 2026-11-07)', () => {
+  it('prefers a subscriber or contact key field over an EmailAddress field', () => {
+    const fields = [f({ name: 'SubscriberKey' }), f({ name: 'EmailAddress', type: 'EmailAddress' }), f({ name: 'City' })]
+    expect(defaultSendField(fields)).toBe('SubscriberKey')
+    expect(defaultSendField([f({ name: 'Email', type: 'EmailAddress' }), f({ name: 'Contact_Key' })])).toBe('Contact_Key')
+    expect(defaultSendField([f({ name: 'subscriber id', type: 'Number' })])).toBe('subscriber id')
+  })
+  it('falls back to an EmailAddress field, then the first allowed field', () => {
+    expect(defaultSendField([f({ name: 'Id' }), f({ name: 'Mail', type: 'EmailAddress' })])).toBe('Mail')
+    expect(defaultSendField([f({ name: 'When', type: 'Date' }), f({ name: 'Code' })])).toBe('Code')
+  })
+  it('skips types SFMC refuses for the relationship and returns empty when none fit', () => {
+    expect(defaultSendField([f({ name: 'SubscriberKey', type: 'Date' }), f({ name: 'X', type: 'Boolean' })])).toBe('')
+    expect(defaultSendField([])).toBe('')
   })
 })

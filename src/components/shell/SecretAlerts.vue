@@ -17,6 +17,11 @@ const PAGE = '/installed-packages'
 const route = useRoute()
 const onPage = computed(() => route?.path === PAGE)
 const shown = computed(() => undismissed.value)
+// Home lists the first few; 38 expired secrets made the card a page long (live test,
+// 2026-11-07). The rest are on Installed Packages.
+const HOME_LIMIT = 5
+const listed = computed(() => shown.value.slice(0, HOME_LIMIT))
+const more = computed(() => Math.max(0, shown.value.length - HOME_LIMIT))
 const anyExpired = computed(() => shown.value.some((s) => s.expired))
 const title = computed(() => {
   const n = shown.value.length
@@ -44,12 +49,12 @@ const tone = computed(() => (anyExpired.value
     </div>
     <p class="m-0 text-xs">Apps and integrations that use these packages' client secret stop authenticating once it expires. Renew the secret in Setup > Apps > Installed Packages, then update it where it is used.</p>
     <ul class="m-0 pl-0 list-none space-y-1 text-xs">
-      <li v-for="s in shown" :key="s.packageId || s.name" class="flex flex-wrap gap-x-2">
+      <li v-for="s in listed" :key="s.packageId || s.name" class="flex flex-wrap gap-x-2">
         <span class="font-medium">{{ s.name || s.packageId }}</span>
         <span>{{ expiryText(s) }}</span>
         <span class="opacity-75">{{ formatDateTime(s.expires) }}</span>
       </li>
     </ul>
-    <RouterLink :to="PAGE" class="text-xs font-medium underline">All installed package secrets</RouterLink>
+    <RouterLink :to="PAGE" class="text-xs font-medium underline" data-secret-more>{{ more ? `${more} more: see all installed package secrets` : 'All installed package secrets' }}</RouterLink>
   </section>
 </template>

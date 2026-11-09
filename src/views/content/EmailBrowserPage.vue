@@ -20,9 +20,9 @@ import { PanelLeftClose, PanelLeftOpen, Plus, X as XIcon, ChevronDown as Chevron
 import { savedAgo } from '@/utils/localCache.js'
 import { useStack, whenStack } from '@/composables/useStack.js'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
-import { formatDateTime } from '@/utils/format.js'
+import { formatDateTime, plural } from '@/utils/format.js'
 import {
-  clearEmailCaches, emailChanges, searchEmails, fetchEmailAsset, emailParts,
+  clearEmailCaches, emailChanges, searchEmails, emailMatches, fetchEmailAsset, emailParts,
   fillEmail, emailAttributes, previewWithData, EMAIL_PAGE_SIZE,
 } from '@/utils/contentEmails.js'
 
@@ -68,8 +68,10 @@ async function runSearch(mode = 'search') {
         sortBy: (x, y) => String(y.modifiedDate || '').localeCompare(String(x.modifiedDate || '')),
       }))
     }
-    emails.value = r.items
-    total.value = r.total
+    // Lists stored before the matches were checked (live test, 2026-11-08) are checked here too.
+    const items = params.text ? r.items.filter((e) => emailMatches(e, params.text)) : r.items
+    emails.value = items
+    total.value = params.text ? items.length : r.total
     pageNo.value = Math.max(1, Math.ceil(r.items.length / EMAIL_PAGE_SIZE))
     listInfo.value = { savedAt: r.savedAt, mode: r.mode, changed: r.changed }
     searchedFor.value = { text: params.text, folder: params.folderId ? currentFolder.value?.name : null }
@@ -285,9 +287,9 @@ whenStack(() => runSearch('open'))
         <div class="px-3 py-2 text-xs text-muted-foreground border-b border-border relative pr-9">
           <button type="button" class="absolute right-1.5 top-1.5 p-1 rounded-md hover:bg-accent" title="Fold the folders and emails" aria-label="Fold the folders and emails" data-panel-close @click="panelCollapsed = true"><PanelLeftClose class="h-4 w-4" /></button>
           <template v-if="searchedFor">
-            {{ total.toLocaleString() }} email(s)<template v-if="searchedFor.folder"> in {{ searchedFor.folder }}</template><template v-if="searchedFor.text"> matching "{{ searchedFor.text }}"</template>
+            {{ plural(total, 'email') }}<template v-if="searchedFor.folder"> in {{ searchedFor.folder }}</template><template v-if="searchedFor.text"> matching "{{ searchedFor.text }}"</template>
             <span v-if="listInfo?.mode === 'stored'" class="block" data-list-note>Stored {{ savedAgo(listInfo.savedAt) }}. Search reads only the changes; Refresh reads all.</span>
-            <span v-else-if="listInfo?.mode === 'delta'" class="block" data-list-note>Stored list with {{ listInfo.changed }} change(s) read from SFMC.</span>
+            <span v-else-if="listInfo?.mode === 'delta'" class="block" data-list-note>Stored list, {{ listInfo.changed ? `${plural(listInfo.changed, 'change')} read from SFMC` : 'no changes in SFMC since the last read' }}.</span>
           </template>
           <template v-else-if="loading">Searching</template>
         </div>

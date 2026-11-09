@@ -301,6 +301,54 @@ describe('findUsage', () => {
     expect(prof.sections.map((s) => [s.title, s.items.map((i) => i.title)])).toEqual([['Marketing (SP2)', ['Monthly send']], ['SP1', ['Welcome']]])
   })
 
+  it('checks every journey version and names the automation behind an entry event (live test, 2026-11-07)', async () => {
+    const urls = []
+    stub((url) => {
+      urls.push(url)
+      if (url.includes('/interactions?')) return { count: 3, items: [
+        { id: 'J1', name: 'Welcome', version: 3, status: 'Draft' }, { id: 'J1', name: 'Welcome', version: 1, status: 'Unpublished' },
+        { id: 'J1', name: 'Welcome', version: 2, status: 'Published' }] }
+      if (url.includes('/interactions/J1')) {
+        const v = Number(new URL(url).searchParams.get('versionNumber'))
+        if (v === 1) return new Error('SFMC API error 404: Interaction matching criteria not found')
+        if (!v) return { id: 'J1', version: 3, status: 'Draft', triggers: [] }
+        return { id: 'J1', version: v, status: v === 2 ? 'Published' : 'Draft', triggers: v === 2 ? [{ metaData: { eventDefinitionKey: 'DEAudience-9' } }] : [] }
+      }
+      if (url.includes('/automation/v1/automations/AUTO-1')) return { id: 'AUTO-1', name: 'Entry automation' }
+      return {}
+    })
+    const { findUsage } = await load()
+    const r = await findUsage('s5', { kind: 'event', event: { id: 'EV9', eventDefinitionKey: 'DEAudience-9', automationId: 'AUTO-1' } })
+    expect(urls.some((u) => u.includes('mostRecentVersionOnly=false'))).toBe(true)
+    const journeys = r.sections.find((s) => s.id === 'journeys')
+    expect(journeys.items.map((i) => [i.title, i.status, i.version, i.route])).toEqual([['Welcome', 'Published', 2, '/journeys/J1?version=2']])
+    expect(journeys.items[0].lines).toEqual(['Version 2'])
+    // Version 1 answered 404; the newest version's steps are not taken for it.
+    const de = await findUsage('s5', { kind: 'de', de: { id: 'DE-9', name: 'Nothing' } })
+    expect(de.sections.find((s) => s.id === 'journeys').note).toBe('1 journey version could not be read.')
+    const auto = r.sections.find((s) => s.id === 'automation').items[0]
+    expect([auto.title, auto.lines[0]]).toEqual(['Entry automation', 'ID AUTO-1'])
+  })
+
+  it('shows one item per journey for the versions that match, opening the published one', async () => {
+    stub((url) => {
+      if (url.includes('/interactions?')) return { count: 3, items: [
+        { id: 'J7', name: 'Promo', version: 3, status: 'Draft' }, { id: 'J7', name: 'Promo', version: 2, status: 'Published' },
+        { id: 'J7', name: 'Promo', version: 1, status: 'Unpublished' }] }
+      if (url.includes('/interactions/J7')) {
+        const v = Number(new URL(url).searchParams.get('versionNumber'))
+        return { id: 'J7', version: v, triggers: [{ metaData: { eventDefinitionKey: 'APIEvent-7' } }] }
+      }
+      return {}
+    })
+    const { findUsage } = await load()
+    const r = await findUsage('s6', { kind: 'event', event: { id: 'EV7', eventDefinitionKey: 'APIEvent-7', automationId: '00000000-0000-0000-0000-000000000000' } })
+    const items = r.sections.find((s) => s.id === 'journeys').items
+    expect(items.map((i) => [i.key, i.status, i.route])).toEqual([['j:J7', 'Published', '/journeys/J7?version=2']])
+    expect(items[0].lines).toEqual(['Version 2', 'Also in version 3 (Draft), version 1 (Unpublished)'])
+    expect(r.sections.find((s) => s.id === 'automation')).toBeUndefined()
+  })
+
   it('keeps going when a source fails, and stops when asked', async () => {
     stub((url, body) => (url.includes('/interactions') ? new Error('SFMC API error 401') : sfmc(url, body)))
     const { findUsage } = await load()

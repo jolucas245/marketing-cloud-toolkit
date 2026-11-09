@@ -141,7 +141,7 @@ async function runOnce() {
     <header class="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/40 rounded-t-lg">
       <img v-if="d.icon" :src="d.icon" alt="" class="h-5 w-5 object-contain" referrerpolicy="no-referrer" @error="$event.target.style.display = 'none'" />
       <span v-if="heading" class="text-[11px] text-muted-foreground tabular-nums">{{ heading }}</span>
-      <span class="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-primary"><ActivityIcon v-if="!d.icon" :type="d.typeLabel" size="h-3 w-3" />{{ d.typeLabel }}</span>
+      <span class="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-primary"><ActivityIcon v-if="!d.icon" :type="d.iconType || d.typeLabel" size="h-3 w-3" />{{ d.typeLabel }}</span>
       <h3 class="flex-1 min-w-0 truncate text-sm font-semibold">{{ d.title }}</h3>
       <slot name="actions" />
       <RouterLink v-if="versionCount" :to="`/saved-activities/${d.versionsKey}`"
