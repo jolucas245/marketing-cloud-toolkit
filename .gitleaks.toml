@@ -15,3 +15,10 @@ paths = ['''src/utils/selfRestore\.js''']
 regexes = ['''YOUR_ACCESS_TOKEN''']
 condition = "AND"
 regexTarget = "line"
+
+[[allowlists]]
+description = "Test data: a SQL join condition on SubscriberKey, not a secret"
+paths = ['''src/utils/__tests__/deSql\.test\.js''']
+regexes = ['''SubscriberKey = t2\.SubscriberKey''']
+condition = "AND"
+regexTarget = "line"
