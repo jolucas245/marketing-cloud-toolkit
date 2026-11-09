@@ -151,3 +151,7 @@ Worker: `background/policy.js`; pages: `utils/policy.js` (`policy`, `isPolicyOn`
 - `docs/release-process.md` is referenced by `release.yml` but does not exist.
 - Setup apps' SSO appIds are proven on s10 only (assumed global; the `#app/Setup/<Page>` fallback still works if not).
 - `docs/store-listing.md` data-use answers do not mention DNS checks yet (domain names only, not user data).
+
+## Medium series and promo material (not committed)
+
+- `docs/medium/` holds the 32-day article series, images, Chrome Web Store screenshots (`store/`), LinkedIn videos and captions (`videos/`), and the tools that made them (`tools/video/` frame-by-frame video engine with scene lists, `tools/browser/` Puppeteer scripts against the Mathes Sandbox s10 with fictional Demo_ DEs). The folder stays out of git: the repo is public and the drafts hold author notes.

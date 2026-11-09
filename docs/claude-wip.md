@@ -1,5 +1,27 @@
 # Work in progress
 
+## Resume here (end of 2026-11-08)
+
+Code (branch `fixes-from-live-testing`, all pushed, last commit f6e7f4e, full suite 1,624 tests passing, build and manifest guard OK):
+- Hybrid failure reason for Run Query, journey versions, status words, Excel in Run Query (SQL sheet, then Data sheet), spelling of Mateusz Dąbrowski, and Installed Packages showing only the five package endpoints (internal jsrest, spellcheck, editorSupportAssetHandler and restInternal hidden).
+- Not merged into main and not released. The author writes the CHANGELOG section first; then a PR into main, a version bump and a release.
+
+Medium series (`docs/medium/`, never committed: the repo is public and the drafts carry "Notes for Mathes"):
+- 32 articles written and updated after the live checks. Day 6 screenshots retaken with the Excel button; Day 31 endpoints screenshot retaken without the internal rows; article text updated for both.
+- Store screenshots (1280x800): `docs/medium/store/chrome-web-store-1..5-*.png`.
+- Videos in `docs/medium/videos/`: promo (`chrome-web-store-promo.mp4`, for YouTube, then the listing's promo field) and days 1 to 32. At the end of the session days 14, 15 and 16 were still being rendered by a helper; if `day-14-*`, `day-15-*`, `day-16-*.mp4` are missing, render them (below). Day 6 and Day 31 were re-rendered with the new screenshots.
+- `videos/captions.md`: LinkedIn captions for all 32 days plus the YouTube title and description; replace `MEDIUM_LINK` as each article goes live.
+- Tools copied out of the session scratchpad so they survive: `docs/medium/tools/video/` (engine.js, player.html, style.css, render.mjs, spec/v1..v32.js and promo.js scene lists, cws.html for store screenshots, assets/; `assets/docs` is a symlink to `docs/medium/images`) and `docs/medium/tools/browser/` (Puppeteer scripts per day, `launch.mjs`, `run.mjs`, `d2to6/lib.mjs` helpers, demo CSVs). Neither has node_modules: run `npm i puppeteer-core` in each first.
+- Render a video: `cd docs/medium/tools/video && node render.mjs "player.html?spec=v14" auto out/<name>.mp4` (needs the Bash sandbox off: headless Chrome and a local port). Contact sheet to check zooms: add `x --sheet` instead of the output path. Zoom regions are fractions of the screenshot; the frame is 16:10, so a region shows as much height as its width (narrow it to stay on the part that matters). Run at most two renders at once; frames take about 1 GB each, and disk got down to 2 GB free.
+- Controlled browser: `node launch.mjs <dir> <repo>/dist` (outside the sandbox) starts Chrome for Testing with the extension on CDP port 9333, extension ID bciaecejilkagpjohkjglgmlknninfln. The old profile with the SFMC login lived in the session scratchpad; a new one needs the author to log in to SFMC (never type the credentials).
+
+Open for the author:
+- Upload the promo to YouTube and paste the link into the store listing; upload the five store screenshots.
+- Screenshots that would make videos stronger (need data in the sandbox): Day 18 activity history and Restore, Day 22 parent business unit storage, Day 26 Publication Lists, Day 29 Compare and Revert.
+- Shown in videos from the articles only, never tried live: Day 17 Run once, Day 18 Restore, Day 30 DNS checks.
+- Day 17 import screenshot shows a Salesforce report ID in a file pattern (not zoomed in the video); blur it in the article image if wanted.
+- Medium drafts: log in to Medium in the controlled browser; remove each "Notes for Mathes" section before publishing.
+
 ## State (2026-11-06)
 
 - 2.0.21 is published in the Chrome Web Store (release branch `release-2.0.21`, merged into main by PR #7).
@@ -15,10 +37,10 @@
 - Next: relaunch the controlled browser (the author closed it twice; ask first), reload the rebuilt extension, live-verify every fix (each helper listed its live check), delete probe objects SFMCQS_*_probe_* via Settings > Clean up, update articles that describe fixed behaviour, retake affected screenshots. Nothing committed yet.
 - Author's decisions (2026-11-08): keep the marker; show SFMC's reason for a failed run; keep Publication Lists starting on first visit.
 - Done 2026-11-08 (live-verified on s10): failed runs show SFMC's reason via a rerun in a temporary automation (conversion error checked; divide by zero gives only "system error"); result DEs without primary key or required fields (UNION ALL now 80 rows, was 40); deleteAutomation fixed (Templates rollback used the 404 endpoint); Clean up lists and deletes SFMCQS_run_ automations. Probe automations SFMCQS_diag_probe_* all deleted.
-- Done 2026-11-08 (live-verified on s10): Installed Packages lists only the endpoints a package uses; internal services (jsrest on xt.local:3000, spellcheck, editorSupportAssetHandler, restInternal) are hidden. Day 6 screenshots retaken with the Excel button; Day 6 video re-zoomed. Videos for Days 7 to 32 being made in five batches (scratchpad video engine, spec/v7.js to v32.js).
+- Done 2026-11-08 (live-verified on s10): Installed Packages lists only the endpoints a package uses; internal services (jsrest on xt.local:3000, spellcheck, editorSupportAssetHandler, restInternal) are hidden. Day 6 screenshots retaken with the Excel button; Day 6 video re-zoomed.
 - Live check 2026-11-08, more fixes (all verified on s10): Home journeys "—" (preload skipped a read in progress instead of waiting), Home Try chips deduped, SFMC status names in words ("Paused schedule", "Scheduled to publish") via `format.js statusWords`, Journey overview and Home count each journey by its live version (40 live, was 28), journey detail version picker with "Version N is published: show it", import target labelled "Target" (lists too), email text search checked locally (Content Builder `contains` is a loose match), automation opened by REST GUID no longer stuck on "Loading" (router.replace kept the old path). Verified fine: Domains and Installed Packages load, Automation Studio list-ID links, import update types and targets, DE search with `_`, Create DE optional fields and EmailAddress send field, build-query join, journey entry versions.
 - Later on 2026-11-08: automation detail Status in words and End "No end date" (2079), Automation Studio panel status words, dashboard card counts journeys by live version (utils/journeyVersions.js, pure), list import target "List ID n" (SFMC gives no list name), change/email plurals, Domains empty date, features.js intros. Articles 1-32 updated by helpers (uncommitted); videos for days 1-3 in docs/medium/videos (engine in the session scratchpad video/).
-- Videos (2026-11-08): days 1 to 6 and a Chrome Web Store promo in docs/medium/videos (captions.md has LinkedIn captions). Scripts were reviewed by an SFMC-persona reviewer (scratchpad video/review.md). The engine is in the session scratchpad (video/player.html, spec/*.js scene lists, render.mjs); it is not in the repo. Open: CWS link for the end cards; the promo goes on YouTube for the listing.
+- Videos (2026-11-08): days 1 to 6 and a Chrome Web Store promo first; scripts reviewed by an SFMC-persona reviewer (`docs/medium/tools/video/review.md`). Days 7 to 32 made the same day by five helper batches.
 - Still to live-verify: the other fixes from 2026-11-07 (Setup pages, Automation Studio links, journeys, Create DE defaults, search fixes), then update articles and screenshots (Day 2/3 failure message, Day 8 Clean up, Day 19, 21, 17, 22-25, 30, 31).
 
 ## Release follow-up
