@@ -49,3 +49,38 @@ describe('CloudPage versions (feedback #1045)', () => {
     expect(Object.keys(store).filter((k) => /_9$/.test(k))).toEqual([])
   })
 })
+
+describe('one copy per save, and saves Chrome refuses (feedback #1086)', () => {
+  beforeEach(() => { for (const k of Object.keys(store)) delete store[k]; applyEmailSaverPrefs({ _emailSaverEnabled: true, _emailSaveDebounce: 0, _cloudPageSaverEnabled: true }) })
+  const email = (n) => ({ id: 5, name: 'News', assetType: { id: 207, name: 'templatebasedemail' }, views: { html: { content: `<p>v${n}</p>` } } })
+  const url = 'https://content-builder.s7.marketingcloudapps.com/fuelapi/asset/v1/content/assets/5'
+
+  it('keeps the content only in assetBody and slims older versions', async () => {
+    store.email_5 = { id: 'email_5', compileAsset: { content: 'old' }, versions: [{ versionId: 'v_1', savedAt: 1, compileAsset: { content: 'old' }, assetBody: email(0) }] }
+    await captureEmail(put(url, email(1)))
+    const rec = store.email_5
+    expect(rec.compileAsset).toBeUndefined()
+    expect(rec.versions).toHaveLength(2)
+    expect(rec.versions.every((v) => !('compileAsset' in v) && v.assetBody)).toBe(true)
+  })
+
+  it('records a notice in session storage when Chrome refuses the write', async () => {
+    const session = {}
+    const local = chrome.storage.local.set
+    const sessionApi = chrome.storage.session
+    chrome.storage.session = { ...sessionApi, set: (o, cb) => { Object.assign(session, o); cb?.(); return Promise.resolve() }, remove: (k, cb) => { delete session[k]; cb?.() } }
+    chrome.storage.local.set = (obj, cb) => { chrome.runtime.lastError = { message: 'QUOTA_BYTES quota exceeded' }; cb?.(); chrome.runtime.lastError = null }
+    try {
+      await captureEmail(put(url, email(2)))
+      expect(store.email_5).toBeUndefined()
+      expect(session._savedAssetNotKept).toMatchObject({ kind: 'email', key: 'email_5', name: 'News', error: 'QUOTA_BYTES quota exceeded' })
+      chrome.storage.local.set = local
+      await captureEmail(put(url, email(3)))
+      expect(store.email_5.versions).toHaveLength(1)
+      expect(session._savedAssetNotKept).toBeUndefined()
+    } finally {
+      chrome.storage.local.set = local
+      chrome.storage.session = sessionApi
+    }
+  })
+})

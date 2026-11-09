@@ -14,6 +14,17 @@ export function storageSet(area, items) {
   })
 }
 
+/** Like storageSet, but resolves with Chrome's error message (for example the quota one), or null. */
+export function storageSetChecked(area, items) {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage[area].set(items, () => resolve(chrome.runtime?.lastError?.message || null))
+    } catch (e) {
+      resolve(e?.message || 'Could not save')
+    }
+  })
+}
+
 export function storageRemove(area, keys) {
   return new Promise((resolve) => {
     try { chrome.storage[area].remove(keys, () => resolve()) } catch { resolve() }

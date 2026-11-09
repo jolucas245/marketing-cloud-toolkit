@@ -10,7 +10,7 @@ import Button from '@/components/ui/button/Button.vue'
 import { groupByDate } from '@/utils/dateGroups.js'
 import { useStoredSetting } from '@/composables/useStoredSetting.js'
 import { showToast } from '@/composables/useToast.js'
-import { SAVED_ASSET_KINDS } from '@/utils/savedAssets.js'
+import { SAVED_ASSET_KINDS, SAVE_FAILED_KEY, recordCompileAsset } from '@/utils/savedAssets.js'
 import ContentTabs from '@/components/content/ContentTabs.vue'
 
 const props = defineProps({ kind: { type: String, default: 'email' } })
@@ -44,7 +44,7 @@ function loadData() {
           timeStamp: v.versions?.[0]?.savedAt || v.timeStamp,
           ownerName: v.ownerName || '',
           isFavourite: !!v.isFavourite,
-          compileAsset: v.compileAsset || null,
+          compileAsset: recordCompileAsset(v),
           versionCount: v.versions?.length || 1,
         }))
         .sort((a, b) => b.timeStamp - a.timeStamp)
@@ -53,13 +53,27 @@ function loadData() {
   })
 }
 
+// A save the service worker could not keep because Chrome's 10 MB was full (feedback #1086).
+const notKept = ref(null)
+function loadNotKept() {
+  try {
+    chrome.storage.session?.get(SAVE_FAILED_KEY, (r) => { notKept.value = r?.[SAVE_FAILED_KEY] || null })
+  } catch { notKept.value = null }
+}
+const notKeptHere = computed(() => (notKept.value && notKept.value.kind === K.value.kind ? notKept.value : null))
+function dismissNotKept() {
+  notKept.value = null
+  try { chrome.storage.session?.remove(SAVE_FAILED_KEY) } catch { /* nothing to clear */ }
+}
+
 let reloadTimer = null
 function onStorageChange(changes, area) {
+  if (area === 'session' && SAVE_FAILED_KEY in changes) { notKept.value = changes[SAVE_FAILED_KEY].newValue || null; return }
   if (area !== 'local' || !Object.keys(changes).some((k) => k.startsWith(K.value.prefix))) return
   clearTimeout(reloadTimer)
   reloadTimer = setTimeout(loadData, 300)
 }
-onMounted(() => { loadData(); chrome.storage.onChanged.addListener(onStorageChange) })
+onMounted(() => { loadData(); loadNotKept(); chrome.storage.onChanged.addListener(onStorageChange) })
 watch(() => props.kind, () => { search.value = ''; selectedIds.value = new Set(); deleteMode.value = false; loadData() })
 onUnmounted(() => chrome.storage.onChanged.removeListener(onStorageChange))
 
@@ -131,6 +145,16 @@ async function deleteSelected() {
         <Button variant="destructive" size="sm" class="h-8 text-xs" :disabled="!selectedIds.size" @click="deleteSelected"><Trash2 class="h-3.5 w-3.5 mr-1" /> Delete ({{ selectedIds.size }})</Button>
         <Button variant="outline" size="sm" class="h-8 text-xs" @click="toggleDeleteMode"><X class="h-3.5 w-3.5 mr-1" /> Cancel</Button>
       </template>
+    </div>
+
+    <div v-if="notKeptHere" data-save-not-kept class="flex flex-wrap items-start gap-2 px-4 py-2 border-b border-amber-300 bg-amber-50 text-xs text-amber-900 dark:bg-amber-950/40 dark:border-amber-700 dark:text-amber-200">
+      <p class="flex-1 min-w-[16rem]">
+        The save of <strong>{{ notKeptHere.name }}</strong> on {{ new Date(notKeptHere.at).toLocaleString() }} was not kept: the Toolkit's storage in Chrome (10 MB) is full.
+        New saves are kept again once there is room. Delete {{ K.nouns }} or versions you no longer need here, or see what uses the space in Settings &gt; Storage.
+      </p>
+      <button type="button" class="underline" data-save-not-kept-delete @click="deleteMode || toggleDeleteMode()">Select {{ K.nouns }} to delete</button>
+      <button type="button" class="underline" @click="router.push('/settings')">Settings</button>
+      <button type="button" class="underline" data-save-not-kept-dismiss @click="dismissNotKept">Dismiss</button>
     </div>
 
     <div class="flex-1 min-h-0 overflow-y-auto p-6">

@@ -39,7 +39,7 @@ import { QUERY_STUDIO_CREATE_URLS } from '../utils/queryStudio.js'
 import { watchPolicy, getPolicy } from './policy.js'
 import { sharedQueryRecords } from './sharedImport.js'
 import { messageAllowed } from './senders.js'
-import { makeRoom } from './storageRoom.js'
+import { makeRoom, slimStoredAssets } from './storageRoom.js'
 import { watchForUpdates } from './updates.js'
 import { checkWatches, updateBadge } from './watches.js'
 import { getDashboardSummary } from './dashboard.js'
@@ -54,7 +54,8 @@ loadEmailSaverPrefs()
 watchForUpdates()
 watchPolicy()
 // Without unlimitedStorage, an install that grew past the 10 MB limit drops old email versions.
-chrome.runtime.onInstalled?.addListener(() => { makeRoom(0) })
+// On update: drop the content copies older saves kept (feedback #1086), then make room.
+chrome.runtime.onInstalled?.addListener(() => { slimStoredAssets().catch(() => 0).then(() => makeRoom(0)) })
 updateBadge()
 
 const APP_PAGE = 'app.html'

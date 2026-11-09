@@ -20,6 +20,11 @@ export const SAVED_ASSET_KINDS = {
   },
 }
 
+// Session storage key the service worker sets when Chrome refused a save because its
+// 10 MB was full (feedback #1086); the Saved Emails and Saved CloudPages pages show it.
+// Session storage has its own room, so the notice can be written when local is full.
+export const SAVE_FAILED_KEY = '_savedAssetNotKept'
+
 /** 'email' | 'cloudpage' | null for a saved asset (the body SFMC's editor sends). */
 export function savedAssetKind(asset) {
   if ((asset?.assetType?.name || '').toLowerCase().includes('email')) return 'email'
@@ -32,16 +37,67 @@ export function savedAssetKind(asset) {
 export const savedAssetKey = (kind, assetId) => `${SAVED_ASSET_KINDS[kind].prefix}${assetId}`
 export const isSavedAssetKey = (kind, key) => new RegExp(`^${SAVED_ASSET_KINDS[kind].prefix}\\d+$`).test(String(key || ''))
 
+function pickView(view) {
+  if (!view) return null
+  return {
+    content: view.content || null,
+    superContent: view.superContent || null,
+    design: view.design || null,
+    slots: view.slots || null,
+    blocks: view.blocks || null,
+  }
+}
+
+/** What the email compiler needs from an asset (or a saved version's assetBody). */
+export function compileAssetFrom(asset) {
+  if (!asset || typeof asset !== 'object') return null
+  return {
+    superContent: asset.superContent || null,
+    content: asset.content || null,
+    design: asset.design || null,
+    slots: asset.slots || null,
+    blocks: asset.blocks || null,
+    views: { html: pickView(asset.views?.html) },
+  }
+}
+
+/** A version's compile input: its own compileAsset (older saves) or one made from its assetBody. */
+export const versionCompileAsset = (version) => version?.compileAsset || compileAssetFrom(version?.assetBody)
+
+/** The newest version's compile input for a saved record (for the list cards). */
+export const recordCompileAsset = (rec) => rec?.compileAsset || versionCompileAsset(rec?.versions?.[0]) || null
+
+/**
+ * A saved record without the copies of its content (feedback #1086). Before 2.0.23 each
+ * save kept the content three times: compileAsset on the record, compileAsset on the
+ * version and the assetBody the version is reverted from. compileAsset is made from the
+ * assetBody when it is needed, so only versions without an assetBody (saved before
+ * versions were kept) keep theirs. Returns the same object when nothing changes.
+ */
+export function slimSavedRecord(rec) {
+  if (!rec || typeof rec !== 'object' || !Array.isArray(rec.versions) || !rec.versions.length) return rec
+  let changed = false
+  const versions = rec.versions.map((v) => {
+    if (!v?.compileAsset || !v.assetBody) return v
+    changed = true
+    const { compileAsset, ...rest } = v
+    return rest
+  })
+  const next = { ...rec, versions }
+  if ('compileAsset' in next && versions.some((v) => v?.assetBody || v?.compileAsset)) { delete next.compileAsset; changed = true }
+  return changed ? next : rec
+}
+
 /**
  * The code of a saved version (feedback #1046): the HTML with slots and blocks filled
  * in, AMPscript and scripts as written (nothing runs). Falls back to the saved body's
  * own content (code resources) and then its HTML view. '' when there is none.
- * @param {object} version  a saved version ({ compileAsset, assetBody })
+ * @param {object} version  a saved version ({ assetBody }, older ones also compileAsset)
  * @param {(asset, channel) => string} compile  utils/emailCompiler.js compile
  */
 export function versionSource(version, compile) {
   const tryCompile = (a) => { try { return a ? compile(a, 'html') || '' : '' } catch { return '' } }
-  return tryCompile(version?.compileAsset)
+  return tryCompile(versionCompileAsset(version))
     || (typeof version?.assetBody?.content === 'string' ? version.assetBody.content : '')
     || tryCompile(version?.assetBody)
     || ''

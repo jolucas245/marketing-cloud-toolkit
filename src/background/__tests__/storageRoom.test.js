@@ -27,3 +27,27 @@ describe('trimEmailVersions', () => {
     expect(trimEmailVersions(all, 0).changed).toEqual({})
   })
 })
+
+describe('slimSavedAssets (feedback #1086)', async () => {
+  const { slimSavedAssets } = await import('../storageRoom.js')
+  const body = { content: '<p>hi</p>', views: { html: { content: '<p>hi</p>' } } }
+  const ca = { content: '<p>hi</p>', views: { html: { content: '<p>hi</p>' } } }
+  it('drops the record and version compileAsset copies when the version has its assetBody', () => {
+    const all = {
+      sql_1: { id: 'sql_1', compileAsset: ca },
+      email_1: { id: 'email_1', compileAsset: ca, versions: [{ versionId: 'a', compileAsset: ca, assetBody: body }, { versionId: 'b', compileAsset: ca, assetBody: body }] },
+      cloudpage_2: { id: 'cloudpage_2', versions: [{ versionId: 'c', assetBody: body }] },
+    }
+    const changed = slimSavedAssets(all)
+    expect(Object.keys(changed)).toEqual(['email_1'])
+    expect(changed.email_1.compileAsset).toBeUndefined()
+    expect(changed.email_1.versions.every((v) => !v.compileAsset && v.assetBody)).toBe(true)
+    expect(JSON.stringify(changed.email_1).length).toBeLessThan(JSON.stringify(all.email_1).length / 2)
+  })
+  it('keeps compileAsset on versions saved before versions kept a body', () => {
+    const all = { email_3: { id: 'email_3', compileAsset: ca, versions: [{ versionId: 'old', compileAsset: ca, assetBody: null }] } }
+    const changed = slimSavedAssets(all)
+    expect(changed.email_3.compileAsset).toBeUndefined()
+    expect(changed.email_3.versions[0].compileAsset).toEqual(ca)
+  })
+})
