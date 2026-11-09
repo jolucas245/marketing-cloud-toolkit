@@ -8,7 +8,7 @@
 export const TO_TEST = [
   {
     version: '2.0.22',
-    status: 'Not released: test builds only',
+    status: 'Released on GitHub 2026-11-09; store upload pending',
     items: [
       {
         id: '2.0.22-create-de-ai', area: 'Data', title: 'Create DE: Ask an AI', ref: '#1084', live: true,
@@ -42,7 +42,7 @@ export const TO_TEST = [
   },
   {
     version: '2.0.21',
-    status: 'Not released: test builds only',
+    status: 'In the store',
     items: [
       {
         id: '2.0.21-domains-sfmc', area: 'Setup', title: 'Domains: sender domains and custom domains load', live: true,

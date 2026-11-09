@@ -2,10 +2,49 @@
 
 All notable changes to Marketing Cloud Toolkit. Versions 2.0.0 and later are published to the Chrome Web Store as updates to the former SFMC Query Saver listing (1.x). Entries before 2.0.18 are the GitHub release notes, unchanged; "Checked headless" notes describe testing at the time.
 
-## Unreleased (next 2.0.21)
+## 2.0.22 (2026-11-09)
+
+No permission changes since 2.0.21.
+
+**New:**
+- Create DE > Ask an AI (feedback #1084): describe the data extension and copy a prompt with SFMC's field rules into the AI assistant you use, then paste its JSON answer. The name, fields (types, lengths, decimals, primary keys, required, defaults), sendable and retention settings and example rows are filled in for you to check; you still pick the folder. The Toolkit sends nothing. The Paste rows box also reads such an answer.
+- SQL check QS065 (feedback #1085): an ntext data view column (`_Job.DynamicEmailSubject`) in SELECT DISTINCT, UNION, GROUP BY or ORDER BY is marked before you run, with a fix that wraps it in CAST(... AS NVARCHAR(4000)). The ntext errors SFMC returns are explained with the same fix.
+- Run Query: a failed run shows SFMC's reason. The activity runs once more in a temporary automation whose run log holds the error text; the automation is deleted right after.
+- Run Query: Excel download above every results table, with the SQL on the first sheet and the rows shown (after search, filters and sorting) on the second.
+- Journeys: a version picker on the journey page, with a link to the published version.
+
+**Changed:**
+- What's New fits the window (feedback #1083): the title, close button and Got it stay in view, only the list scrolls, older news is behind Show earlier updates, and Esc closes it.
+- Run Query result data extensions have no primary key and no required fields, so SFMC no longer drops duplicate rows (a UNION ALL of 40 rows twice showed 40).
+- Home, Journey overview and the Marketing Cloud dashboard card count each journey by its live version (a published journey with a newer draft counted as a draft).
+- Statuses read in words ("Paused schedule", "Scheduled to publish"); a schedule ending in 2079 (SFMC's no end date) reads "No end date"; imports into a list show "List ID n".
+- Setup > Installed Packages lists only the endpoints a package uses; SFMC's internal services are hidden.
 
 **Fixed:**
-- Emails > Preview with data no longer lets you pick a data extension that is not sendable (feedback #1075): SFMC refuses to preview with one (error 10005), so the picker says so before reading its rows. Type values still works without a data extension.
+- Templates rollback and Settings > Clean up delete automations through Automation Studio's own endpoint (the REST delete answered 404 and left automations behind); Clean up also lists leftover SFMCQS_run_ automations.
+- Home showed "—" for journeys when the overview preload was still reading.
+- An automation opened by its REST ID stayed on Loading.
+- Email search keeps only real matches (Content Builder's contains also matches any one word).
+- Automation Studio links use the list ID; import update types and targets; run history health chips; watch status; Create DE send field and required defaults; DE search with `_`; editor autocomplete and tooltips; plurals and text.
+
+## 2.0.21 (2026-11-06)
+
+No GitHub release was made for 2.0.21; its store zip is `releases/sfmc-toolkit-2.0.21.zip` (built at 483ab74, SHA-256 7257864c2704b0cc9de3831d6998eac646ce0ea640c7b372c1930663b88099f0). Same permissions as 2.0.20, plus `https://cloudflare-dns.com` in the CSP for the Domains DNS checks.
+
+**New:**
+- Setup > Domains and Installed Packages (feedback #1077, #1078, #1079): sender domains with SPF, DKIM and DMARC explained (DNS checks are off until you turn them on), From addresses at risk, custom domain certificates, installed packages with their endpoints, and an alert when a package's client secret is about to expire.
+- Contacts > Publication Lists (feedback #1080): subscribers per list by status, counted in the background.
+- Customize Home: hide, show and reorder Home's sections and cards (kept in this browser).
+- Run Query: a query that only reads one data extension shows its rows without a Query Activity, and loads the rest up to 50,000 rows (feedback #1076); a Search rows box finds text in any column of the results.
+
+**Changed:**
+- Run Query's data extensions and Query Activities are deleted from SFMC after 7 days (feedback #1081); the SQL stays in the query's history. Settings > Running queries changes the days or turns it off.
+- Email validation: pick a sendable data extension on the page and see its details, an Email addresses tab, a 50,000-row limit.
+- Primary colour is Salesforce Lightning brand blue.
+
+**Fixed:**
+- Preview data: filtering from a later page shows the matching rows (feedback #1082).
+- Emails > Preview with data refuses a data extension that is not sendable before reading its rows (feedback #1075): SFMC refuses to preview with one (error 10005). Type values still works without a data extension.
 
 ## 2.0.20 (2026-11-04)
 

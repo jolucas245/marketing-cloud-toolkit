@@ -7,7 +7,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { X } from 'lucide-vue-next'
 
-const VERSION = '2.0.21'
+const VERSION = '2.0.22'
 const open = ref(false)
 const fromQuerySaver = ref(false)
 const showEarlier = ref(false)
@@ -45,14 +45,19 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
         <p class="mt-1 text-xs text-muted-foreground">The changes in this update, shown once. Every feature is on the <a href="#/features" class="text-primary hover:underline" @click="close">Features</a> page.</p>
       </div>
       <ul v-if="!fromQuerySaver" class="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-3 text-sm">
+        <li><strong class="block">Create a data extension with an AI's help</strong><span class="text-muted-foreground">Create DE > Ask an AI: copy a prompt with SFMC's field rules into the AI assistant you use, paste its answer, and the fields, keys and settings are filled in for you to check. The Toolkit sends nothing.</span></li>
+        <li><strong class="block">Failed runs say why</strong><span class="text-muted-foreground">When a Run Query run fails, the Toolkit shows SFMC's own reason, and result data extensions no longer drop duplicate rows.</span></li>
+        <li><strong class="block">Excel with the SQL</strong><span class="text-muted-foreground">Download any Run Query result as Excel: the SQL on the first sheet, the rows you see on the second.</span></li>
+        <li><strong class="block">One more SQL check</strong><span class="text-muted-foreground">DISTINCT, UNION, GROUP BY or ORDER BY on _Job's DynamicEmailSubject (an ntext column SFMC cannot compare) is marked before you run, with a one-click fix.</span></li>
+        <li><strong class="block">Journeys by their live version</strong><span class="text-muted-foreground">Home and Journey overview count a published journey with a newer draft as live, and a journey's page has a version picker.</span></li>
+        <li v-if="!showEarlier"><button class="text-sm font-medium text-primary hover:underline" data-whatsnew-earlier @click="showEarlier = true">Show earlier updates</button></li>
+        <template v-if="showEarlier">
+        <li class="pt-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Earlier updates</li>
         <li><strong class="block">Setup: Domains and Installed Packages</strong><span class="text-muted-foreground">Sender domains with SPF, DKIM and DMARC explained, From addresses at risk, custom domain certificates, and an alert when an installed package's client secret is about to expire.</span></li>
         <li><strong class="block">Customize Home</strong><span class="text-muted-foreground">Hide, show and reorder Home's sections and cards. Kept in this browser; nothing is sent.</span></li>
         <li><strong class="block">Faster plain reads, and search the results</strong><span class="text-muted-foreground">A query that only reads one data extension shows its rows in seconds, without a Query Activity. A Search rows box finds text in any column of the results.</span></li>
         <li><strong class="block">Old runs cleaned up in SFMC</strong><span class="text-muted-foreground">Data extensions and Query Activities from your Run Query runs are deleted from SFMC after 7 days; the SQL stays in the query's history. Settings > Running queries changes the days or turns it off.</span></li>
         <li><strong class="block">Email validation and Publication Lists</strong><span class="text-muted-foreground">Pick a sendable data extension right on the page and see its details; one tab for one address or many. Contacts > Publication Lists counts each list's subscribers by status.</span></li>
-        <li v-if="!showEarlier"><button class="text-sm font-medium text-primary hover:underline" data-whatsnew-earlier @click="showEarlier = true">Show earlier updates</button></li>
-        <template v-if="showEarlier">
-        <li class="pt-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Earlier updates</li>
         <li><strong class="block">Emails and CloudPages, browsed</strong><span class="text-muted-foreground">Content Builder folders, a preview of any email with data from a data extension row or values you type, and the code of each version. Every CloudPage save is kept like email versions, with Code and Compare.</span></li>
         <li><strong class="block">Folders and Concepts</strong><span class="text-muted-foreground">Automations, Journeys and Data Extensions list by folder. The book icon in the top bar explains the terms of the section you are on.</span></li>
         <li><strong class="block">Faster, with fewer calls to SFMC</strong><span class="text-muted-foreground">Folders, lists and automation details are kept in this browser for 30 days and only the changes are read again. Settings can forget them.</span></li>
