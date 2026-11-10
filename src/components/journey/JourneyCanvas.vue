@@ -20,6 +20,8 @@ const props = defineProps({
   steps: { type: Map, default: null },
   // Contact paths overlay (feedback #1089): aggregatePaths output, see journeyCanvasModel.
   counts: { type: Object, default: null },
+  // Journey Builder's contact counts (Map node key -> count), drawn under each activity.
+  population: { type: Map, default: null },
 })
 const emit = defineEmits(['select'])
 const root = ref(null)
@@ -29,7 +31,7 @@ const flowId = `journey-${crypto.randomUUID()}`
 const { viewport, fitView, zoomIn, zoomOut, zoomTo, setViewport, getViewport, onNodesInitialized } = useVueFlow(flowId)
 const edgeTypes = { journeyStep: markRaw(JourneyStepEdge) }
 const model = computed(() => journeyCanvasModel(props.graph, props.layout, props.orientation, props.selected, {
-  visited: props.visited, visitedEdges: props.visitedEdges, steps: props.steps, counts: props.counts,
+  visited: props.visited, visitedEdges: props.visitedEdges, steps: props.steps, counts: props.counts, population: props.population,
 }))
 const percent = computed(() => Math.round(viewport.value.zoom * 100))
 let gesture = null

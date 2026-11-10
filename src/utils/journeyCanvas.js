@@ -185,7 +185,7 @@ export function journeyActivityIcon(activity) {
 // Map edge index → count, maxEdge } from aggregatePaths (journeyPaths.js). Nodes and
 // edges get `count` (and `failed`, `weight` 0..1 for the line width); with counts, the
 // ones no contact reached are dimmed.
-export function journeyCanvasModel(graph, layout, orientation = 'horizontal', selected = null, { visited = null, visitedEdges = null, steps = null, counts = null } = {}) {
+export function journeyCanvasModel(graph, layout, orientation = 'horizontal', selected = null, { visited = null, visitedEdges = null, steps = null, counts = null, population = null } = {}) {
   if (counts && !visited) {
     visited = new Set([...counts.nodes].filter(([, v]) => v.count > 0).map(([k]) => k))
     visitedEdges = new Set([...counts.edges].filter(([, v]) => v > 0).map(([k]) => k))
@@ -216,6 +216,7 @@ export function journeyCanvasModel(graph, layout, orientation = 'horizontal', se
         visited: visited ? visited.has(node.key) : null,
         steps: steps?.get(node.key) || [],
         ...(counts ? { count: counts.nodes.get(node.key)?.count || 0, failed: counts.nodes.get(node.key)?.failed || 0 } : {}),
+        ...(population?.has(node.key) ? { population: population.get(node.key) } : {}),
         branchExit: branchExits.has(node.key),
         orientation,
       },

@@ -85,6 +85,9 @@ const sourceStyle = computed(() => horizontal.value
       <span v-if="data.count != null" class="journey-activity-count" :class="{ 'has-failed': data.failed }" data-path-count :title="countDescription" aria-hidden="true">{{ data.count.toLocaleString() }}<template v-if="data.failed"> · {{ data.failed.toLocaleString() }} failed</template></span>
       <span class="journey-activity-name" :class="{ 'is-winner': data.visual.icon === 'winner' }">{{ data.name }}</span>
       <span v-if="data.summary" class="journey-activity-summary">{{ data.summary }}</span>
+      <span v-if="data.population != null" class="journey-activity-population" data-population :title="`${data.population.toLocaleString()} ${data.population === 1 ? 'contact' : 'contacts'} reached this (Journey Builder's count)`">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></svg>{{ data.population.toLocaleString() }}
+      </span>
       <span v-if="tooltipVisible" class="journey-activity-tooltip" role="tooltip">{{ data.typeLabel }} · {{ data.name }}<template v-if="data.summary"> · {{ data.summary }}</template></span>
     </button>
     <Handle type="source" :position="horizontal ? Position.Right : Position.Bottom" :connectable="false" :style="sourceStyle" />
@@ -116,6 +119,8 @@ const sourceStyle = computed(() => horizontal.value
 .journey-activity-name.is-winner { width: max-content; max-width: 148px; padding: 0 4px; background: hsl(var(--card)); }
 .has-branch-exit .journey-activity-name, .has-branch-exit .journey-activity-summary { box-sizing: content-box; width: max-content; max-width: 148px; padding: 0 4px; background: hsl(var(--card)); }
 .journey-activity-summary { display: block; max-width: 148px; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; line-height: 14px; color: hsl(var(--muted-foreground)); }
+.journey-activity-population { display: inline-flex; align-items: center; gap: 3px; margin-top: 3px; padding: 1px 6px; border-radius: 4px; background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); font-size: 10px; line-height: 14px; font-variant-numeric: tabular-nums; }
+.journey-activity-population svg { width: 11px; height: 11px; }
 .journey-activity-tooltip { position: absolute; bottom: calc(100% + 10px); left: 50%; z-index: 10; display: none; width: max-content; max-width: 260px; padding: 8px 10px; border: 1px solid hsl(var(--border)); border-radius: 6px; background: hsl(var(--popover)); color: hsl(var(--popover-foreground)); box-shadow: 0 2px 8px rgb(0 0 0 / .12); transform: translateX(-50%); font-size: 11px; line-height: 16px; text-align: left; pointer-events: none; }
 .journey-activity-button:hover .journey-activity-tooltip, .journey-activity-button:focus-visible .journey-activity-tooltip { display: block; }
 .journey-activity :deep(.vue-flow__handle) { min-width: 0; min-height: 0; width: 1px; height: 1px; border: 0; opacity: 0; pointer-events: none; }

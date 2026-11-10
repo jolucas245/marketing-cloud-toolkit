@@ -18,6 +18,8 @@ import { openInSfmc } from '@/utils/sfmcLinks.js'
 import { useStack } from '@/composables/useStack.js'
 import { searchJourneys, primaryVersion, LIVE_VERSION } from '@/utils/journeys.js'
 import { statusWords } from '@/utils/format.js'
+import { fetchJourneyStats, fetchJourneyEvent } from '@/utils/journeys.js'
+import { journeyStatusWord, populationByNode } from '@/utils/journeySummary.js'
 import { fetchJourney, journeyGraph, layoutJourney, describeJourneyNode, journeyOverviewRows, journeyBuilderUrl, journeyDoc, nodeEmailId, fetchJourneyEmailAsset, sendNames, hasEmailStep } from '@/utils/journeys.js'
 import { compile } from '@/utils/emailCompiler.js'
 import { journeySvg } from '@/utils/journeySvg.js'
@@ -89,12 +91,25 @@ async function load() {
     if (generation === loadGeneration) {
       journey.value = result
       if (versions.value[0]?.id !== result?.id) loadVersions(result)
+      loadExtras(result, generation)
     }
   } catch (e) {
     if (generation === loadGeneration) error.value = `Could not load this journey: ${e.message}`
   } finally {
     if (generation === loadGeneration) loading.value = false
   }
+}
+// What Journey Builder also shows (user, 2026-11-10): the entry event's data extension and
+// key, and how many contacts reached each activity. Two calls; the page works without them.
+const journeyEvent = ref(null)
+const stats = ref(null)
+async function loadExtras(j, generation) {
+  journeyEvent.value = null
+  stats.value = null
+  const [ev, st] = await Promise.all([fetchJourneyEvent(stack.value, j), fetchJourneyStats(stack.value, j.id, j.version)])
+  if (generation !== loadGeneration) return
+  journeyEvent.value = ev
+  stats.value = st
 }
 // Every version of this journey, to switch between them: the list opens the newest,
 // which can be a draft while an older version is the published one (live test,
@@ -119,6 +134,8 @@ watch([() => route.params.id, () => route.query.version, stack], () => { if (rou
 
 const graph = computed(() => (journey.value ? journeyGraph(journey.value) : { nodes: [], edges: [] }))
 const layout = computed(() => layoutJourney(graph.value))
+const population = computed(() => (stats.value && journey.value ? populationByNode(stats.value, journey.value, graph.value) : null))
+const overviewExtra = computed(() => ({ event: journeyEvent.value }))
 const selectedNode = computed(() => graph.value.nodes.find((n) => n.key === selected.value) || null)
 const nameOf = (k) => graph.value.nodes.find((n) => n.key === k)?.name || k
 // Send classification, sender and delivery profile names for email steps (live test,
@@ -151,7 +168,7 @@ watch(selectedNode, async (n) => {
   }
 })
 
-const getDoc = () => journeyDoc(journey.value, graph.value, layout.value, journeySvg(graph.value, layout.value, orientation.value), names.value)
+const getDoc = () => journeyDoc(journey.value, graph.value, layout.value, journeySvg(graph.value, layout.value, orientation.value), names.value, overviewExtra.value)
 // Summarize with AI (feedback #1029, experimental): the download's text, without the picture.
 const ai = useAi()
 const summaryOpen = ref(false)
@@ -165,7 +182,7 @@ const summaryPrompt = (extra) => buildAiTaskPrompt('journey', { text: docText(jo
       <PrevNext kind="journeys" :id="String(route.params.id || '')" base="/journeys" noun="journey" />
       <h1 class="text-sm font-semibold truncate">{{ journey?.name || 'Journey' }}</h1>
       <template v-if="journey">
-        <StatusBadge :status="journey.status" />
+        <StatusBadge :status="journey.status" :label="journeyStatusWord(journey.status)" />
         <select v-if="versions.length > 1" :value="String(journey.version)" aria-label="Version" class="h-7 rounded-md border border-border bg-background px-1 text-xs" @change="pickVersion($event.target.value)">
           <option v-for="v in versions" :key="v.version" :value="String(v.version)">Version {{ v.version }} · {{ statusWords(v.status) }}</option>
         </select>
@@ -196,7 +213,7 @@ const summaryPrompt = (extra) => buildAiTaskPrompt('journey', { text: docText(jo
       <div class="flex-1 min-w-0 overflow-auto">
         <section class="m-4 rounded-lg border border-border bg-card p-3">
           <dl class="grid grid-cols-[minmax(6rem,8rem)_minmax(0,1fr)] gap-x-4 gap-y-1 text-xs md:grid-cols-[minmax(7rem,9rem)_minmax(0,1fr)_minmax(7rem,9rem)_minmax(0,1fr)]">
-            <template v-for="[k, v] in journeyOverviewRows(journey)" :key="k"><dt class="text-muted-foreground">{{ k }}</dt><dd class="wrap-break-word">{{ v }}</dd></template>
+            <template v-for="[k, v] in journeyOverviewRows(journey, overviewExtra)" :key="k"><dt class="text-muted-foreground">{{ k }}</dt><dd class="wrap-break-word">{{ v }}</dd></template>
           </dl>
         </section>
         <div class="mx-4 mb-2 flex flex-wrap items-center gap-2">
@@ -211,9 +228,9 @@ const summaryPrompt = (extra) => buildAiTaskPrompt('journey', { text: docText(jo
         <div v-show="panel === 'paths'" class="mx-4 mb-3">
           <JourneyPathsControl :key="`paths:${journey.id}:${journey.version}`" :stack="stack" :journey="journey" :versions="versions" :graph="graph" @counts="pathCounts = $event" />
         </div>
-        <p class="mx-4 mb-2 text-xs text-muted-foreground">Click an activity to see its configuration and email preview. Drag to pan; scroll to zoom.</p>
+        <p class="mx-4 mb-2 text-xs text-muted-foreground">Click an activity to see its configuration and email preview. Drag to pan; scroll to zoom.<template v-if="population && !pathCounts"> The number under each activity is how many contacts reached it in this version, as in Journey Builder.</template></p>
         <div class="mx-4 mb-4">
-          <JourneyCanvas :key="`${journey.id}:${journey.version}`" ref="canvas" :graph="graph" :layout="layout" :orientation="orientation" :selected="selected" :counts="pathCounts" @select="selectActivity" />
+          <JourneyCanvas :key="`${journey.id}:${journey.version}`" ref="canvas" :graph="graph" :layout="layout" :orientation="orientation" :selected="selected" :counts="pathCounts" :population="pathCounts ? null : population" @select="selectActivity" />
         </div>
         <section v-if="journey.goals?.length || journey.exits?.length" class="mx-4 mb-4 text-xs text-muted-foreground">
           <span v-if="journey.goals?.length">Goals: {{ journey.goals.map((g) => g.name || g.key).join(', ') }}. </span>

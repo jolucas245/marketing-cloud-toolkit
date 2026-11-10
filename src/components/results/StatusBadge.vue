@@ -10,6 +10,8 @@ import { statusWords } from '@/utils/format.js'
 const props = defineProps({
   status: { type: [String, Number], default: '' },
   automation: { type: Boolean, default: false },
+  // Text to show instead (colour and icon still from `status`): Journey Builder's "Running" for Published.
+  label: { type: String, default: '' },
 })
 const text = computed(() => (props.automation ? automationStatusName(props.status) : statusWords(props.status)))
 const s = computed(() => String(text.value || '').toLowerCase())
@@ -39,7 +41,7 @@ const spins = computed(() => icon.value === Loader2)
 
 <template>
   <span v-if="text !== '' && text != null" class="inline-flex items-center gap-1 rounded-full px-2 py-px text-[11px] font-medium whitespace-nowrap" :class="tone">
-    <component :is="icon" v-if="icon" class="h-3 w-3 shrink-0" :class="spins ? 'motion-safe:animate-spin' : ''" aria-hidden="true" />{{ text }}
+    <component :is="icon" v-if="icon" class="h-3 w-3 shrink-0" :class="spins ? 'motion-safe:animate-spin' : ''" aria-hidden="true" />{{ label || text }}
   </span>
   <span v-else class="text-muted-foreground">—</span>
 </template>

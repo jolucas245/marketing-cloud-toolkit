@@ -4,6 +4,7 @@
 //
 // Not yet checked against a live org: the list filter (`nameOrDescription`), the
 // detail call's `extras=all`, and the Journey Builder deep link format.
+import { journeyOverviewRows } from './journeySummary.js'
 import { sfmcFetch } from './sfmcApi.js'
 import { changesSince } from './localCache.js'
 import { formatValue } from './activityTypes.js'
@@ -54,6 +55,24 @@ export async function fetchJourney(stack, id, version) {
     if (!version || !(e.status === 404 || /matching criteria not found/i.test(e.message || ''))) throw e
     return sfmcFetch(url(null), 'GET')
   }
+}
+
+/**
+ * Contacts per activity per day, as Journey Builder's canvas shows them (user, 2026-11-10):
+ * interaction/v1/goalstatistics/<id>?versionNumber=<n>. Null when SFMC refuses.
+ */
+export async function fetchJourneyStats(stack, id, version, fetch = sfmcFetch) {
+  try { return await fetch(`${JB(stack)}/goalstatistics/${encodeURIComponent(id)}${version != null ? `?versionNumber=${encodeURIComponent(version)}` : ''}`, 'GET') } catch { return null }
+}
+
+/** The entry event (name, data extension, key), as on Journey Builder's entry card. Null when unknown. */
+export async function fetchJourneyEvent(stack, journey, fetch = sfmcFetch) {
+  const id = journey?.triggers?.[0]?.metaData?.eventDefinitionId
+  if (!id) return null
+  try {
+    const e = await fetch(`${JB(stack)}/eventDefinitions/${encodeURIComponent(id)}`, 'GET')
+    return e ? { name: e.name, dataExtensionName: e.dataExtensionName, eventDefinitionKey: e.eventDefinitionKey, type: e.type } : null
+  } catch { return null }
 }
 
 // ── Send classification, sender and delivery profile names ──
@@ -477,18 +496,13 @@ export async function fetchJourneyEmailAsset(stack, emailId) {
 }
 
 // ── Export ─────────────────────────────────────────────────
-export function journeyOverviewRows(j) {
-  return [
-    ['Name', j.name], ['Status', j.status], ['Version', j.version], ['Key', j.key], ['Description', j.description],
-    ['Entry mode', j.entryMode], ['Created', formatDateTime(j.createdDate)], ['Modified', formatDateTime(j.modifiedDate)],
-    ['Last published', formatDateTime(j.lastPublishedDate)], ['ID', j.id],
-  ].filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])
-}
+// Overview rows: Journey Builder's properties panel (utils/journeySummary.js).
+export { journeyOverviewRows }
 
-export function journeyDoc(journey, graph, layout, diagram = null, names = null) {
+export function journeyDoc(journey, graph, layout, diagram = null, names = null, extra = {}) {
   const ordered = [...graph.nodes].filter((n) => n.type !== 'EXIT')
     .sort((a, b) => (layout.pos.get(a.key)?.lane - layout.pos.get(b.key)?.lane) || (layout.pos.get(a.key)?.depth - layout.pos.get(b.key)?.depth))
-  const blocks = [{ type: 'h', level: 2, text: 'Overview' }, { type: 'kv', rows: journeyOverviewRows(journey) },
+  const blocks = [{ type: 'h', level: 2, text: 'Overview' }, { type: 'kv', rows: journeyOverviewRows(journey, extra) },
     // The canvas as a drawing (feedback #1009), passed in as an SVG string.
     ...(diagram ? [{ type: 'h', level: 2, text: 'Journey' }, { type: 'svg', svg: diagram, note: 'Journey diagram: in the HTML and PDF downloads.' }] : []),
     { type: 'h', level: 2, text: 'Steps' }]
