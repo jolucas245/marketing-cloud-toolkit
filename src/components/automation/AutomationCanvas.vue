@@ -3,16 +3,17 @@
 // (feedback #1072): a header band ("Starting source", "Step 1", ...), the starting source
 // column on the left with its schedule as labelled fields, then one full-height column per
 // step split by dashed lines, with numbered activity cards ("1.1 SQL Query", an icon tile,
-// the activity name). The Toolkit's own styling and icons; nothing is loaded from SFMC.
+// the activity name). Automation Studio's own icons and tile colours (user, 2026-11-10),
+// bundled in data/automationStudioIcons.js; nothing is loaded from SFMC.
 // Clicking a card emits `select` with its "si.ai" key. The SVG download still draws
 // automationCanvasModel (utils/automationSvg.js).
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { CalendarClock, FolderInput, Play, Loader2, AlertTriangle, Minus, Plus, Maximize2 } from 'lucide-vue-next'
+import { Loader2, AlertTriangle, Minus, Plus, Maximize2 } from 'lucide-vue-next'
 import ActivityIcon from '@/components/results/ActivityIcon.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import { automationCanvasModel } from '@/utils/automationCanvas.js'
-import { describeRecurrence } from '@/utils/ical.js'
-import { formatDateTime } from '@/utils/format.js'
+import { scheduleSummary } from '@/utils/automationSummary.js'
+import { AS_GLYPHS, AS_SOURCE, AS_SOURCE_GLYPH, AS_TILE } from '@/data/automationStudioIcons.js'
 
 const props = defineProps({
   details: { type: Object, required: true },
@@ -22,23 +23,14 @@ const props = defineProps({
 const emit = defineEmits(['select'])
 
 const model = computed(() => automationCanvasModel(props.details, { runningStep: props.runningStep }))
-const SOURCE_ICONS = { schedule: CalendarClock, fileDrop: FolderInput, none: Play }
 const SOURCE_TITLE = { schedule: 'Schedule', fileDrop: 'File Drop', none: 'No starting source' }
+const sourceGlyph = computed(() => AS_GLYPHS[AS_SOURCE_GLYPH[model.value.source.kind]])
 
 // The schedule as Automation Studio lists it: labelled fields, only those present.
-const scheduleRows = computed(() => {
-  const s = props.details?.schedule || {}
-  const rows = []
-  const recur = describeRecurrence(s.icalRecur)
-  if (recur) rows.push(['Repeat', recur])
-  if (s.startDate) rows.push(['Starting', formatDateTime(s.startDate)])
-  const end = s.endDate || s.endTime
-  if (end) rows.push(['Ending', /2079|9999/.test(String(end)) ? 'Never' : formatDateTime(end)])
-  if (s.timezoneName) rows.push(['Time zone', s.timezoneName])
-  if (formatDateTime(s.scheduledTime)) rows.push(['Next run', formatDateTime(s.scheduledTime)])
-  return rows
-})
-const scheduleStatus = computed(() => String(props.details?.schedule?.scheduleStatus || '').toLowerCase())
+const schedule = computed(() => scheduleSummary(props.details))
+const scheduleRows = computed(() => schedule.value.rows.filter(([k, v]) => k !== 'Status' && v !== '—'))
+const scheduleStatus = computed(() => String(schedule.value.status || '').toLowerCase())
+const paused = computed(() => !!scheduleStatus.value && !schedule.value.active)
 const sourceLines = computed(() => (model.value.source.kind === 'schedule' ? [] : model.value.source.lines))
 
 const COL_W = 268
@@ -101,14 +93,16 @@ watch(naturalWidth, () => { if (fitted.value) nextTick(() => fit(false)) })
           <div class="shrink-0 border-r border-border bg-muted/30 px-4 py-4" :style="{ width: `${SOURCE_W}px` }" data-canvas-source>
             <div class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{{ SOURCE_TITLE[model.source.kind] }}</div>
             <div class="my-4 flex justify-center">
-              <span class="relative flex h-16 w-16 items-center justify-center rounded-full text-white" :class="model.source.kind === 'none' ? 'bg-slate-400' : 'bg-emerald-500'">
-                <component :is="SOURCE_ICONS[model.source.kind]" class="h-8 w-8" aria-hidden="true" />
-                <span v-if="scheduleStatus && !/active|scheduled/.test(scheduleStatus)" class="absolute -bottom-1 -right-1 rounded bg-amber-500 px-1 text-[10px] font-semibold uppercase">{{ scheduleStatus }}</span>
+              <span class="relative flex h-16 w-16 items-center justify-center rounded-full" :style="{ background: model.source.kind === 'none' ? '#94a3b8' : AS_SOURCE }" data-canvas-source-icon>
+                <img :src="sourceGlyph" alt="" aria-hidden="true" class="h-9 w-9" />
+                <span v-if="paused" class="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded" :style="{ background: AS_TILE }" title="Paused" data-canvas-paused>
+                  <img :src="AS_GLYPHS['lightning-pause']" alt="Paused" class="h-3.5 w-3.5" />
+                </span>
               </span>
             </div>
             <div v-if="scheduleStatus" class="mb-3 flex text-[11px] rounded border border-border overflow-hidden">
-              <span class="flex-1 text-center py-0.5" :class="/active|scheduled/.test(scheduleStatus) ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'">Active</span>
-              <span class="flex-1 text-center py-0.5" :class="!/active|scheduled/.test(scheduleStatus) ? 'bg-amber-500 text-white' : 'text-muted-foreground'">Paused</span>
+              <span class="flex-1 text-center py-0.5" :class="!paused ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'">Active</span>
+              <span class="flex-1 text-center py-0.5" :class="paused ? 'text-white' : 'text-muted-foreground'" :style="paused ? { background: AS_TILE } : null">Paused</span>
             </div>
             <dl class="space-y-2 text-xs">
               <div v-for="[k, v] in scheduleRows" :key="k">
@@ -116,6 +110,7 @@ watch(naturalWidth, () => { if (fitted.value) nextTick(() => fit(false)) })
                 <dd class="wrap-break-word">{{ v }}</dd>
               </div>
             </dl>
+            <p v-if="schedule.note" class="mt-2 text-xs text-foreground">{{ schedule.note }}</p>
             <p v-for="(line, i) in sourceLines" :key="i" class="text-xs text-muted-foreground wrap-break-word">{{ line }}</p>
           </div>
 
@@ -131,8 +126,8 @@ watch(naturalWidth, () => { if (fitted.value) nextTick(() => fit(false)) })
                 <AlertTriangle v-else-if="acts[c.key]?.status === 'error'" class="h-3 w-3 text-amber-600 dark:text-amber-400" aria-label="Details could not be loaded" />
               </span>
               <span class="flex items-start gap-3 px-3 pb-3 pt-2">
-                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-white shadow-sm">
-                  <ActivityIcon :type="c.typeId" size="h-6 w-6" plain />
+                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg shadow-sm" :style="{ background: AS_TILE }">
+                  <ActivityIcon :type="c.typeId" size="h-7 w-7" plain />
                 </span>
                 <span class="text-[13px] leading-snug text-foreground line-clamp-3 wrap-break-word">{{ c.name }}</span>
               </span>

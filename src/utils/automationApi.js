@@ -110,11 +110,28 @@ export async function loadMoreAutomations(stack, query, have, categoryId = null)
 
 /** The automation and its error notifications (null when those can't be read). */
 export async function fetchAutomation(stack, id) {
-  const [details, notifications] = await Promise.all([
+  const [details, notifications, legacy] = await Promise.all([
     sfmcFetch(`${AS(stack)}/automation/v1/automations/${encodeURIComponent(id)}`, 'GET'),
     sfmcFetch(`${AS(stack)}/legacy/v1/beta/automations/notifications/${encodeURIComponent(id)}/`, 'GET').catch(() => null),
+    fetchLegacyDefinition(stack, id),
   ])
-  return { details, notifications }
+  return { details: legacy ? { ...details, legacy } : details, notifications }
+}
+
+/**
+ * What Automation Studio's Summary tab reads (user, 2026-11-10): created by, last saved
+ * by, last paused by, folder path and the schedule as wall-clock time. Only by list ID;
+ * null for a REST GUID or when SFMC refuses. Its step list (`processes`) is dropped:
+ * the REST record's steps are used.
+ */
+export async function fetchLegacyDefinition(stack, id, fetch = sfmcFetch) {
+  if (!id || isAutomationGuid(id)) return null
+  try {
+    const d = await fetch(`${AS(stack)}/legacy/v1/beta/bulk/automations/automation/definition/${encodeURIComponent(id)}/`, 'GET')
+    if (!d || typeof d !== 'object') return null
+    const { processes, ...rest } = d
+    return rest
+  } catch { return null }
 }
 
 const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

@@ -1,29 +1,18 @@
 // The export document for one automation (from SFMC Automation Viewer's
 // downloadAutomation.js): overview, schedule, error notifications, then every step's
 // activities with their details.
-import { describeRecurrence } from './ical.js'
 import { activityBlocks, activityTypeLabel, describeActivity } from './activityTypes.js'
-import { formatDateTime, isNoEndDate } from './format.js'
-import { automationStatusName } from './watches.js'
+import { automationOverviewRows, scheduleSummary } from './automationSummary.js'
+import { formatDateTime } from './format.js'
 import { fetchAutomation, fetchActivityDetails } from './automationApi.js'
 import { runInBatches } from './batchRunner.js'
 import { automationSvg } from './automationSvg.js'
 
-export function automationOverviewRows(d) {
-  return [
-    ['Name', d.name], ['Key', d.key], ['Type', d.type], ['Status', automationStatusName(d.status)],
-    ['Last run', formatDateTime(d.lastRunTime)], ['Last run status', d.lastRunStatus],
-    ['Created', formatDateTime(d.createdDate)], ['Modified', formatDateTime(d.modifiedDate)], ['ID', d.id],
-  ].filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])
-}
-
-export function scheduleRows(s) {
-  if (!s) return []
-  return [
-    ['Status', s.scheduleStatus], ['Recurrence', describeRecurrence(s.icalRecur) || s.icalRecur], ['Time zone', s.timezoneName],
-    // SFMC's "no end date" is 2079-06-06 (live test, 2026-11-08: shown as Jun 5, 2079).
-    ['Start', formatDateTime(s.startDate)], ['Next run', formatDateTime(s.scheduledTime)], ['End', isNoEndDate(s.endDate) ? 'No end date' : formatDateTime(s.endDate)],
-  ].map(([k, v]) => [k, v ? String(v) : '—'])
+// Overview and schedule rows: Automation Studio's Summary (utils/automationSummary.js).
+export { automationOverviewRows }
+export function scheduleRows(d) {
+  const { rows, note, description } = scheduleSummary(d)
+  return [...rows, ...(description ? [['Summary', description]] : []), ...(note ? [['Note', note]] : [])]
 }
 
 /**
@@ -36,7 +25,7 @@ export function automationDoc(details, notifications, descFor) {
     { type: 'h', level: 2, text: 'Overview' },
     { type: 'kv', rows: automationOverviewRows(details) },
   ]
-  if (details.schedule) blocks.push({ type: 'h', level: 2, text: 'Schedule' }, { type: 'kv', rows: scheduleRows(details.schedule) })
+  if (details.schedule) blocks.push({ type: 'h', level: 2, text: 'Schedule' }, { type: 'kv', rows: scheduleRows(details) })
   const workers = notifications?.workers || []
   if (workers.length) {
     blocks.push({ type: 'h', level: 2, text: 'Error notifications' },

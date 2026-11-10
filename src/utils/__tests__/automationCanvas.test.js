@@ -91,3 +91,22 @@ describe('automationSvg and the download', () => {
     expect(toMarkdown(doc)).toContain('Automation diagram: in the HTML and PDF downloads.')
   })
 })
+
+describe('File drop settings from the legacy definition (live check, 2026-11-10)', () => {
+  it('reads the older top-level fields', async () => {
+    const { automationSource } = await import('../automationCanvas.js')
+    const s = automationSource({ type: 'triggered', legacy: { folderLocation: 'import\\', queueFiles: true, filenamePattern: 'customer_import', filenamePatternType: 2, triggerActive: false } })
+    expect(s.kind).toBe('fileDrop')
+    expect(s.lines).toEqual(['Filename pattern: Begins with customer_import', 'Folder: import\\', 'Queue files: On', 'Trigger: Inactive'])
+  })
+  it('reads automationTrigger', async () => {
+    const { automationSource } = await import('../automationCanvas.js')
+    const s = automationSource({ type: 'automationtriggered', legacy: { automationTrigger: { fileNamePattern: 'sample.csv', fileNamePatternType: 4, folderLocation: '', queueFiles: true, isTriggerActive: false } } })
+    expect(s.lines).toEqual(['Filename pattern: Equals sample.csv', 'Queue files: On', 'Trigger: Inactive'])
+  })
+})
+
+it('takes the pattern rule from the legacy record when the REST trigger has none', () => {
+  const s = automationSource({ type: 'triggered', fileTrigger: { fileNamingPattern: 'customer_import', folderLocationText: 'import\\' }, legacy: { queueFiles: true, filenamePattern: 'customer_import', filenamePatternType: 2, triggerActive: false } })
+  expect(s.lines).toEqual(['Filename pattern: Begins with customer_import', 'Folder: import\\', 'Queue files: On', 'Trigger: Inactive'])
+})

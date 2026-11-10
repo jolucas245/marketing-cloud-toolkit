@@ -25,8 +25,11 @@ const text = (v) => (v == null ? '' : String(v).trim())
 // the ones present are shown.
 const FILE_FIELDS = [
   [['fileNamingPattern', 'fileNamePattern', 'filenamePattern', 'pattern'], 'File name'],
-  [['folderLocationText', 'folderName', 'folderPath', 'fileLocation', 'location'], 'Folder'],
+  [['folderLocationText', 'folderName', 'folderLocation', 'fileLocation', 'location'], 'Folder'],
 ]
+
+// Automation Studio's FILENAME_PATTERN_PREFIXES and its Equals option.
+const PATTERN_TYPES = { 1: 'Contains', 2: 'Begins with', 3: 'Ends with', 4: 'Equals' }
 
 /** The starting source: { kind: 'schedule' | 'fileDrop' | 'none', title, lines }. */
 export function automationSource(details) {
@@ -41,13 +44,27 @@ export function automationSource(details) {
     if (s.scheduleStatus) lines.push(`Schedule ${text(s.scheduleStatus).toLowerCase()}`)
     return { kind: 'schedule', title: 'Schedule', lines }
   }
-  const trigger = d.fileTrigger || d.fileDrop || d.trigger || null
+  // The legacy definition (Automation Studio's Summary) has the file drop settings: older
+  // file drops at its top level, newer ones under automationTrigger (live check, 2026-11-10).
+  const L = d.legacy || {}
+  const legacyTrigger = L.automationTrigger || (L.filenamePattern != null || L.queueFiles != null ? L : null)
+  const trigger = d.fileTrigger || d.fileDrop || d.trigger || legacyTrigger || null
   if (trigger || /trigger|file/i.test(text(d.type))) {
     const lines = []
+    // A field from the REST trigger, else from the legacy one.
+    const pick = (...names) => [trigger, legacyTrigger].flatMap((t) => names.map((n) => t?.[n])).find((v) => v != null && v !== '')
+    const pattern = text(pick('fileNamePattern', 'filenamePattern', 'fileNamingPattern'))
+    const op = PATTERN_TYPES[Number(pick('fileNamePatternType', 'filenamePatternType'))]
+    if (pattern && op) lines.push(`Filename pattern: ${op} ${pattern}`)
     for (const [names, label] of FILE_FIELDS) {
-      const v = names.map((n) => trigger?.[n]).find((x) => typeof x === 'string' && x.trim())
+      if (label === 'File name' && op && pattern) continue
+      const v = [trigger, legacyTrigger].flatMap((t) => names.map((n) => t?.[n])).find((x) => typeof x === 'string' && x.trim())
       if (v) lines.push(`${label}: ${v.trim()}`)
     }
+    const queue = pick('queueFiles')
+    if (typeof queue === 'boolean') lines.push(`Queue files: ${queue ? 'On' : 'Off'}`)
+    const active = pick('isTriggerActive', 'triggerActive')
+    if (typeof active === 'boolean') lines.push(`Trigger: ${active ? 'Active' : 'Inactive'}`)
     if (!lines.length) lines.push('Runs when a file arrives')
     return { kind: 'fileDrop', title: 'File Drop', lines }
   }

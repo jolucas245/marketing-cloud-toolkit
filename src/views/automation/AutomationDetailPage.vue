@@ -22,7 +22,8 @@ import { fetchAutomation, fetchActivityDetails, fetchAutomationStatus, fetchLate
 import { automationRunState, createPoller } from '@/utils/runProgress.js'
 import { describeActivity, automationUrl } from '@/utils/activityTypes.js'
 import { openInSfmc } from '@/utils/sfmcLinks.js'
-import { automationOverviewRows, scheduleRows, automationDoc } from '@/utils/automationDoc.js'
+import { automationOverviewRows, automationDoc } from '@/utils/automationDoc.js'
+import { scheduleSummary } from '@/utils/automationSummary.js'
 import { runInBatches } from '@/utils/batchRunner.js'
 import { cached, cacheKey, cacheScope, readCache, writeCache, savedAgo } from '@/utils/localCache.js'
 import AiButton from '@/components/ai/AiButton.vue'
@@ -169,6 +170,7 @@ function watchRun() {
 onBeforeUnmount(() => poller.stop())
 
 const steps = computed(() => details.value?.steps || [])
+const schedule = computed(() => scheduleSummary(details.value))
 const workers = computed(() => notifications.value?.workers || [])
 const pending = computed(() => Object.values(acts).filter((x) => x.status === 'loading').length)
 
@@ -191,7 +193,7 @@ const summaryPrompt = (extra) => buildAiTaskPrompt('automation', { text: docText
       <StatusBadge v-if="details" :status="details.status ?? details.statusId" automation />
       <span v-if="pending" class="flex items-center gap-1 text-xs text-muted-foreground"><Loader2 class="h-3 w-3 animate-spin" /> Loading {{ pending }} activities</span>
       <span v-else-if="savedAt && details" class="flex items-center gap-1.5 text-xs text-muted-foreground" data-saved-note>
-        Saved {{ savedAgo(savedAt) }}
+        Read from SFMC {{ savedAgo(savedAt) }}
         <button type="button" class="underline hover:text-foreground disabled:opacity-50" :disabled="checking" title="Ask SFMC for the status only (one call)" data-check-status @click="checkStatus">{{ checking ? 'Checking' : 'Check status' }}</button>
         <button type="button" class="inline-flex items-center gap-0.5 underline hover:text-foreground" title="Read the automation and its activities again from SFMC" data-refresh @click="load(true)"><RefreshCw class="h-3 w-3" /> Refresh</button>
       </span>
@@ -229,12 +231,16 @@ const summaryPrompt = (extra) => buildAiTaskPrompt('automation', { text: docText
           <button class="w-full flex items-center gap-1.5 px-3 py-2 text-sm font-semibold" :aria-expanded="open.schedule" @click="open.schedule = !open.schedule">
             <ChevronDown v-if="open.schedule" class="h-4 w-4" /><ChevronRight v-else class="h-4 w-4" /> Schedule
           </button>
-          <div v-if="open.schedule" class="grid grid-cols-2 md:grid-cols-3 gap-2 px-3 pb-3">
-            <div v-for="[k, v] in scheduleRows(details.schedule)" :key="k" class="rounded-md border border-border p-2">
-              <div class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ k }}</div>
-              <div class="text-sm" :class="{ 'text-primary font-medium': k === 'Next run' }">{{ v }}</div>
+          <template v-if="open.schedule">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-2 px-3 pb-3" data-schedule-rows>
+              <div v-for="[k, v] in schedule.rows" :key="k" class="rounded-md border border-border p-2">
+                <div class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ k }}</div>
+                <div class="text-sm" :class="{ 'text-primary font-medium': k === 'Next run', 'text-amber-700 dark:text-amber-400 font-medium': k === 'Status' && !schedule.active }">{{ v }}</div>
+              </div>
             </div>
-          </div>
+            <p v-if="schedule.description" class="px-3 pb-1 text-xs text-muted-foreground">{{ schedule.description }}</p>
+            <p v-if="schedule.note" class="px-3 pb-3 text-xs text-amber-700 dark:text-amber-400" data-schedule-note>{{ schedule.note }}</p>
+          </template>
         </section>
 
         <section v-if="workers.length" class="rounded-lg border border-border bg-card">

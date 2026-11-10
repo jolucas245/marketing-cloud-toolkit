@@ -1,10 +1,13 @@
 // The automation canvas as a standalone SVG for the HTML and PDF downloads (feedback #1035).
 // It draws the same model as AutomationCanvas.vue (automationCanvasModel): the starting
-// source, one lane per step with its activity cards, and arrows between them. Icons are
-// lucide's (ISC licence), the set the app already uses; nothing is fetched.
+// source, one lane per step with its activity cards, and arrows between them. Activity and
+// starting source icons are Automation Studio's own (data/automationStudioIcons.js, user
+// 2026-11-10) as embedded images; nothing is fetched.
 import { htmlEscape } from './exportDoc.js'
 import { wrapText } from './journeySvg.js'
 import { automationCanvasModel } from './automationCanvas.js'
+import { activityGlyph } from './activityIcons.js'
+import { AS_GLYPHS, AS_GLYPH_BY_TYPE, AS_SOURCE, AS_SOURCE_GLYPH, AS_TILE } from '../data/automationStudioIcons.js'
 
 // Inner markup of the lucide icons (24x24, stroke).
 export const AUTOMATION_ICONS = {
@@ -43,20 +46,20 @@ const BORDER = '#E5E7EB'
 const TEXT = '#111827'
 const MUTED = '#4B5563'
 const ARROW = '#9CA3AF'
-const SOURCE_ICON = { schedule: 'schedule', fileDrop: 'fileDrop', none: 'start' }
 
 const esc = (s) => htmlEscape(String(s ?? ''))
 
-function icon(kind, x, y, size, color) {
-  const inner = AUTOMATION_ICONS[kind] || AUTOMATION_ICONS.other
-  return `<svg x="${x}" y="${y}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`
+// An Automation Studio glyph as an embedded image.
+function glyph(name, x, y, size) {
+  const href = AS_GLYPHS[name] || AS_GLYPHS['undefined-activity']
+  return `<image x="${x}" y="${y}" width="${size}" height="${size}" href="${esc(href)}"/>`
 }
 
 function sourceSvg(s) {
   const out = [`<g class="source"><title>${esc([s.title, ...s.lines].join(' · '))}</title>`,
     `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" rx="12" fill="${CARD}" stroke="${BORDER}"/>`,
-    `<circle cx="${s.x + 26}" cy="${s.y + 24}" r="14" fill="${PRIMARY}"/>`,
-    icon(SOURCE_ICON[s.kind] || 'start', s.x + 18, s.y + 16, 16, '#ffffff'),
+    `<circle cx="${s.x + 26}" cy="${s.y + 24}" r="14" fill="${s.kind === 'none' ? '#94a3b8' : AS_SOURCE}"/>`,
+    glyph(AS_SOURCE_GLYPH[s.kind] || AS_SOURCE_GLYPH.none, s.x + 17, s.y + 15, 18),
     `<text x="${s.x + 48}" y="${s.y + 28}" font-size="13" font-weight="600" fill="${TEXT}">${esc(s.title)}</text>`]
   s.lines.forEach((line, i) => {
     out.push(`<text x="${s.x + 14}" y="${s.y + 58 + i * 18}" font-size="11" fill="${MUTED}">${esc(wrapText(line, 34, 1)[0] || '')}</text>`)
@@ -66,12 +69,13 @@ function sourceSvg(s) {
 }
 
 function cardSvg(c) {
-  const color = ICON_COLORS[c.iconKind] || ICON_COLORS.other
+  const name = activityGlyph(c.typeId ?? c.typeLabel, AS_GLYPH_BY_TYPE)
+  const tile = /-white$/.test(name)
   const out = [`<g class="activity"><title>${esc(`${c.label} ${c.typeLabel} · ${c.name}`)}</title>`,
     `<rect x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" rx="10" fill="${CARD}" stroke="${BORDER}"/>`,
-    `<rect x="${c.x}" y="${c.y + 8}" width="3" height="${c.h - 16}" rx="1.5" fill="${color}"/>`,
-    icon(c.iconKind, c.x + 12, c.y + 10, 14, color),
-    `<text x="${c.x + 32}" y="${c.y + 21}" font-size="10" font-weight="600" fill="${color}" letter-spacing="0.4">${esc(c.typeLabel.toUpperCase())}</text>`,
+    tile ? `<rect x="${c.x + 10}" y="${c.y + 8}" width="18" height="18" rx="3" fill="${AS_TILE}"/>` : '',
+    glyph(name, c.x + (tile ? 12 : 10), c.y + (tile ? 10 : 8), tile ? 14 : 18),
+    `<text x="${c.x + 34}" y="${c.y + 21}" font-size="10" font-weight="600" fill="${TEXT}" letter-spacing="0.4">${esc(c.typeLabel.toUpperCase())}</text>`,
     `<text x="${c.x + c.w - 10}" y="${c.y + 21}" text-anchor="end" font-size="10" fill="${MUTED}">${esc(c.label)}</text>`]
   wrapText(c.name, 30, 2).forEach((line, i) => out.push(`<text x="${c.x + 12}" y="${c.y + 39 + i * 14}" font-size="11" fill="${TEXT}">${esc(line)}</text>`))
   out.push('</g>')

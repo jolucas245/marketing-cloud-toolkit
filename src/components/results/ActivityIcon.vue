@@ -1,37 +1,26 @@
 <script setup>
 // Icon for an automation activity type (feedback #123), by objectTypeId or by name
-// ("Query", "SQL Query", "Script", ...). Inline SVG from lucide, which the app already uses.
+// ("Query", "SQL Query", "Script", ...). Since 2026-11-10 Automation Studio's own icons
+// (user asked): its white glyph on its orange tile, as in its step lists and canvas
+// (data/automationStudioIcons.js). `plain`: the glyph only, for a tile drawn by the parent.
 import { computed } from 'vue'
-import { Database, FileCode2, FileInput, FileOutput, ArrowRightLeft, Send, ShieldCheck, Filter, Hourglass, Workflow, Smartphone, MessageSquare, RefreshCw, Users, Cog } from 'lucide-vue-next'
-import { activityIconKind } from '@/utils/activityIcons.js'
+import { activityGlyph } from '@/utils/activityIcons.js'
+import { AS_GLYPHS, AS_GLYPH_BY_TYPE, AS_TILE } from '@/data/automationStudioIcons.js'
 
 const props = defineProps({
   type: { type: [Number, String], default: null },
   size: { type: String, default: 'h-3.5 w-3.5' },
-  // On a coloured tile (the canvas, feedback #1072): no colour of its own.
   plain: { type: Boolean, default: false },
 })
-
-const ICONS = {
-  query: [Database, 'text-sky-600 dark:text-sky-400'],
-  script: [FileCode2, 'text-violet-600 dark:text-violet-400'],
-  import: [FileInput, 'text-emerald-600 dark:text-emerald-400'],
-  extract: [FileOutput, 'text-teal-600 dark:text-teal-400'],
-  transfer: [ArrowRightLeft, 'text-cyan-600 dark:text-cyan-400'],
-  email: [Send, 'text-orange-600 dark:text-orange-400'],
-  verification: [ShieldCheck, 'text-lime-600 dark:text-lime-400'],
-  filter: [Filter, 'text-amber-600 dark:text-amber-400'],
-  wait: [Hourglass, 'text-slate-500 dark:text-slate-400'],
-  journey: [Workflow, 'text-indigo-600 dark:text-indigo-400'],
-  mobile: [Smartphone, 'text-pink-600 dark:text-pink-400'],
-  sms: [MessageSquare, 'text-pink-600 dark:text-pink-400'],
-  refresh: [RefreshCw, 'text-sky-600 dark:text-sky-400'],
-  audience: [Users, 'text-fuchsia-600 dark:text-fuchsia-400'],
-  other: [Cog, 'text-muted-foreground'],
-}
-const icon = computed(() => ICONS[activityIconKind(props.type)] || ICONS.other)
+const glyph = computed(() => activityGlyph(props.type, AS_GLYPH_BY_TYPE))
+const src = computed(() => AS_GLYPHS[glyph.value] || AS_GLYPHS['undefined-activity'])
+// Coloured icons (not white glyphs) sit on no tile.
+const onTile = computed(() => /-white$/.test(glyph.value))
 </script>
 
 <template>
-  <component :is="icon[0]" class="shrink-0" :class="[size, plain ? '' : icon[1]]" aria-hidden="true" />
+  <img v-if="plain || !onTile" :src="src" alt="" aria-hidden="true" class="shrink-0 object-contain" :class="size" data-as-icon :data-glyph="glyph" />
+  <span v-else class="inline-flex shrink-0 items-center justify-center rounded-[3px]" :class="size" :style="{ background: AS_TILE }" aria-hidden="true" data-as-icon :data-glyph="glyph">
+    <img :src="src" alt="" class="h-[72%] w-[72%] object-contain" />
+  </span>
 </template>

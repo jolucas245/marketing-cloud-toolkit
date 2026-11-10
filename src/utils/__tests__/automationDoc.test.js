@@ -14,7 +14,7 @@ describe('automationDoc', () => {
     const doc = automationDoc(details, { workers: [{ notificationType: 'Error', definition: 'a@b.c', channelType: 'Email' }] }, (s, a) => descs[`${s}.${a}`] || null)
     const md = toMarkdown(doc)
     expect(doc.title).toBe('Nightly')
-    expect(md).toContain('| Recurrence | Every day |')
+    expect(md).toContain('| Repeat | Every day |')
     expect(md).toContain('| Error | a@b.c | Email |')
     expect(md).toContain('## Step 1: Load')
     expect(md).toContain('### 1.1: Q1')
