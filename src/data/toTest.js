@@ -48,6 +48,12 @@ export const TO_TEST = [
         expect: "Counts on activities and routes roughly match Journey Builder's history; thicker lines carry more; the cap note shows when hit; the data view link opens SQL that runs; Clear removes the overlay. Nothing loads until Show paths.",
       },
       {
+        id: '2.0.23-ai-answer-format', area: 'AI', title: 'AI answers are formatted (bullets, bold, code)', ref: '#1096', from: 'Mathes', live: true,
+        where: 'An automation page > Summarize (also Explain on a query, Summarize on a journey)',
+        steps: ['Press Summarize and wait for the answer.', 'Ask something that gets a numbered list or SQL back.'],
+        expect: 'Bullets show as a list and **bold** as bold text, with no asterisks left; SQL shows in a code box. Copy still copies the answer as the model wrote it.',
+      },
+      {
         id: '2.0.23-order-by-offset', area: 'Queries', title: 'ORDER BY without TOP runs (OFFSET 0 ROWS added)', ref: '#1093', from: 'Mathes', live: true,
         where: 'Run Query',
         steps: ['Run SELECT ... FROM <DE> ORDER BY <field> without TOP.', 'Validate it too, and Save as query activity.', 'Put an ORDER BY without TOP in a subquery and use the SQL check fix Add OFFSET 0 ROWS.'],

@@ -4,6 +4,7 @@
 // built-in model on this computer (composables/useAi.js). The caller builds the
 // prompt (masked, size-limited: utils/aiAssist.js); the user sees it before asking.
 // `#answer` gets { text } for extra actions (Create DE's Apply).
+import AiAnswer from './AiAnswer.vue'
 import { computed, ref, watch } from 'vue'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle } from 'radix-vue'
 import { X, Loader2, Sparkles, Download, Square, Copy, ChevronDown, ChevronRight, Minus } from 'lucide-vue-next'
@@ -122,7 +123,7 @@ async function copy() {
           <p v-if="error" class="text-red-600" role="alert">{{ error }}<ReportErrorButton /></p>
 
           <template v-if="answer">
-            <div class="rounded-md border border-border bg-muted/30 p-3 whitespace-pre-line text-[13px] leading-relaxed" data-ai-answer>{{ answer }}</div>
+            <div class="rounded-md border border-border bg-muted/30 p-3 text-[13px] leading-relaxed" data-ai-answer><AiAnswer :text="answer" /></div>
             <div class="flex flex-wrap gap-2">
               <slot name="answer" :text="answer" />
               <Button variant="outline" size="sm" class="h-8 text-xs" @click="copy"><Copy class="h-3.5 w-3.5 mr-1" /> Copy</Button>
