@@ -3,15 +3,17 @@
 // straight from SFMC: no query activity, no results DE. 50 at a time, Load all up to
 // 50,000 with Stop, Refresh (#139); filter and hide columns on what is loaded; sort,
 // column filters, ticked rows, CSV, Excel, Markdown and Copy for AI (ResultsTable).
+// Feedback #1097: shown as its own page (`page`), Load all is "Load 50k rows", and
+// "Load last N rows" reads the end of the data extension from the row count.
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { X, Loader2, Search, Columns3, RefreshCw } from 'lucide-vue-next'
+import { X, Loader2, Search, Columns3, RefreshCw, ArrowLeft, ExternalLink } from 'lucide-vue-next'
 import ResultsTable from '@/components/detail/ResultsTable.vue'
 import SfmcErrorNotice from '@/components/results/SfmcErrorNotice.vue'
 import Button from '@/components/ui/button/Button.vue'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
 import { fetchDEFieldList } from '@/utils/deApi.js'
-import { fetchRowsAt, loadRemainingRows, reloadRows, columnsFor, filterRows, ROWS_PAGE, LOAD_ALL_LIMIT } from '@/utils/deRows.js'
+import { fetchRowsAt, fetchLastRows, loadRemainingRows, reloadRows, columnsFor, filterRows, ROWS_PAGE, LOAD_ALL_LIMIT } from '@/utils/deRows.js'
 import { showToast } from '@/composables/useToast.js'
 import { useRouter } from 'vue-router'
 import { duplicatesSql, distinctSql } from '@/utils/columnValues.js'
@@ -19,6 +21,8 @@ import { duplicatesSql, distinctSql } from '@/utils/columnValues.js'
 const props = defineProps({
   stack: { type: String, required: true },
   de: { type: Object, required: true }, // { id, name, customerKey, sourceType }
+  page: { type: Boolean, default: false }, // drawn as a page (no overlay, no Esc to close)
+  newTabHref: { type: String, default: '' }, // page mode: link that opens this preview in a new tab
 })
 const emit = defineEmits(['close'])
 const router = useRouter()
@@ -41,14 +45,19 @@ const error = ref('')
 const filter = ref('')
 const hidden = ref(new Set())
 const columnsOpen = ref(false)
+// Last N rows (#1097): null while the rows are read from the start; else { n, from }.
+const tail = ref(null)
+const lastN = ref(100)
+const LOAD_ALL_LABEL = `Load ${LOAD_ALL_LIMIT >= 1000 ? `${LOAD_ALL_LIMIT / 1000}k` : LOAD_ALL_LIMIT} rows`
 
 const columns = computed(() => columnsFor(fieldNames.value, rows.value.slice(0, 50)))
 const shownColumns = computed(() => columns.value.filter((c) => !hidden.value.has(c)))
 const shownRows = computed(() => filterRows(rows.value, shownColumns.value, filter.value))
 const knownTotal = computed(() => total.value ?? rows.value.length)
-const more = computed(() => !done.value && (total.value == null || rows.value.length < total.value))
+const more = computed(() => !tail.value && !done.value && (total.value == null || rows.value.length < total.value))
 const refreshing = ref(false)
-const busy = computed(() => loading.value || all.value.running || refreshing.value)
+const tailLoading = ref(false)
+const busy = computed(() => loading.value || all.value.running || refreshing.value || tailLoading.value)
 
 function fail(e) {
   const info = searchError(e, 'read the rows')
@@ -102,6 +111,36 @@ async function start() {
   await loadMore()
 }
 
+async function loadLast() {
+  if (busy.value) return
+  const n = Math.floor(Number(lastN.value))
+  if (!(n > 0)) { showToast('Enter how many rows, from 1.'); return }
+  tailLoading.value = true
+  error.value = ''
+  try {
+    const r = await withReconnect(props.stack, () => fetchLastRows({
+      stack: props.stack, key: props.de.customerKey, n, total: total.value, columnNames: fieldNames.value,
+    }))
+    rows.value = r.rows
+    total.value = r.total
+    tail.value = { n: Math.min(n, LOAD_ALL_LIMIT), from: r.from }
+    done.value = false
+  } catch (e) {
+    fail(e)
+  } finally {
+    tailLoading.value = false
+  }
+}
+
+// Back to reading from the first row.
+async function firstRows() {
+  if (busy.value) return
+  tail.value = null
+  rows.value = []
+  done.value = false
+  await loadMore()
+}
+
 function toggleColumn(c) {
   const next = new Set(hidden.value)
   next.has(c) ? next.delete(c) : next.add(c)
@@ -112,6 +151,7 @@ function toggleColumn(c) {
 // screen until the new ones arrive, so filters, sort and hidden columns are kept.
 async function refresh() {
   if (busy.value) return
+  if (tail.value) { lastN.value = tail.value.n; total.value = null; return loadLast() }
   refreshing.value = true
   error.value = ''
   try {
@@ -129,37 +169,53 @@ async function refresh() {
   }
 }
 
-const onKey = (e) => { if (e.key === 'Escape' && !columnsOpen.value) emit('close') }
+const onKey = (e) => { if (!props.page && e.key === 'Escape' && !columnsOpen.value) emit('close') }
 onMounted(() => { document.addEventListener('keydown', onKey); start() })
 onUnmounted(() => { all.value.stop = true; document.removeEventListener('keydown', onKey) })
 </script>
 
 <template>
-  <div class="fixed inset-0 z-120 flex items-center justify-center bg-black/40 p-4" @mousedown.self="emit('close')">
-    <div class="w-full max-w-6xl h-[85vh] flex flex-col rounded-lg border border-border bg-card shadow-xl" role="dialog" aria-modal="true" aria-labelledby="de-rows-title">
+  <div :class="page ? 'h-full flex flex-col' : 'fixed inset-0 z-120 flex items-center justify-center bg-black/40 p-4'" @mousedown.self="!page && emit('close')">
+    <div :class="page ? 'flex-1 min-h-0 flex flex-col rounded-lg border border-border bg-card' : 'w-full max-w-6xl h-[85vh] flex flex-col rounded-lg border border-border bg-card shadow-xl'"
+      :role="page ? null : 'dialog'" :aria-modal="page ? null : 'true'" aria-labelledby="de-rows-title" data-de-rows>
       <div class="flex items-center gap-2 px-4 py-2.5 border-b border-border">
+        <button v-if="page" class="p-1 rounded hover:bg-accent" title="Back" aria-label="Back" data-de-rows-back @click="emit('close')"><ArrowLeft class="h-4 w-4" /></button>
         <h2 id="de-rows-title" class="text-sm font-semibold truncate">Preview data: {{ de.name }}</h2>
         <span v-if="de.sourceType" class="text-[10px] font-semibold rounded-full px-1.5 py-px bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">{{ de.sourceType === 'shared' ? 'Shared' : 'Synchronized' }}</span>
         <span class="text-xs text-muted-foreground">Read from SFMC; no query is run.</span>
         <div class="flex-1" />
-        <button class="p-1 rounded hover:bg-accent" title="Close" aria-label="Close" @click="emit('close')"><X class="h-4 w-4" /></button>
+        <a v-if="page && newTabHref" :href="newTabHref" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs text-primary hover:underline" data-de-rows-newtab>
+          Open in a new tab <ExternalLink class="h-3 w-3" />
+        </a>
+        <button v-if="!page" class="p-1 rounded hover:bg-accent" title="Close" aria-label="Close" @click="emit('close')"><X class="h-4 w-4" /></button>
       </div>
 
       <div class="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-border text-xs">
-        <span class="tabular-nums">{{ rows.length.toLocaleString() }} of {{ knownTotal.toLocaleString() }}{{ total == null && more ? '+' : '' }} rows loaded</span>
+        <span v-if="tail" class="tabular-nums" data-de-rows-tail>Last {{ rows.length.toLocaleString() }} of {{ knownTotal.toLocaleString() }} rows (rows {{ (tail.from + 1).toLocaleString() }} to {{ (tail.from + rows.length).toLocaleString() }})</span>
+        <span v-else class="tabular-nums">{{ rows.length.toLocaleString() }} of {{ knownTotal.toLocaleString() }}{{ total == null && more ? '+' : '' }} rows loaded</span>
+        <Button v-if="tail" variant="outline" size="sm" class="h-7 text-[11px]" :disabled="busy" @click="firstRows">First rows</Button>
         <template v-if="more">
           <Button variant="outline" size="sm" class="h-7 text-[11px]" :disabled="busy" @click="loadMore">
             <Loader2 v-if="loading" class="h-3 w-3 mr-1 animate-spin" /> Load {{ ROWS_PAGE }} more
           </Button>
           <Button v-if="!all.running" variant="outline" size="sm" class="h-7 text-[11px]" :disabled="busy" @click="loadAll"
             :title="`Loads up to ${LOAD_ALL_LIMIT.toLocaleString()} rows; export the data extension in SFMC for more`">
-            Load all{{ knownTotal > LOAD_ALL_LIMIT ? ` (up to ${LOAD_ALL_LIMIT.toLocaleString()})` : '' }}
+            {{ LOAD_ALL_LABEL }}
           </Button>
           <template v-else>
             <ProgressBar :value="rows.length" :max="Math.min(knownTotal, LOAD_ALL_LIMIT)" aria-label="Loading rows" class="w-40" />
             <button class="underline" @click="all.stop = true">Stop</button>
           </template>
         </template>
+        <form v-if="!all.running" class="flex items-center gap-1" data-de-rows-last @submit.prevent="loadLast"
+          :title="`Reads the row count, then the last rows in SFMC's order (usually the order they were added); up to ${LOAD_ALL_LIMIT.toLocaleString()}`">
+          <Button type="submit" variant="outline" size="sm" class="h-7 text-[11px]" :disabled="busy">
+            <Loader2 v-if="tailLoading" class="h-3 w-3 mr-1 animate-spin" /> Load last
+          </Button>
+          <input v-model.number="lastN" type="number" min="1" :max="LOAD_ALL_LIMIT" aria-label="How many of the last rows to load"
+            class="h-7 w-20 rounded-md border border-border bg-background px-2 text-xs tabular-nums" />
+          <span>rows</span>
+        </form>
         <Button variant="outline" size="sm" class="h-7 text-[11px] gap-1" :disabled="busy" title="Read the rows again from SFMC" @click="refresh">
           <Loader2 v-if="refreshing" class="h-3 w-3 animate-spin" /><RefreshCw v-else class="h-3 w-3" /> Refresh
         </Button>
@@ -184,9 +240,9 @@ onUnmounted(() => { all.value.stop = true; document.removeEventListener('keydown
         </div>
       </div>
 
-      <div v-if="error" class="px-4 pt-3"><SfmcErrorNotice :error="error" :retrying="busy" @retry="rows.length ? loadMore() : start()" /></div>
+      <div v-if="error" class="px-4 pt-3"><SfmcErrorNotice :error="error" :retrying="busy" @retry="tail ? loadLast() : rows.length ? loadMore() : start()" /></div>
       <p v-if="filter && rows.length" class="px-4 pt-2 text-xs text-muted-foreground">{{ shownRows.length.toLocaleString() }} of the {{ rows.length.toLocaleString() }} loaded rows match. Downloads use the rows and columns shown, or only the ticked rows.</p>
-      <div v-if="loading && !rows.length" class="flex items-center gap-2 px-4 py-6 text-sm text-muted-foreground"><Loader2 class="h-4 w-4 animate-spin" /> Reading rows…</div>
+      <div v-if="(loading || tailLoading) && !rows.length" class="flex items-center gap-2 px-4 py-6 text-sm text-muted-foreground"><Loader2 class="h-4 w-4 animate-spin" /> Reading rows…</div>
       <ResultsTable v-else selectable sfmc-values :searchable="false" :rows="shownRows" :columns="shownColumns" :filename="de.name" file-prefix="de" :total-count="filter ? null : knownTotal" @values-query="valuesQuery" />
     </div>
   </div>

@@ -59,6 +59,28 @@ export async function loadRemainingRows({ stack, key, have, columnNames = [], li
   return added
 }
 
+/**
+ * The last `n` rows (feedback #1097): reads the row count, then the rows from
+ * count - n to the end with the same $page / $pagesize paging as Load all (a page
+ * number from the offset, rows before the offset skipped). "Last" is SFMC's rowset
+ * order, which is usually the order the rows were added. Returns { rows, total, from }
+ * (`from`: 0-based position of the first row returned).
+ */
+export async function fetchLastRows({ stack, key, n, total = null, columnNames = [], fetchPage = fetchDERows }) {
+  const want = Math.max(1, Math.min(LOAD_ALL_LIMIT, Math.floor(Number(n)) || 0))
+  let count = total
+  if (count == null) count = (await fetchRowsAt(stack, key, 0, 1, columnNames, fetchPage)).total
+  if (count == null) throw new Error('SFMC did not say how many rows the data extension has, so the last rows cannot be found.')
+  const from = Math.max(0, count - want)
+  let rows = []
+  let seen = count
+  await loadRemainingRows({
+    stack, key, have: from, columnNames, limit: count, fetchPage,
+    onRows: (page, t) => { rows = rows.concat(page); if (t != null) seen = t },
+  })
+  return { rows, total: seen, from }
+}
+
 /** Rows whose text in any of `columns` contains `text` (case-insensitive). */
 export function filterRows(rows, columns, text) {
   const t = String(text || '').trim().toLowerCase()

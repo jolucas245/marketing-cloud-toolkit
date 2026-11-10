@@ -13,7 +13,6 @@ import DataTable from '@/components/results/DataTable.vue'
 import DownloadMenu from '@/components/results/DownloadMenu.vue'
 import Button from '@/components/ui/button/Button.vue'
 import SfmcErrorNotice from '@/components/results/SfmcErrorNotice.vue'
-import DERowsViewer from '@/components/data/DERowsViewer.vue'
 import ReorderFieldsDialog from '@/components/data/ReorderFieldsDialog.vue'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
 import { useUsage } from '@/composables/useUsage.js'
@@ -34,8 +33,11 @@ const usage = useUsage()
 const whereUsed = (de) => usage.start(stack.value, { kind: 'de', de })
 const whereFieldUsed = (de, field) => usage.start(stack.value, { kind: 'field', de, field })
 
-// The DE whose rows are open in DERowsViewer (feedback #117).
-const rowsDE = ref(null)
+// Preview data opens as its own page (feedback #117, #1097).
+const previewTo = (de) => ({
+  path: '/data-extensions/preview',
+  query: { id: de.id, key: de.customerKey, name: de.name, ...(de.sourceType ? { source: de.sourceType } : {}) },
+})
 // The DE whose columns are being reordered (feedback #1013).
 // Turned off for now (feedback #1033: does not work yet); the dialog and code stay.
 const REORDER_ENABLED = false
@@ -548,9 +550,9 @@ const columns = [
                 <template #cell-actions="{ row }">
                   <a :href="deContactBuilderUrl(stack, row)" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-primary hover:underline whitespace-nowrap mr-3"
                     :title="row.sourceType ? 'Open in Contact Builder (from the business unit that owns it)' : 'Open in Contact Builder'">SFMC <ExternalLink class="h-3 w-3" /></a>
-                  <button class="inline-flex items-center gap-1 text-primary hover:underline whitespace-nowrap mr-3" title="Preview this data extension's rows (no query is run)" @click="rowsDE = row">
+                  <RouterLink :to="previewTo(row)" class="inline-flex items-center gap-1 text-primary hover:underline whitespace-nowrap mr-3" title="Preview this data extension's rows (no query is run). Ctrl or middle click opens a new tab.">
                     <Rows3 class="h-3.5 w-3.5" /> Preview data
-                  </button>
+                  </RouterLink>
                   <button class="inline-flex items-center gap-1 text-primary hover:underline whitespace-nowrap mr-3" title="Query activities and automations that use this data extension" @click="whereUsed(row)">
                     <Network class="h-3.5 w-3.5" /> Where used
                   </button>
@@ -564,7 +566,7 @@ const columns = [
                   <div v-else-if="fields[row.id]?.status === 'ok'">
                     <div class="flex items-center gap-2 mb-1.5">
                       <span class="font-semibold">{{ fields[row.id].list.length }} {{ fields[row.id].list.length === 1 ? 'field' : 'fields' }}</span>
-                      <button class="inline-flex items-center gap-1 text-primary hover:underline" @click="rowsDE = row"><Rows3 class="h-3.5 w-3.5" /> Preview data</button>
+                      <RouterLink :to="previewTo(row)" class="inline-flex items-center gap-1 text-primary hover:underline"><Rows3 class="h-3.5 w-3.5" /> Preview data</RouterLink>
                       <button v-if="REORDER_ENABLED && !row.sourceType" class="inline-flex items-center gap-1 text-primary hover:underline" title="Change the order of this data extension's columns" @click="reorderDE = row"><ArrowUpDown class="h-3.5 w-3.5" /> Reorder columns</button>
                       <button class="text-primary hover:underline" @click="tickAll(row)">
                         {{ fields[row.id].list.length && fields[row.id].list.every((f) => isTicked(row, f.name)) ? 'Untick all' : 'Tick all for a query' }}
@@ -699,7 +701,7 @@ const columns = [
           </template>
           <div v-else-if="detailTab === 'preview'" class="flex flex-col items-start gap-3">
             <p class="text-muted-foreground">Read this data extension's rows, 50 at a time. No query is run.</p>
-            <button type="button" class="h-[34px] inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary/90" @click="rowsDE = detail"><Rows3 class="h-3.5 w-3.5" /> Preview data</button>
+            <RouterLink :to="previewTo(detail)" class="h-[34px] inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground hover:bg-primary/90"><Rows3 class="h-3.5 w-3.5" /> Preview data</RouterLink>
           </div>
           <div v-else class="flex flex-col items-start gap-3">
             <p class="text-muted-foreground">Find the queries, automations, journeys and content that use this data extension.</p>
@@ -709,7 +711,6 @@ const columns = [
       </aside>
     </div>
 
-    <DERowsViewer v-if="rowsDE" :key="rowsDE.id" :stack="stack" :de="rowsDE" @close="rowsDE = null" />
     <ReorderFieldsDialog v-if="reorderDE" :key="reorderDE.id" :stack="stack" :de="reorderDE" @changed="afterReorder(reorderDE)" @close="reorderDE = null" />
 
     <!-- Excel export -->

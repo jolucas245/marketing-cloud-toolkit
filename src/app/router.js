@@ -43,6 +43,12 @@ export const routes = [
     ...(item.props ? { props: item.props } : {}),
     meta: { title: item.name, group: item.group },
   })),
+  // Preview data as a page (feedback #1097).
+  {
+    path: '/data-extensions/preview',
+    component: () => import('../views/data/DEPreviewPage.vue'),
+    meta: { title: 'Preview data', group: 'Data' },
+  },
   {
     path: '/automations/:id',
     component: () => import('../views/automation/AutomationDetailPage.vue'),

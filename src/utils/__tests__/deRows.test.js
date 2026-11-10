@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { rowsFrom, columnsFor, fetchRowsAt, loadRemainingRows, filterRows, reloadRows } from '../deRows.js'
+import { rowsFrom, columnsFor, fetchRowsAt, loadRemainingRows, filterRows, reloadRows, fetchLastRows } from '../deRows.js'
 
 // A fake rowset of `n` rows: SFMC sends lower-cased names, keys and values apart.
 function fakeRowset(n) {
@@ -75,5 +75,52 @@ describe('Refresh (feedback #139)', () => {
     expect(r.done).toBe(false)
     const one = await reloadRows({ stack: 's13', key: 'K', want: 10, fetchPage })
     expect(one.rows).toHaveLength(50)
+  })
+})
+
+describe('Load last N rows (feedback #1097)', () => {
+  // A fake rowset of `count` rows numbered 0..count-1, paged like SFMC ($page from 1).
+  const fakeDE = (count, calls = []) => async (_stack, _key, page, size) => {
+    calls.push({ page, size })
+    const start = (page - 1) * size
+    const items = []
+    for (let i = start; i < Math.min(count, start + size); i++) items.push({ keys: { id: String(i) }, values: {} })
+    return { count, items }
+  }
+
+  it('reads the count, then only the last rows', async () => {
+    const calls = []
+    const r = await fetchLastRows({ stack: 's1', key: 'K', n: 10, fetchPage: fakeDE(500, calls) })
+    expect(r.total).toBe(500)
+    expect(r.from).toBe(490)
+    expect(r.rows.map((x) => x.id)).toEqual(Array.from({ length: 10 }, (_, i) => String(490 + i)))
+    expect(calls[0]).toEqual({ page: 1, size: 1 })
+  })
+
+  it('uses a known total without asking again and crosses page boundaries', async () => {
+    const calls = []
+    const r = await fetchLastRows({ stack: 's1', key: 'K', n: 3000, total: 6000, fetchPage: fakeDE(6000, calls) })
+    expect(calls[0].size).not.toBe(1)
+    expect(r.from).toBe(3000)
+    expect(r.rows).toHaveLength(3000)
+    expect(r.rows[0].id).toBe('3000')
+    expect(r.rows.at(-1).id).toBe('5999')
+  })
+
+  it('gives every row when N is more than the data extension has', async () => {
+    const r = await fetchLastRows({ stack: 's1', key: 'K', n: 100, fetchPage: fakeDE(7) })
+    expect(r.from).toBe(0)
+    expect(r.rows).toHaveLength(7)
+  })
+
+  it('returns nothing for an empty data extension', async () => {
+    const r = await fetchLastRows({ stack: 's1', key: 'K', n: 5, fetchPage: fakeDE(0) })
+    expect(r.rows).toEqual([])
+    expect(r.total).toBe(0)
+  })
+
+  it('fails clearly when SFMC gives no count', async () => {
+    const noCount = async () => ({ items: [{ keys: { id: '0' } }] })
+    await expect(fetchLastRows({ stack: 's1', key: 'K', n: 5, fetchPage: noCount })).rejects.toThrow(/how many rows/)
   })
 })
