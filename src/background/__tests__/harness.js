@@ -173,7 +173,7 @@ export async function loadSW(o = {}) {
   const { timing } = await import('../sessions.js')
   const { mintTiming } = await import('../mcaToken.js')
   // Short, but with room for a busy machine (30 ms made the mint test flaky).
-  Object.assign(timing, { pollMs: 2, landingTimeoutMs: 200, cooldownMs: 60000 })
+  Object.assign(timing, { pollMs: 2, landingTimeoutMs: 200, slowLandingMs: 200, cooldownMs: 60000 })
   Object.assign(mintTiming, { timeoutMs: 300 })
 
   // Messages come from an extension page unless a test passes another sender.
