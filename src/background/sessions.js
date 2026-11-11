@@ -6,6 +6,7 @@
 
 import { SFMC_APPS, findApp } from './apps.js'
 import { createTab, removeTab, getCookie, delay } from './chromeAsync.js'
+import { coreHost } from '../utils/sfmcHosts.js'
 
 export const LOGIN_REQUIRED = 'SFMC_LOGIN_REQUIRED'
 export const SESSION_UNAVAILABLE = 'SFMC_SESSION_UNAVAILABLE'
@@ -13,8 +14,8 @@ export const SESSION_UNAVAILABLE = 'SFMC_SESSION_UNAVAILABLE'
 export const timing = { pollMs: 1000, landingTimeoutMs: 15000, cooldownMs: 30000 }
 
 const LOGIN_COOKIES = [
-  { host: (s) => `mc.${s}.exacttarget.com`, name: 'platformAuthCookie' },
-  { host: (s) => `members.${s}.exacttarget.com`, name: 'ETAuthCookie' },
+  { host: (s) => coreHost(s), name: 'platformAuthCookie' },
+  { host: (s) => coreHost(s, 'members'), name: 'ETAuthCookie' },
 ]
 
 const inFlight = new Map()

@@ -24,6 +24,7 @@ import {
   runNames, isNameClash, markerField, markerRow, resultRows as toResultRows, resultColumns as toResultColumns,
   waitForRun, waitForAutomationRun, formatRunTime, RunFailedError,
 } from '../utils/queryRun.js'
+import { coreOrigin } from '../utils/sfmcHosts.js'
 
 export function useQueryPanel(options) {
   // Query history: a run's SQL is stored only while history is on (utils/history.js).
@@ -549,7 +550,7 @@ export function useQueryPanel(options) {
       setStepDetail(idx, 'Opening Contact Builder in a background tab and retrying…')
       let cbTabId = null
       try {
-        const tab = await openTab({ url: `https://mc.${stack.value}.exacttarget.com/cloud/#app/Contact%20Builder`, active: false })
+        const tab = await openTab({ url: `${coreOrigin(stack.value)}/cloud/#app/Contact%20Builder`, active: false })
         cbTabId = tab?.id ?? null
       } catch {}
       try {
@@ -856,7 +857,7 @@ export function useQueryPanel(options) {
         }
         createdActivityId.value   = actResult.queryDefinitionId
         createdActivityName.value = actName
-        const actUrl = `https://mc.${stack.value}.exacttarget.com/cloud/#app/Automation%20Studio/AutomationStudioFuel3/%23ActivityDetails/300/${actResult.queryDefinitionId}`
+        const actUrl = `${coreOrigin(stack.value)}/cloud/#app/Automation%20Studio/AutomationStudioFuel3/%23ActivityDetails/300/${actResult.queryDefinitionId}`
         setStepDetail(2, { text: actName, href: actUrl, copyText: actName })
         setStep(2, 'done')
       }
@@ -918,7 +919,7 @@ export function useQueryPanel(options) {
         deUrl:        `https://mc.${stack.value}.marketingcloudapps.com/contactsmeta/admin.html#admin/data-extension/${createdDeId.value}/properties/`,
         activityId:   createdActivityId.value,
         activityName: createdActivityName.value,
-        activityUrl:  `https://mc.${stack.value}.exacttarget.com/cloud/#app/Automation%20Studio/AutomationStudioFuel3/%23ActivityDetails/300/${createdActivityId.value}`,
+        activityUrl:  `${coreOrigin(stack.value)}/cloud/#app/Automation%20Studio/AutomationStudioFuel3/%23ActivityDetails/300/${createdActivityId.value}`,
         rowCount:     resultRows.value.length,
         // The target DE's field names (result columns) and whether it has the run marker.
         fields:       [...targetFieldNames],
@@ -1265,14 +1266,14 @@ export function useQueryPanel(options) {
 
   function openSfmcLogin() {
     const s = stack.value
-    const url = s ? `https://mc.${s}.exacttarget.com/cloud/` : 'https://mc.exacttarget.com'
+    const url = s ? `${coreOrigin(s)}/cloud/` : 'https://mc.exacttarget.com'
     openTab({ url })
   }
 
   function openAutomationStudio() {
     const s = stack.value ?? 's10'
     openTab({
-      url: `https://mc.${s}.exacttarget.com/cloud/#app/Automation%20Studio/AutomationStudioFuel3/`,
+      url: `${coreOrigin(s)}/cloud/#app/Automation%20Studio/AutomationStudioFuel3/`,
     })
   }
 

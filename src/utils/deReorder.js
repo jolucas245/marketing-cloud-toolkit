@@ -8,8 +8,9 @@ import { sfmcFetch, createDataExtension, getOrCreateQAFolder, createQueryActivit
 import { fetchDEDetail, deRowCountOf, clearDECaches } from './deApi.js'
 import { createDE, FIELD_TYPES, CURRENT_DATE_DEFAULT } from './createDE/createDE.js'
 import { sqlName } from './format.js'
+import { coreOrigin } from './sfmcHosts.js'
 
-const CM = (stack) => `https://mc.${stack}.exacttarget.com/cloud/fuelapi`
+const CM = (stack) => `${coreOrigin(stack)}/cloud/fuelapi`
 
 /** Fields in the DE's own order (ordinal), not primary keys first as the page lists them. */
 export function fieldsInOrder(list = []) {

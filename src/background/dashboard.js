@@ -7,6 +7,7 @@ import { storageGet } from './chromeAsync.js'
 import { summarizeAutomations, summarizeJourneys } from '../utils/summaries.js'
 import { groupJourneyVersions } from '../utils/journeyVersions.js'
 import { WATCHES_KEY, watchType, automationStatusName } from '../utils/watches.js'
+import { coreOrigin } from '../utils/sfmcHosts.js'
 
 const AS = (stack) => `https://mc.${stack}.marketingcloudapps.com/AutomationStudioFuel3/fuelapi`
 const JB = (stack) => `https://jbinteractions.${stack}.marketingcloudapps.com/fuelapi/interaction/v1`
@@ -18,7 +19,7 @@ const running = new Map() // `stack:buId` → Promise
 
 async function currentBU(stack) {
   try {
-    const d = await sfmcFetch({ url: `https://mc.${stack}.exacttarget.com/cloud/fuelapi/platform-internal/v1/accounts/@current` })
+    const d = await sfmcFetch({ url: `${coreOrigin(stack)}/cloud/fuelapi/platform-internal/v1/accounts/@current` })
     return { id: d?.accountId ?? d?.id ?? d?.memberId ?? '', name: d?.name || '' }
   } catch {
     return { id: '', name: '' }

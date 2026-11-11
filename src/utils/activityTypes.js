@@ -11,6 +11,7 @@
 import { versionsKeyFor } from './activityVersions.js'
 import { startTarget } from './activityStart.js'
 import { automationStudioId } from './automationIds.js'
+import { coreOrigin } from './sfmcHosts.js'
 
 export { automationStudioId }
 
@@ -47,10 +48,10 @@ export function activityEndpoint(stack, activity) {
 }
 
 const AS_LINK = (stack, kind, typeId, id) =>
-  id ? `https://mc.${stack}.exacttarget.com/cloud/#app/Automation%20Studio/AutomationStudioFuel3/%23${kind}/${typeId}/${encodeURIComponent(id)}` : null
+  id ? `${coreOrigin(stack)}/cloud/#app/Automation%20Studio/AutomationStudioFuel3/%23${kind}/${typeId}/${encodeURIComponent(id)}` : null
 
 export function automationStudioUrl(stack) {
-  return `https://mc.${stack}.exacttarget.com/cloud/#app/Automation%20Studio/AutomationStudioFuel3/`
+  return `${coreOrigin(stack)}/cloud/#app/Automation%20Studio/AutomationStudioFuel3/`
 }
 
 /**

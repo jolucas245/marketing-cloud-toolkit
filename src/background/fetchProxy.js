@@ -21,6 +21,7 @@ import { getMcaToken, dropMcaToken } from './mcaToken.js'
 import { ensureSession, SfmcAuthError, LOGIN_REQUIRED, SESSION_UNAVAILABLE } from './sessions.js'
 import { forgetStack } from './stack.js'
 import { needsPageHeaders, pageHeadersFor, capturePageHeaders, dropPageHeaders } from './pageHeaders.js'
+import { coreOrigin } from '../utils/sfmcHosts.js'
 
 /**
  * SFMC's own HTML error pages (IIS "403 Not Authorized") turned into their title,
@@ -56,7 +57,7 @@ const needsSession = (res) => res.status === 401 || res.type === 'opaqueredirect
 
 // The app an error came from, with the SFMC page to log in to it.
 function appInfo(app, stack) {
-  const cloud = stack ? `https://mc.${stack}.exacttarget.com/cloud/` : null
+  const cloud = stack ? `${coreOrigin(stack)}/cloud/` : null
   if (!app) return { id: null, name: 'Marketing Cloud', url: cloud }
   const url = (stack && app.landings(stack).find((u) => u.includes('.exacttarget.com/cloud/'))) || cloud
   return { id: app.id, name: app.name, url }

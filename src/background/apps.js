@@ -10,6 +10,8 @@
 // Each mca app also lists landing pages: when the app has no session, one is opened
 // in an inactive tab until the probe URL answers 200 (see sessions.js).
 
+import { coreOrigin, stackFromCoreHost } from '../utils/sfmcHosts.js'
+
 export const STACK_RE = /^s?\d+$/
 
 // MM-DD-YYYY, the date format the storage history call takes.
@@ -33,7 +35,7 @@ export const SFMC_APPS = [
     probeUrl: (s) => `https://mc.${s}.marketingcloudapps.com/AutomationStudioFuel3/fuelapi/automation/v1/automations?$page=1&$pageSize=1`,
     landings: (s) => [
       `https://mc.${s}.marketingcloudapps.com/AutomationStudioFuel3/update-token.json`,
-      `https://mc.${s}.exacttarget.com/cloud/#app/Automation%20Studio/AutomationStudioFuel3/`,
+      `${coreOrigin(s)}/cloud/#app/Automation%20Studio/AutomationStudioFuel3/`,
     ],
   },
   {
@@ -44,7 +46,7 @@ export const SFMC_APPS = [
     probeUrl: (s) => `https://mc.${s}.marketingcloudapps.com/contactsmeta/fuelapi/legacy/v1/beta/folder`,
     landings: (s) => [
       `https://mc.${s}.marketingcloudapps.com/contactsmeta/`,
-      `https://mc.${s}.exacttarget.com/cloud/#app/Contact%20Builder`,
+      `${coreOrigin(s)}/cloud/#app/Contact%20Builder`,
     ],
   },
   {
@@ -58,7 +60,7 @@ export const SFMC_APPS = [
     matches: (url) => url.hostname.startsWith('mc-data-ui.'),
     bearer: true,
     probeUrl: (s) => `https://mc-data-ui.${s}.marketingcloudapps.com/fuelapi/data/v1/customobjects/storageHistory?startDate=${mdY(Date.now() - 86400000)}&endDate=${mdY(Date.now())}`,
-    landings: (s) => [`https://mc.${s}.exacttarget.com/cloud/#app/Contact%20Builder`],
+    landings: (s) => [`${coreOrigin(s)}/cloud/#app/Contact%20Builder`],
   },
   {
     id: 'contentBuilder',
@@ -67,7 +69,7 @@ export const SFMC_APPS = [
     bearer: true,
     csrfCookie: '_csrf',
     probeUrl: (s) => `https://content-builder.${s}.marketingcloudapps.com/fuelapi/asset/v1/content/categories/?categoryType=cloudpages&$page=1&$pagesize=1`,
-    landings: (s) => [`https://mc.${s}.exacttarget.com/cloud/#app/Content%20Builder`],
+    landings: (s) => [`${coreOrigin(s)}/cloud/#app/Content%20Builder`],
   },
   {
     id: 'cloudPages',
@@ -77,7 +79,7 @@ export const SFMC_APPS = [
     probeUrl: (s) => `https://cloud-pages.${s}.marketingcloudapps.com/fuelapi/internal/v2/cloudpages/sites?$page=1&$pagesize=1`,
     landings: (s) => [
       `https://cloud-pages.${s}.marketingcloudapps.com/update-token.json`,
-      `https://mc.${s}.exacttarget.com/cloud/#app/CloudPages`,
+      `${coreOrigin(s)}/cloud/#app/CloudPages`,
     ],
   },
   {
@@ -86,7 +88,7 @@ export const SFMC_APPS = [
     matches: (url) => url.hostname.startsWith('jbinteractions.'),
     bearer: false,
     probeUrl: (s) => `https://jbinteractions.${s}.marketingcloudapps.com/fuelapi/interaction/v1/eventDefinitions?$page=1&$pagesize=1`,
-    landings: (s) => [`https://mc.${s}.exacttarget.com/cloud/#app/Journey%20Builder`],
+    landings: (s) => [`${coreOrigin(s)}/cloud/#app/Journey%20Builder`],
   },
   // Setup's apps (Domains and Installed Packages pages, user, 2026-11-05). Checked live on
   // s10 (live test, 2026-11-07): each is a cookie session (no Bearer token), started the
@@ -104,8 +106,8 @@ export const SFMC_APPS = [
     bearer: false,
     probeUrl: (s) => `https://email-app.${s}.marketingcloudapps.com/fuelapi/messaging/v1/domainverification?$page=1&$pagesize=1`,
     landings: (s) => [
-      `https://mc.${s}.exacttarget.com/cloud/tools/SSO.aspx?appId=6df293a1-4fdc-41cd-aa08-89efc793c33c&env=default&legacy=1&deepLink=/%23/admin/domainverification`,
-      `https://mc.${s}.exacttarget.com/cloud/#app/Setup/FromAddressManagement`,
+      `${coreOrigin(s)}/cloud/tools/SSO.aspx?appId=6df293a1-4fdc-41cd-aa08-89efc793c33c&env=default&legacy=1&deepLink=/%23/admin/domainverification`,
+      `${coreOrigin(s)}/cloud/#app/Setup/FromAddressManagement`,
     ],
     ...SETUP_SESSION,
     sessionHint: 'Open Setup > Feature Settings > Email Studio > From Address Management in Marketing Cloud: if it does not load there either, your user cannot view sender authentication.',
@@ -118,7 +120,7 @@ export const SFMC_APPS = [
     bearer: false,
     probeUrl: (s) => `https://custom-domains-ui.${s}.marketingcloudapps.com/fuelapi/internal/v1/ssl/customdomains/?$page=1&$pageSize=1`,
     // This app signs in from its own root (its /login does the hop; about 2.6 s live).
-    landings: (s) => [`https://custom-domains-ui.${s}.marketingcloudapps.com/`, `https://mc.${s}.exacttarget.com/cloud/#app/Setup/CustomDomains`],
+    landings: (s) => [`https://custom-domains-ui.${s}.marketingcloudapps.com/`, `${coreOrigin(s)}/cloud/#app/Setup/CustomDomains`],
     ...SETUP_SESSION,
     sessionHint: 'Open Setup > Security > Domain SSL Certificates in Marketing Cloud: if it does not load there either, your user cannot view custom domains.',
   },
@@ -130,8 +132,8 @@ export const SFMC_APPS = [
     bearer: false,
     probeUrl: (s) => `https://mc-domainwhitelist-admin-app.${s}.marketingcloudapps.com/fuelapi/platform/v1/endpoints`,
     landings: (s) => [
-      `https://mc.${s}.exacttarget.com/cloud/tools/SSO.aspx?appId=FF14944B-7CDB-4FF1-82DB-40F022C2C2DC&restToken=1`,
-      `https://mc.${s}.exacttarget.com/cloud/#app/Setup/DomainWhitelist`,
+      `${coreOrigin(s)}/cloud/tools/SSO.aspx?appId=FF14944B-7CDB-4FF1-82DB-40F022C2C2DC&restToken=1`,
+      `${coreOrigin(s)}/cloud/#app/Setup/DomainWhitelist`,
     ],
     ...SETUP_SESSION,
     sessionHint: 'Open Setup > Security > Domain Allowlist in Marketing Cloud: if it does not load there either, your user cannot view the account endpoints.',
@@ -148,8 +150,9 @@ export function resolveUrl(rawUrl) {
   try { url = new URL(rawUrl) } catch { return { stack: null, family: null, app: null } }
   const labels = url.hostname.split('.')
   const stack = labels.length >= 4 && STACK_RE.test(labels[1]) ? labels[1] : null
-  if (/^(?:mc|members)\.[^.]+\.exacttarget\.com$/.test(url.hostname)) {
-    return { stack, family: 'core', app: null }
+  const coreStack = stackFromCoreHost(url.hostname)
+  if (coreStack) {
+    return { stack: STACK_RE.test(coreStack) ? coreStack : null, family: 'core', app: null }
   }
   if (url.hostname.endsWith('.marketingcloudapps.com')) {
     return { stack, family: 'mca', app: SFMC_APPS.find((a) => a.matches(url)) || null }

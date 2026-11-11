@@ -7,11 +7,12 @@
 // background/apps.js (covered by the *.marketingcloudapps.com permission), which also
 // start their sessions the way Setup does. Secret expirations is a core call.
 import { sfmcFetch } from './sfmcApi.js'
+import { coreOrigin } from './sfmcHosts.js'
 
 const EMAIL_APP = (stack) => `https://email-app.${stack}.marketingcloudapps.com/fuelapi/messaging/v1`
 const CUSTOM_DOMAINS = (stack) => `https://custom-domains-ui.${stack}.marketingcloudapps.com/fuelapi/internal/v1/ssl/customdomains/`
 const ENDPOINTS = (stack) => `https://mc-domainwhitelist-admin-app.${stack}.marketingcloudapps.com/fuelapi/platform/v1/endpoints`
-const SECRETS = (stack) => `https://mc.${stack}.exacttarget.com/cloud/fuelapi/internal/v1/packages/secretexpirations`
+const SECRETS = (stack) => `${coreOrigin(stack)}/cloud/fuelapi/internal/v1/packages/secretexpirations`
 
 const PAGE_SIZE = 50
 const MAX_PAGES = 40

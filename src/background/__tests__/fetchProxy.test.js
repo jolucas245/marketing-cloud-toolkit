@@ -236,3 +236,31 @@ describe('starting the missing app sessions (SFMC_WARM_UP)', () => {
     expect(off.sim.created).toHaveLength(0)
   })
 })
+
+describe('stack 1 (core hosts without the stack label)', () => {
+  it('calls core on mc.exacttarget.com and keeps the session', async () => {
+    const sw = await loadSW({ loggedIn: ['s1'] })
+    const res = await sw.send({ type: 'SFMC_FETCH', url: 'https://mc.exacttarget.com/cloud/fuelapi/x' })
+    expect(res.data.ok).toBe(true)
+    expect(res.error).toBeUndefined()
+  })
+
+  it('starts an app session through mc.exacttarget.com instead of forgetting the stack', async () => {
+    const landing = 'https://mc.exacttarget.com/cloud/#app/Journey%20Builder'
+    const sw = await loadSW({ loggedIn: ['s1'], local: { sfmcStack: 's1' }, landings: { [landing]: 'journeyBuilder' } })
+    const res = await sw.send({ type: 'SFMC_FETCH', url: 'https://jbinteractions.s1.marketingcloudapps.com/fuelapi/interaction/v1/x' })
+    expect(res.data.ok).toBe(true)
+    expect(sw.sim.created.map((t) => t.url)).toContain(landing)
+    expect(sw.local.sfmcStack).toBe('s1')
+  })
+
+  it('remembers the core CSRF token seen on mc.exacttarget.com for s1 writes', async () => {
+    const sw = await loadSW({ loggedIn: ['s1'] })
+    for (const fn of sw.onBeforeSendHeaders.fns) {
+      fn({ url: 'https://mc.exacttarget.com/cloud/fuelapi/x', requestHeaders: [{ name: 'X-CSRF-Token', value: 'core-token' }] })
+    }
+    await flush()
+    await sw.send({ type: 'SFMC_FETCH', url: 'https://mc.exacttarget.com/cloud/fuelapi/x', method: 'POST', body: {} })
+    expect(sw.sim.fetched.at(-1).headers['X-CSRF-Token']).toBe('core-token')
+  })
+})

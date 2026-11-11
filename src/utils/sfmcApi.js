@@ -1,11 +1,12 @@
 import { createSharedDECatalog } from './sharedDEs.js'
 import { startRequest } from './activityStart.js'
 import { automationStudioId } from './automationIds.js'
+import { coreOrigin } from './sfmcHosts.js'
 
 // Base URLs - exacttarget.com/cloud/fuelapi for core APIs (injected from ET tab)
-const AS_BASE = (stack) => `https://mc.${stack}.exacttarget.com/cloud/fuelapi`
-const CM_BASE = (stack) => `https://mc.${stack}.exacttarget.com/cloud/fuelapi/internal`
-const CM_DATA = (stack) => `https://mc.${stack}.exacttarget.com/cloud/fuelapi/data-internal`
+const AS_BASE = (stack) => `${coreOrigin(stack)}/cloud/fuelapi`
+const CM_BASE = (stack) => `${coreOrigin(stack)}/cloud/fuelapi/internal`
+const CM_DATA = (stack) => `${coreOrigin(stack)}/cloud/fuelapi/data-internal`
 
 // marketingcloudapps.com base URLs - folder/category management APIs
 // These must be injected from an MCA tab (see background.js proxy tab selection)
@@ -927,7 +928,7 @@ export async function findDELocation(stack, deName, onProgress) {
  */
 export async function fetchCurrentBU(stack) {
   _logInfo('Fetching current Business Unit details…')
-  const url = `https://mc.${stack}.exacttarget.com/cloud/fuelapi/platform-internal/v1/accounts/@current`
+  const url = `${coreOrigin(stack)}/cloud/fuelapi/platform-internal/v1/accounts/@current`
   const d = await proxyFetch(url, 'GET', null)
   // { name, accountId } for the BU badge; the raw response has more fields.
   return d?.name ? { name: d.name, accountId: d.accountId ?? d.id ?? d.memberId ?? null } : null
@@ -939,7 +940,7 @@ export async function fetchCurrentBU(stack) {
  * confirmed, so several likely ones are read; `isChild` is null when unknown.
  */
 export async function fetchCurrentBUDetails(stack) {
-  const url = `https://mc.${stack}.exacttarget.com/cloud/fuelapi/platform-internal/v1/accounts/@current`
+  const url = `${coreOrigin(stack)}/cloud/fuelapi/platform-internal/v1/accounts/@current`
   const d = await proxyFetch(url, 'GET', null)
   if (!d || typeof d !== 'object') return null
   const accountId = d.accountId ?? d.id ?? d.memberId ?? null

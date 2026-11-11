@@ -10,6 +10,7 @@ import { changesSince } from './localCache.js'
 import { formatValue } from './activityTypes.js'
 import { formatDateTime } from './format.js'
 import { RESULTS_PAGE_SIZE } from './paging.js'
+import { coreOrigin } from './sfmcHosts.js'
 
 export const JOURNEY_PAGE_SIZE = RESULTS_PAGE_SIZE
 const JB = (stack) => `https://jbinteractions.${stack}.marketingcloudapps.com/fuelapi/interaction/v1`
@@ -138,7 +139,7 @@ export function sendNames(stack, fetch = sfmcFetch) {
 export const hasEmailStep = (journey) => (journey?.activities || []).some((a) => /^EMAIL(V2)?$/i.test(a?.type || ''))
 
 export function journeyBuilderUrl(stack, journey) {
-  return `https://mc.${stack}.exacttarget.com/cloud/#app/Journey%20Builder/%23${encodeURIComponent(journey.id)}/${journey.version || 1}`
+  return `${coreOrigin(stack)}/cloud/#app/Journey%20Builder/%23${encodeURIComponent(journey.id)}/${journey.version || 1}`
 }
 
 // ── Node types ─────────────────────────────────────────────
