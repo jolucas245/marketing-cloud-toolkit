@@ -29,7 +29,10 @@ describe('activityTypes', () => {
     // Checked against Automation Studio's Data Action (live test, 2026-11-07).
     expect(rows(describeActivity(43, { name: 'I', updateTypeId: 1 }, 's10').main)['Update type']).toBe('Add Only')
     expect(rows(describeActivity(43, { name: 'I', updateTypeId: 4 }, 's10').main)['Update type']).toBe('Overwrite')
-    expect(d.tables[0]).toMatchObject({ title: 'Field mappings', rows: [['A', 'Ordinal', '1']], extra: true })
+    expect(d.tables[0]).toMatchObject({ title: 'Field mappings', rows: [['A', 'Ordinal', '1']], extra: true })    // Import cards can show their recent runs (ImportResultsSummary by the import's key).
+    expect(describeActivity(43, { name: 'I', customerKey: 'imp-1' }, 's10').importResultsKey).toBe('imp-1')
+    expect(describeActivity(43, { name: 'I' }, 's10').importResultsKey).toBe(null)
+    expect(describeActivity(300, { name: 'Q', customerKey: 'q-1' }, 's10').importResultsKey).toBe(null)
   })
 
   it('shows every field for types without a view, with a note when only the step is known', () => {
