@@ -458,6 +458,7 @@ const columns = [
         <span aria-current="page" class="-mb-px inline-flex h-11 items-center border-b-2 border-primary px-3 text-sm font-semibold">All data extensions</span>
         <router-link to="/de-storage" class="-mb-px inline-flex h-11 items-center border-b-2 border-transparent px-3 text-sm font-medium text-muted-foreground hover:text-foreground">Storage</router-link>
         <router-link to="/where-used" class="-mb-px inline-flex h-11 items-center border-b-2 border-transparent px-3 text-sm font-medium text-muted-foreground hover:text-foreground">Where used</router-link>
+        <router-link to="/recycle-bin" class="-mb-px inline-flex h-11 items-center border-b-2 border-transparent px-3 text-sm font-medium text-muted-foreground hover:text-foreground" data-recycle-bin-link>Recycle bin</router-link>
       </nav>
     </div>
 

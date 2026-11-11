@@ -15,7 +15,7 @@ describe('SOAP reads (2026-11-10)', () => {
     expect(x).not.toContain('bad prop')
     expect(x).toContain('<Value>1&lt;2</Value>')
     expect(x).toContain('<fueloauth xmlns="http://exacttarget.com">TOKEN</fueloauth>')
-    expect(() => retrieveEnvelope({ stack: 's10', objectType: 'Subscriber', properties: [] }, 't')).toThrow(/not supported/)
+    expect(() => retrieveEnvelope({ stack: 's10', objectType: 'DataExtensionObject', properties: [] }, 't')).toThrow(/not supported/)
     expect(() => retrieveEnvelope({ stack: 'evil.com/x', objectType: 'Send' }, 't')).toThrow(/stack/)
     expect(() => retrieveEnvelope({ stack: 's10', objectType: 'Send', filter: { property: 'ID', operator: 'DROP' } }, 't')).toThrow(/filter/)
     expect(SOAP_OBJECTS.has('Send')).toBe(true)
