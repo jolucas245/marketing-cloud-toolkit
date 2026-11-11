@@ -7,6 +7,7 @@
 // GETs work without it, which is why the Journeys pages never needed it.
 
 import { storageGet, storageSet, createTab, removeTab } from './chromeAsync.js'
+import { coreOrigin } from '../utils/sfmcHosts.js'
 
 const MAX_AGE = 30 * 60 * 1000
 const KEY = '_jbCsrf'
@@ -58,7 +59,7 @@ export function captureJbCsrf(stack) {
   if (inFlight.has(stack)) return inFlight.get(stack)
   const p = (async () => {
     if (jbCsrfFor(stack)) return jbCsrfFor(stack)
-    const tab = await createTab({ url: `https://mc.${stack}.exacttarget.com/cloud/#app/Journey%20Builder`, active: false })
+    const tab = await createTab({ url: `${coreOrigin(stack)}/cloud/#app/Journey%20Builder`, active: false })
     if (!tab) return null
     try {
       const deadline = Date.now() + jbTiming.waitMs

@@ -11,6 +11,7 @@
 // (security review, 2026-10-28). Older versions kept it in local: removed on load.
 
 import { storageGet, storageSet, storageRemove, getCookie } from './chromeAsync.js'
+import { stackFromCoreHost } from '../utils/sfmcHosts.js'
 
 const MAX_AGE = 14 * 60 * 1000
 const csrfCache = {} // { [stack]: { token, capturedAt } }
@@ -43,10 +44,11 @@ export function getCoreCsrf(stack) {
 // webRequest.onBeforeSendHeaders listener for https://*.exacttarget.com/*
 export function sniffCsrf(details) {
   if (!details.requestHeaders) return
-  const m = details.url.match(/(?:mc|members)\.([^.]+)\.exacttarget\.com/)
-  if (!m) return
+  let stack
+  try { stack = stackFromCoreHost(new URL(details.url).hostname) } catch { return }
+  if (!stack) return
   const h = details.requestHeaders.find((x) => x.name.toLowerCase() === 'x-csrf-token')
-  if (h?.value) rememberCsrf(m[1], h.value)
+  if (h?.value) rememberCsrf(stack, h.value)
 }
 
 // Double-submit cookie of a marketingcloudapps.com app (Content Builder: `_csrf`).

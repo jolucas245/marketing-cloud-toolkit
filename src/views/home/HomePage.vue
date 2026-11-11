@@ -26,6 +26,7 @@ import { openInSfmc } from '@/utils/sfmcLinks.js'
 import { useAi } from '@/composables/useAi.js'
 import { openPalette } from '@/composables/usePalette.js'
 import { provideHomeLayout } from '@/composables/useHomeLayout.js'
+import { coreOrigin } from '@/utils/sfmcHosts.js'
 
 const router = useRouter()
 const { stack, state } = useStack()
@@ -93,7 +94,7 @@ onMounted(() => {
 })
 onUnmounted(() => { try { chrome.storage.onChanged.removeListener(onChange) } catch { /* ignore */ } })
 
-const sfmcUrl = computed(() => (stack.value ? `https://mc.${stack.value}.exacttarget.com/cloud/` : 'https://mc.exacttarget.com'))
+const sfmcUrl = computed(() => (stack.value ? `${coreOrigin(stack.value)}/cloud/` : 'https://mc.exacttarget.com'))
 // countBy (utils/summaries.js) gives [{ label, count }], most first.
 const byStatus = (list) => (Array.isArray(list) ? list.map((x) => [x.label, x.count]) : Object.entries(list || {})).sort((a, b) => b[1] - a[1])
 const runningCount = computed(() => byStatus(autos.value?.byStatus).filter(([s]) => /^running$/i.test(s)).reduce((t, [, n]) => t + n, 0))

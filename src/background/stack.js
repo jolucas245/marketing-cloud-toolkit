@@ -7,10 +7,10 @@
 
 import { STACK_RE, stackFromPageUrl } from './apps.js'
 import { storageGet, storageSet, storageRemove, queryTabs, getAllCookies } from './chromeAsync.js'
+import { coreOrigin, stackFromCoreHost, STACK_WITHOUT_CORE_LABEL } from '../utils/sfmcHosts.js'
 
 const STACK_IDS = ['s1', 's4', 's6', 's7', 's8', 's10', 's11', 's12', 's13', 's50', 's51', '401', '402', '403']
 const CORE_AUTH_COOKIE_NAMES = new Set(['ETAuthCookie', 'ASP.NET_SessionId', 'platformAuthCookie'])
-const STACK_FROM_CORE_HOST = /^(?:mc|members)\.([^.]+)\.exacttarget\.com$/
 
 // SSO contexts reported by content.js, keyed by hostname and by `_stack_<stack>`.
 export const sfmcSession = {}
@@ -72,10 +72,10 @@ export async function scanCookieStacks() {
   for (const c of await getAllCookies({ domain: 'exacttarget.com' })) {
     if (!CORE_AUTH_COOKIE_NAMES.has(c.name)) continue
     if (c.expirationDate && c.expirationDate <= now) continue
-    const m = c.domain.replace(/^\./, '').match(STACK_FROM_CORE_HOST)
-    if (m && STACK_RE.test(m[1]) && !stacks.includes(m[1])) stacks.push(m[1])
+    const stack = stackFromCoreHost(c.domain.replace(/^\./, ''))
+    if (stack && STACK_RE.test(stack) && !stacks.includes(stack)) stacks.push(stack)
   }
-  return stacks
+  return stacks.sort((a, b) => (a === STACK_WITHOUT_CORE_LABEL) - (b === STACK_WITHOUT_CORE_LABEL))
 }
 
 async function openStackTabs() {
@@ -93,7 +93,7 @@ async function openStackTabs() {
     const live = await firstLiveStack()
     if (live) {
       for (const t of stackless) {
-        noteRequestStack({ tabId: t.id, url: `https://mc.${live}.exacttarget.com/` })
+        noteRequestStack({ tabId: t.id, url: `https://mc.${live}.marketingcloudapps.com/` })
         list.push({ stack: live, lastAccessed: t.lastAccessed || 0 })
       }
     }
@@ -102,15 +102,16 @@ async function openStackTabs() {
 }
 
 function firstLiveStack() {
-  return Promise.any(STACK_IDS.map((id) => verifyStack(id).then((ok) => { if (ok) return id; throw new Error('no') })))
-    .catch(() => null)
+  const labelled = STACK_IDS.filter((id) => id !== STACK_WITHOUT_CORE_LABEL)
+  return Promise.any(labelled.map((id) => verifyStack(id).then((ok) => { if (ok) return id; throw new Error('no') })))
+    .catch(async () => ((await verifyStack(STACK_WITHOUT_CORE_LABEL)) ? STACK_WITHOUT_CORE_LABEL : null))
 }
 
 // A cheap authenticated GET: 200 means the cookies for this stack are a live session.
 export async function verifyStack(stack) {
   try {
     const r = await fetch(
-      `https://mc.${stack}.exacttarget.com/cloud/fuelapi/data-internal/v1/customobjects/category/0?retrievalType=1&$page=1&$pagesize=1`,
+      `${coreOrigin(stack)}/cloud/fuelapi/data-internal/v1/customobjects/category/0?retrievalType=1&$page=1&$pagesize=1`,
       { credentials: 'include', redirect: 'manual' })
     return r.status === 200
   } catch {
@@ -154,11 +155,12 @@ export async function resolveStack() {
   if (tabs.length) return { stack: tabs[0].stack, source: 'tab' }
 
   const cookieStacks = await scanCookieStacks()
-  if (cookieStacks.length === 1) return { stack: cookieStacks[0], source: 'cookie' }
-  if (cookieStacks.length > 1) {
+  if (cookieStacks.length === 1 && cookieStacks[0] !== STACK_WITHOUT_CORE_LABEL) return { stack: cookieStacks[0], source: 'cookie' }
+  if (cookieStacks.length) {
     const checks = await Promise.all(cookieStacks.map(verifyStack))
     const live = cookieStacks.find((_, i) => checks[i])
-    return live ? { stack: live, source: 'cookie' } : { stack: null, source: null }
+    if (live) return { stack: live, source: 'cookie' }
+    if (cookieStacks.length > 1) return { stack: null, source: null }
   }
 
   const probed = await probeStacks()

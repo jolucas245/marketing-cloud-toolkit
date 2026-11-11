@@ -8,6 +8,7 @@ import { storageGet } from './chromeAsync.js'
 import {
   WATCHES_KEY, NOTICES_KEY, NOTIFY_KEY, watchHere, diffAutomation, diffJourney, journeySnapshot, watchType, addNotices, unreadCount, automationStatusName,
 } from '../utils/watches.js'
+import { coreOrigin } from '../utils/sfmcHosts.js'
 
 const AS = (stack) => `https://mc.${stack}.marketingcloudapps.com/AutomationStudioFuel3/fuelapi`
 const JB = (stack) => `https://jbinteractions.${stack}.marketingcloudapps.com/fuelapi/interaction/v1`
@@ -20,7 +21,7 @@ const running = new Set()
 // journey calls only see the current BU, so they would answer 404 (feedback #1026).
 async function currentMid(stack) {
   try {
-    const d = await sfmcFetch({ url: `https://mc.${stack}.exacttarget.com/cloud/fuelapi/platform-internal/v1/accounts/@current` })
+    const d = await sfmcFetch({ url: `${coreOrigin(stack)}/cloud/fuelapi/platform-internal/v1/accounts/@current` })
     const mid = d?.accountId ?? d?.id ?? d?.memberId
     return mid != null ? String(mid) : null
   } catch { return null }

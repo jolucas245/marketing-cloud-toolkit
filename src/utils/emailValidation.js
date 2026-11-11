@@ -12,8 +12,9 @@
 import { sfmcFetch, insertDERowsAsync, upsertDERowsAsync, searchDEsAllSources } from './sfmcApi.js'
 import { createDE, fieldProblem, SEND_FIELD_TYPES } from './createDE/createDE.js'
 import { toCreateField, fieldsInOrder, copySettings } from './deReorder.js'
+import { coreOrigin } from './sfmcHosts.js'
 
-const AS_BASE = (stack) => `https://mc.${stack}.exacttarget.com/cloud/fuelapi`
+const AS_BASE = (stack) => `${coreOrigin(stack)}/cloud/fuelapi`
 
 export const VALIDATORS = [
   { id: 'SyntaxValidator', label: 'Syntax', detail: 'the address is written correctly' },

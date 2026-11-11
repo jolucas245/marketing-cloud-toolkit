@@ -16,6 +16,7 @@ import {
   UPDATE_TYPE_OPTIONS, loadQAFolders, checkSaveForm, saveAsQueryActivity,
 } from '../../utils/saveAsActivity.js'
 import { openInSfmc } from '../../utils/sfmcLinks.js'
+import { coreOrigin } from '@/utils/sfmcHosts.js'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -134,7 +135,7 @@ async function create() {
   }
 }
 
-const activityUrl = computed(() => result.value && `https://mc.${props.stack}.exacttarget.com/cloud/#app/Automation%20Studio/AutomationStudioFuel3/%23ActivityDetails/300/${result.value.activity.id}`)
+const activityUrl = computed(() => result.value && `${coreOrigin(props.stack)}/cloud/#app/Automation%20Studio/AutomationStudioFuel3/%23ActivityDetails/300/${result.value.activity.id}`)
 const deUrl = computed(() => result.value && `https://mc.${props.stack}.marketingcloudapps.com/contactsmeta/admin.html#admin/data-extension/${result.value.de.id}/properties/`)
 </script>
 

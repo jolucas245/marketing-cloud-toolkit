@@ -58,6 +58,34 @@ describe('stack resolution', () => {
     expect((await sw.send({ type: 'GET_SESSION' })).session.stackKey).toBe('s13')
   })
 
+  it('takes s1 from a stackless tab whose requests go to s1 apps', async () => {
+    const sw = await loadSW({ tabs: [{ url: 'https://mc.exacttarget.com/cloud/' }], loggedIn: ['s1'] })
+    for (const fn of sw.onBeforeRequest.fns) fn({ tabId: 1, url: 'https://mc-homepage.s1.marketingcloudapps.com/' })
+    expect((await sw.send({ type: 'GET_SESSION' })).session.stackKey).toBe('s1')
+  })
+
+  it('finds s1 for a stackless tab when only its core host answers', async () => {
+    const sw = await loadSW({ tabs: [{ url: 'https://mc.exacttarget.com/cloud/' }], liveStacks: ['s1'] })
+    expect((await sw.send({ type: 'GET_SESSION' })).session.stackKey).toBe('s1')
+    await flush()
+    expect(sw.session.tabStacks).toEqual({ 1: 's1' })
+  })
+
+  it('prefers a labelled stack over s1 for a stackless tab', async () => {
+    const sw = await loadSW({ tabs: [{ url: 'https://mc.exacttarget.com/cloud/' }], liveStacks: ['s1', 's13'] })
+    expect((await sw.send({ type: 'GET_SESSION' })).session.stackKey).toBe('s13')
+  })
+
+  it('finds s1 from the login cookie on mc.exacttarget.com once its core host answers', async () => {
+    const sw = await loadSW({ loggedIn: ['s1'] })
+    expect((await sw.send({ type: 'GET_SESSION' })).session.stackKey).toBe('s1')
+  })
+
+  it('does not trust an s1 cookie whose core host does not answer', async () => {
+    const sw = await loadSW({ loggedIn: ['s1'], liveStacks: [] })
+    expect((await sw.send({ type: 'GET_SESSION' })).session).toBeNull()
+  })
+
   it('ignores requests the extension makes itself (no tab)', async () => {
     const sw = await loadSW({ tabs: [{ url: 'https://mc.exacttarget.com/cloud/' }], liveStacks: ['s10'] })
     for (const fn of sw.onBeforeRequest.fns) fn({ tabId: -1, url: 'https://mc.s13.exacttarget.com/cloud/' })

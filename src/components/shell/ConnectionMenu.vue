@@ -11,6 +11,7 @@ import { fetchCurrentBU } from '@/utils/sfmcApi.js'
 import { openTab } from '@/utils/openTab.js'
 import { syncScope } from '@/composables/usePreload.js'
 import LoadedParts from './LoadedParts.vue'
+import { coreOrigin } from '@/utils/sfmcHosts.js'
 
 const { status, loading, refresh } = useConnectionStatus()
 
@@ -99,7 +100,7 @@ function toggleOpen() {
 }
 
 function openLogin() {
-  const url = stack.value ? `https://mc.${stack.value}.exacttarget.com/cloud/` : 'https://mc.exacttarget.com'
+  const url = stack.value ? `${coreOrigin(stack.value)}/cloud/` : 'https://mc.exacttarget.com'
   openTab({ url })
 }
 

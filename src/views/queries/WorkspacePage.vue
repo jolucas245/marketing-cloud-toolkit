@@ -14,6 +14,7 @@ import { useStack } from '@/composables/useStack.js'
 import { showToast } from '@/composables/useToast.js'
 import { openTab } from '@/utils/openTab.js'
 import { pendingAiRequest } from '@/composables/useAi.js'
+import { coreOrigin } from '@/utils/sfmcHosts.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -51,7 +52,7 @@ applyRoute()
 watch(() => route.query, (q) => { if (ready.value && route.path === '/queries/workspace' && (q.id || q.sql || q.ws || q.ai)) applyRoute() })
 
 function openLogin() {
-  openTab({ url: stack.value ? `https://mc.${stack.value}.exacttarget.com/cloud/` : 'https://mc.exacttarget.com' })
+  openTab({ url: stack.value ? `${coreOrigin(stack.value)}/cloud/` : 'https://mc.exacttarget.com' })
 }
 </script>
 

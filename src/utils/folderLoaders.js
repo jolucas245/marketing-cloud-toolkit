@@ -2,8 +2,9 @@
 // Data Extensions (#1065). Each returns (parentId) => Promise<[{ id, name }]>, '0'
 // being the top level, by name.
 import { sfmcFetch, listDERootFolders, listDEChildFolders } from './sfmcApi.js'
+import { coreOrigin } from './sfmcHosts.js'
 
-const AS = (stack) => `https://mc.${stack}.exacttarget.com/cloud/fuelapi`
+const AS = (stack) => `${coreOrigin(stack)}/cloud/fuelapi`
 const byName = (a, b) => a.name.localeCompare(b.name)
 
 /**

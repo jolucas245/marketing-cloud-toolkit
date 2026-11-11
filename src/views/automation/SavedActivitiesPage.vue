@@ -24,6 +24,7 @@ import {
   ACTIVITY_SAVER_SETTING, activityKindLabel, isActivityKey, searchRecords, sideBySideDiff, activityUrl, restoreBody,
   isBadActivityKey, isSpaceOnlyChange,
 } from '@/utils/activityVersions.js'
+import { coreOrigin } from '@/utils/sfmcHosts.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -142,7 +143,7 @@ async function deleteVersion(v) {
   await loadData()
 }
 
-const automationStudioUrl = (stack) => `https://mc.${stack}.exacttarget.com/cloud/#app/Automation%20Studio/AutomationStudioFuel3/`
+const automationStudioUrl = (stack) => `${coreOrigin(stack)}/cloud/#app/Automation%20Studio/AutomationStudioFuel3/`
 </script>
 
 <template>

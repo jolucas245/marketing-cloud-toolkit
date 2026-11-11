@@ -16,6 +16,7 @@ import { SAVED_ASSET_KINDS, isSavedAssetKey, versionSource, lineChanges } from '
 import { compile } from '@/utils/emailCompiler.js'
 import { sfmcFetch, logInfo } from '@/utils/sfmcApi.js'
 import { showToast } from '@/composables/useToast.js'
+import { coreOrigin } from '@/utils/sfmcHosts.js'
 
 const props = defineProps({ kind: { type: String, default: 'email' } })
 const K = computed(() => SAVED_ASSET_KINDS[props.kind] || SAVED_ASSET_KINDS.email)
@@ -131,7 +132,7 @@ function formatDate(ts) {
   if (!ts) return '-'
   return new Date(ts).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
-const contentBuilderUrl = (stack) => `https://mc.${stack}.exacttarget.com/cloud/#app/${K.value.appPath}`
+const contentBuilderUrl = (stack) => `${coreOrigin(stack)}/cloud/#app/${K.value.appPath}`
 </script>
 
 <template>

@@ -189,7 +189,7 @@ const handlers = {
   DASHBOARD_SUMMARY: async (m) => ({ summary: await getDashboardSummary(m.stack, { force: !!m.force }) }),
   OPEN_SFMC_LINK: async (m, sender) => {
     let ok = false
-    try { const u = new URL(m.url); ok = u.protocol === 'https:' && /^mc\.s\d+\.exacttarget\.com$/i.test(u.hostname) } catch { /* not a URL */ }
+    try { const u = new URL(m.url); ok = u.protocol === 'https:' && /^mc\.(?:s\d+\.)?exacttarget\.com$/i.test(u.hostname) } catch { /* not a URL */ }
     if (!ok) return { error: 'Not an SFMC link.' }
     return openSfmcLink(m.url, sender?.tab)
   },

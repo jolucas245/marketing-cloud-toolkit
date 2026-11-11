@@ -8,6 +8,7 @@
 //   Builder's Recycle Bin asks (8 items on s10; without the scope 10, shared items too).
 //   SFMC exposes no deletion date for content: modifiedDate is the last change before.
 import { sfmcFetch } from './sfmcApi.js'
+import { coreOrigin } from './sfmcHosts.js'
 
 const CM = (stack) => `https://mc.${stack}.marketingcloudapps.com/contactsmeta/fuelapi`
 const CB = (stack) => `https://content-builder.${stack}.marketingcloudapps.com/fuelapi`
@@ -18,7 +19,7 @@ export const RECOVERABLE_DAYS = 30
 
 // ── Links into SFMC (restore happens there) ───────────────
 export const contactBuilderRecycleUrl = (stack) => `https://mc.${stack}.marketingcloudapps.com/contactsmeta/admin.html#admin/data-extensions`
-export const contentBuilderUrl = (stack) => `https://mc.${stack}.exacttarget.com/cloud/#app/Content%20Builder`
+export const contentBuilderUrl = (stack) => `${coreOrigin(stack)}/cloud/#app/Content%20Builder`
 
 // ── Data extensions ──────────────────────────────────────
 const binFolderCache = new Map() // stack → Promise<folder id>

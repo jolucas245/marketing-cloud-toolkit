@@ -6,6 +6,7 @@
 
 import { SFMC_APPS, findApp } from './apps.js'
 import { createTab, removeTab, getCookie, delay } from './chromeAsync.js'
+import { coreHost } from '../utils/sfmcHosts.js'
 
 export const LOGIN_REQUIRED = 'SFMC_LOGIN_REQUIRED'
 export const SESSION_UNAVAILABLE = 'SFMC_SESSION_UNAVAILABLE'
@@ -14,8 +15,8 @@ export const SESSION_UNAVAILABLE = 'SFMC_SESSION_UNAVAILABLE'
 export const timing = { pollMs: 1000, landingTimeoutMs: 15000, slowLandingMs: 25000, cooldownMs: 30000 }
 
 const LOGIN_COOKIES = [
-  { host: (s) => `mc.${s}.exacttarget.com`, name: 'platformAuthCookie' },
-  { host: (s) => `members.${s}.exacttarget.com`, name: 'ETAuthCookie' },
+  { host: (s) => coreHost(s), name: 'platformAuthCookie' },
+  { host: (s) => coreHost(s, 'members'), name: 'ETAuthCookie' },
 ]
 
 const inFlight = new Map()
@@ -52,7 +53,8 @@ export async function probeSession(app, stack) {
 export function landingTimeout(app, landingUrl) {
   const t = typeof app.landingTimeoutMs === 'function' ? app.landingTimeoutMs(landingUrl) : app.landingTimeoutMs
   if (Number.isFinite(t) && t > 0) return t
-  return app.slowLanding ? timing.slowLandingMs : timing.landingTimeoutMs
+  const slow = typeof app.slowLanding === 'function' ? app.slowLanding(landingUrl) : app.slowLanding
+  return slow ? timing.slowLandingMs : timing.landingTimeoutMs
 }
 
 // The SESSION_UNAVAILABLE error, with the app's own hint (what to open in SFMC) if any.

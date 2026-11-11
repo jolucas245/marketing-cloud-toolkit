@@ -9,6 +9,7 @@
 //   - Content Builder writes need X-CSRF-Token equal to its `_csrf` cookie, which
 //     rotates on every Content Builder response
 import { vi } from 'vitest'
+import { coreHost, stackFromCoreHost } from '../../utils/sfmcHosts.js'
 
 function makeArea(initial = {}) {
   const data = { ...initial }
@@ -34,6 +35,8 @@ const event = () => {
     removeListener: (fn) => { const i = fns.indexOf(fn); if (i >= 0) fns.splice(i, 1) },
   }
 }
+
+const stackOfHost = (host) => stackFromCoreHost(host) || host.split('.')[1]
 
 function appIdFor(u) {
   if (u.hostname.startsWith('content-builder.')) return 'contentBuilder'
@@ -106,7 +109,7 @@ export async function loadSW(o = {}) {
         setTimeout(() => {
           cb?.({ id })
           const u = new URL(opts.url.replace('#', '?'))
-          const stack = u.hostname.split('.')[1]
+          const stack = stackOfHost(u.hostname)
           if (opts.url.includes('/AutomationStudioFuel3/update-token.json') && sim.mintable.has(stack)) {
             const token = `jwt-${stack}-${++sim.tokenCount}`
             sim.tokens.add(token)
@@ -123,11 +126,11 @@ export async function loadSW(o = {}) {
     },
     windows: { update() {} },
     cookies: {
-      getAll: (q, cb) => setTimeout(() => cb([...sim.loggedIn].map((s) => ({ name: 'platformAuthCookie', domain: `mc.${s}.exacttarget.com` }))), 0),
+      getAll: (q, cb) => setTimeout(() => cb([...sim.loggedIn].map((s) => ({ name: 'platformAuthCookie', domain: coreHost(s) }))), 0),
       get: ({ url, name }, cb) => setTimeout(() => {
         const host = new URL(url).hostname
-        const stack = host.split('.')[1]
-        if (name === 'platformAuthCookie') return cb(host.startsWith('mc.') && host.endsWith('.exacttarget.com') && sim.loggedIn.has(stack) ? { name, value: 'x' } : null)
+        const stack = stackOfHost(host)
+        if (name === 'platformAuthCookie') return cb(host === coreHost(stack) && sim.loggedIn.has(stack) ? { name, value: 'x' } : null)
         if (name === '_csrf' && host.startsWith('content-builder.')) return cb({ name, value: encodeURIComponent(sim.csrf) })
         cb(null)
       }, 0),
@@ -140,8 +143,9 @@ export async function loadSW(o = {}) {
     const headers = opts.headers || {}
     sim.fetched.push({ url, method: opts.method || 'GET', headers, body: opts.body })
     const u = new URL(url)
-    const stack = u.hostname.split('.')[1]
+    const stack = stackOfHost(u.hostname)
     if (u.hostname.endsWith('.exacttarget.com')) {
+      if (u.hostname !== coreHost(stack)) return response(404)
       if (/\/platform-internal\/v1\/accounts\/@current$/.test(u.pathname)) {
         return sim.currentBU ? response(200, sim.currentBU) : response(0, null, { type: 'opaqueredirect' })
       }
