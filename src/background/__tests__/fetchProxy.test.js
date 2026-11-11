@@ -255,12 +255,12 @@ describe('stack 1 (core hosts without the stack label)', () => {
   })
 
   it('falls back to the SFMC page when the SSO page starts no session', async () => {
-    const landing = 'https://mc.exacttarget.com/cloud/#app/Content%20Builder'
-    const sw = await loadSW({ loggedIn: ['s1'], local: { sfmcStack: 's1' }, landings: { [landing]: 'contentBuilder' } })
-    const res = await sw.send({ type: 'SFMC_FETCH', url: 'https://content-builder.s1.marketingcloudapps.com/fuelapi/asset/v1/x' })
+    const landing = 'https://mc.exacttarget.com/cloud/#app/Journey%20Builder'
+    const sw = await loadSW({ loggedIn: ['s1'], local: { sfmcStack: 's1' }, landings: { [landing]: 'journeyBuilder' } })
+    const res = await sw.send({ type: 'SFMC_FETCH', url: 'https://jbinteractions.s1.marketingcloudapps.com/fuelapi/interaction/v1/x' })
     expect(res.data.ok).toBe(true)
-    expect(sw.sim.created.map((t) => t.url).filter((u) => !u.includes('update-token'))).toEqual([
-      'https://mc.exacttarget.com/cloud/tools/SSO.aspx?appId=dcb615e6-146e-4887-9e52-fff1f45c2b1e&hub=1',
+    expect(sw.sim.created.map((t) => t.url)).toEqual([
+      'https://mc.exacttarget.com/cloud/tools/SSO.aspx?appId=ce186f27-e854-454e-805e-ba78ba47bbfb&env=default&legacy=1&hub=1',
       landing,
     ])
   })
