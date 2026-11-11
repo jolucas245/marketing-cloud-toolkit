@@ -136,6 +136,8 @@ function build(details, typeId, stack, spec) {
     versionsKey: spec.versionsKey ? spec.versionsKey(d) : null,
     // Run once for data extracts, imports, file transfers and scripts (feedback #135).
     start: startTarget(typeId, d),
+    // Import activities: the key whose recent runs the card can show (user, 2026-11-10).
+    importResultsKey: spec.importResultsKey ? spec.importResultsKey(d) || null : null,
   }
 }
 
@@ -199,6 +201,7 @@ const SPECS = {
       ? { name: d.targetDataExtension.name, id: d.targetDataExtension.id, key: d.targetDataExtension.customerKey ?? d.targetDataExtension.key }
       : { name: typeof d.targetDataExtension === 'string' ? d.targetDataExtension : '' } }),
     tables: (d) => [nvtTable('Field mappings', d.fieldMappings, true)],
+    importResultsKey: (d) => d.customerKey || d.key, // field name assumed (REST import definition)
   },
   42: {
     main: [['Description', 'description'], ['Subject', 'emailSubject'], ['From name', 'fromName'], ['From email', 'fromEmail'], ['Send classification', 'sendClassificationName']],

@@ -36,6 +36,30 @@ export const TO_TEST = [
         expect: 'Each group lists its data extensions with the fields and cardinality that link them (one-to-one, one-to-many); sets in no group are listed apart; the diagram shows the same links; the HTML download has the diagrams.',
       },
       {
+        id: '2.0.23-business-units', area: 'Setup', title: 'Business units page', from: 'Mathes', live: true,
+        where: 'Setup > Business units',
+        steps: ['Open the page.', 'Type a MID in the table search.', 'Tick Hide inactive; download as Excel.'],
+        expect: 'Every business unit of the account (s10 has 33) with MID, parent, status, type and dates; children indented under their parent; the MID search finds the right BU.',
+      },
+      {
+        id: '2.0.23-send-settings', area: 'Sending', title: 'Send settings page', from: 'Mathes', live: true,
+        where: 'Sending > Send settings',
+        steps: ['Open the page.', 'Open Used by on a classification.', 'Tick Only those to review.'],
+        expect: 'Classifications show Commercial or Transactional, their sender profile with From name and address, the delivery profile key, and the triggered sends that use them; sender profiles with no From address or a free mail domain and Transactional classifications used by marketing-sounding sends are marked To review.',
+      },
+      {
+        id: '2.0.23-import-results', area: 'Automation', title: 'Import results page', from: 'Mathes', live: true,
+        where: 'Automation > Import results',
+        steps: ['Open the page (last 30 days).', 'Switch to 7 and 90 days.', 'Tick Only those with problems.'],
+        expect: 'Each import run with the import name, status, start, duration and row counts; runs with errors or a status other than Completed are marked; start times match Automation Studio.',
+      },
+      {
+        id: '2.0.23-import-runs-card', area: 'Automation', title: 'Recent runs on an import activity', from: 'Mathes', live: true,
+        where: 'Automation > Activities (Import File) or an automation with an import step',
+        steps: ['Open an import activity card.', 'Click Show the last 5 runs.'],
+        expect: 'Up to 5 runs of that import from the last 90 days, newest first, the same as on Import results.',
+      },
+      {
         id: '2.0.23-whats-new-pages', area: 'Shell', title: "What's New shows 3 items a page", ref: '#1083', from: 'Mathes',
         where: 'App start after an update (or set _seenVersion to an older version)',
         steps: ['Open the app.', 'Click Next and Previous; press the right and left arrow keys; go to the last page; press Esc.'],

@@ -12,6 +12,7 @@ import { openInSfmc } from '@/utils/sfmcLinks.js'
 import CodeView from './CodeView.vue'
 import ActivityIcon from './ActivityIcon.vue'
 import DERowCount from './DERowCount.vue'
+import ImportRunsPanel from './ImportRunsPanel.vue'
 import { useStack } from '@/composables/useStack.js'
 import { contactBuilderDEUrl } from '@/utils/activityTypes.js'
 import { startQueryActivity, getQueryActivityStatus, startActivity } from '@/utils/sfmcApi.js'
@@ -212,6 +213,7 @@ async function runOnce() {
         <div class="text-muted-foreground mb-1">{{ d.code.label || 'Code' }}</div>
         <CodeView :code="d.code.text" :lang="d.code.lang || 'sql'" />
       </div>
+      <ImportRunsPanel v-if="d.importResultsKey" :import-key="d.importResultsKey" />
       <div v-for="(t, i) in tables" :key="'t' + i">
         <div class="text-muted-foreground mb-1">{{ t.title }}</div>
         <div v-if="t.rows.length" class="overflow-x-auto">
