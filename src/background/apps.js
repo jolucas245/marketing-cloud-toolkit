@@ -26,6 +26,8 @@ const SETUP_SESSION = {
   retryGapMs: 10000,
 }
 
+const ssoLanding = (s, query) => `${coreOrigin(s)}/cloud/tools/SSO.aspx?${query}`
+
 export const SFMC_APPS = [
   {
     id: 'automationStudio',
@@ -69,7 +71,10 @@ export const SFMC_APPS = [
     bearer: true,
     csrfCookie: '_csrf',
     probeUrl: (s) => `https://content-builder.${s}.marketingcloudapps.com/fuelapi/asset/v1/content/categories/?categoryType=cloudpages&$page=1&$pagesize=1`,
-    landings: (s) => [`${coreOrigin(s)}/cloud/#app/Content%20Builder`],
+    landings: (s) => [
+      ssoLanding(s, 'appId=dcb615e6-146e-4887-9e52-fff1f45c2b1e&hub=1'),
+      `${coreOrigin(s)}/cloud/#app/Content%20Builder`,
+    ],
   },
   {
     id: 'cloudPages',
@@ -88,7 +93,10 @@ export const SFMC_APPS = [
     matches: (url) => url.hostname.startsWith('jbinteractions.'),
     bearer: false,
     probeUrl: (s) => `https://jbinteractions.${s}.marketingcloudapps.com/fuelapi/interaction/v1/eventDefinitions?$page=1&$pagesize=1`,
-    landings: (s) => [`${coreOrigin(s)}/cloud/#app/Journey%20Builder`],
+    landings: (s) => [
+      ssoLanding(s, 'appId=ce186f27-e854-454e-805e-ba78ba47bbfb&env=default&legacy=1&hub=1'),
+      `${coreOrigin(s)}/cloud/#app/Journey%20Builder`,
+    ],
   },
   // Setup's apps (Domains and Installed Packages pages, user, 2026-11-05). Checked live on
   // s10 (live test, 2026-11-07): each is a cookie session (no Bearer token), started the

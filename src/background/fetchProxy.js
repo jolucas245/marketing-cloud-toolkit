@@ -59,7 +59,7 @@ const needsSession = (res) => res.status === 401 || res.type === 'opaqueredirect
 function appInfo(app, stack) {
   const cloud = stack ? `${coreOrigin(stack)}/cloud/` : null
   if (!app) return { id: null, name: 'Marketing Cloud', url: cloud }
-  const url = (stack && app.landings(stack).find((u) => u.includes('.exacttarget.com/cloud/'))) || cloud
+  const url = (stack && app.landings(stack).find((u) => u.includes('.exacttarget.com/cloud/#'))) || cloud
   return { id: app.id, name: app.name, url }
 }
 

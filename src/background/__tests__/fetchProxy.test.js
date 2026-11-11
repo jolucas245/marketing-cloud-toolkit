@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest'
 import { loadSW, flush } from './harness.js'
 
 const JB = 'https://jbinteractions.s10.marketingcloudapps.com/fuelapi/interaction/v1/eventDefinitions?$page=1&$pagesize=1000'
-const JB_LANDING = 'https://mc.s10.exacttarget.com/cloud/#app/Journey%20Builder'
+const JB_LANDING = 'https://mc.s10.exacttarget.com/cloud/tools/SSO.aspx?appId=ce186f27-e854-454e-805e-ba78ba47bbfb&env=default&legacy=1&hub=1'
 const AS = 'https://mc.s10.marketingcloudapps.com/AutomationStudioFuel3/fuelapi/automation/v1/automations/abc'
 const CB = 'https://content-builder.s10.marketingcloudapps.com/fuelapi/asset/v1/content/assets/query'
 const CP_FIRST = 'https://cloud-pages.s10.marketingcloudapps.com/update-token.json'
@@ -197,8 +197,8 @@ describe('app sessions in the connection menu', () => {
 })
 
 describe('starting the missing app sessions (SFMC_WARM_UP)', () => {
-  const JB_LAND = 'https://mc.s10.exacttarget.com/cloud/#app/Journey%20Builder'
-  const CB_LAND = 'https://mc.s10.exacttarget.com/cloud/#app/Content%20Builder'
+  const JB_LAND = 'https://mc.s10.exacttarget.com/cloud/tools/SSO.aspx?appId=ce186f27-e854-454e-805e-ba78ba47bbfb&env=default&legacy=1&hub=1'
+  const CB_LAND = 'https://mc.s10.exacttarget.com/cloud/tools/SSO.aspx?appId=dcb615e6-146e-4887-9e52-fff1f45c2b1e&hub=1'
   const CP_LAND = 'https://cloud-pages.s10.marketingcloudapps.com/update-token.json'
   const CM_LAND = 'https://mc.s10.marketingcloudapps.com/contactsmeta/'
   const landings = { [JB_LAND]: 'journeyBuilder', [CB_LAND]: 'contentBuilder', [CP_LAND]: 'cloudPages', [CM_LAND]: 'contactsMeta' }
@@ -245,13 +245,31 @@ describe('stack 1 (core hosts without the stack label)', () => {
     expect(res.error).toBeUndefined()
   })
 
-  it('starts an app session through mc.exacttarget.com instead of forgetting the stack', async () => {
-    const landing = 'https://mc.exacttarget.com/cloud/#app/Journey%20Builder'
+  it('starts an app session through its SSO page in a tab of its own, keeping the stack', async () => {
+    const landing = 'https://mc.exacttarget.com/cloud/tools/SSO.aspx?appId=ce186f27-e854-454e-805e-ba78ba47bbfb&env=default&legacy=1&hub=1'
     const sw = await loadSW({ loggedIn: ['s1'], local: { sfmcStack: 's1' }, landings: { [landing]: 'journeyBuilder' } })
     const res = await sw.send({ type: 'SFMC_FETCH', url: 'https://jbinteractions.s1.marketingcloudapps.com/fuelapi/interaction/v1/x' })
     expect(res.data.ok).toBe(true)
-    expect(sw.sim.created.map((t) => t.url)).toContain(landing)
+    expect(sw.sim.created).toEqual([{ url: landing, active: false }])
     expect(sw.local.sfmcStack).toBe('s1')
+  })
+
+  it('falls back to the SFMC page when the SSO page starts no session', async () => {
+    const landing = 'https://mc.exacttarget.com/cloud/#app/Content%20Builder'
+    const sw = await loadSW({ loggedIn: ['s1'], local: { sfmcStack: 's1' }, landings: { [landing]: 'contentBuilder' } })
+    const res = await sw.send({ type: 'SFMC_FETCH', url: 'https://content-builder.s1.marketingcloudapps.com/fuelapi/asset/v1/x' })
+    expect(res.data.ok).toBe(true)
+    expect(sw.sim.created.map((t) => t.url).filter((u) => !u.includes('update-token'))).toEqual([
+      'https://mc.exacttarget.com/cloud/tools/SSO.aspx?appId=dcb615e6-146e-4887-9e52-fff1f45c2b1e&hub=1',
+      landing,
+    ])
+  })
+
+  it('links an app error to the SFMC page, not to its SSO page', async () => {
+    const sw = await loadSW({ loggedIn: ['s1'], local: { sfmcStack: 's1' } })
+    const res = await sw.send({ type: 'SFMC_FETCH', url: 'https://jbinteractions.s1.marketingcloudapps.com/fuelapi/interaction/v1/x' })
+    expect(res.code).toBe('SFMC_SESSION_UNAVAILABLE')
+    expect(res.app.url).toBe('https://mc.exacttarget.com/cloud/#app/Journey%20Builder')
   })
 
   it('remembers the core CSRF token seen on mc.exacttarget.com for s1 writes', async () => {
