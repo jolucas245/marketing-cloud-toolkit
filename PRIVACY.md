@@ -1,6 +1,6 @@
 # Marketing Cloud Toolkit privacy policy
 
-Last updated: 2026-11-05. This policy covers Marketing Cloud Toolkit version 2.0.18 and later, the Chrome extension that was published as SFMC Query Saver until version 1.4.0.
+Last updated: 2026-11-11. This policy covers Marketing Cloud Toolkit version 2.0.18 and later, the Chrome extension that was published as SFMC Query Saver until version 1.4.0.
 
 Publisher: Matheswaran Kanagarajan, an individual developer. Contact: mathes.btech@gmail.com.
 
@@ -13,6 +13,7 @@ Publisher: Matheswaran Kanagarajan, an individual developer. Contact: mathes.bte
 ## What the extension reads in your browser
 
 - **Marketing Cloud pages and APIs.** The extension calls Marketing Cloud's own APIs with your existing session to list and show your queries, automations, journeys, data extensions, CloudPages and emails, and to run queries you start.
+- **Journeys are read only, with one exception.** The extension reads journeys and never changes them, except for Remove contacts from a journey: you start it, list the Contact Keys, review them and confirm by typing the number of contacts. The extension then asks Journey Builder to remove those contacts, 50 at a time, and reads back their status. The Contact Keys go only to Marketing Cloud and are not stored by the extension. An administrator can turn this off with the `disableJourneyWrites` policy.
 - **Cookies.** It reads the names and expiry dates of Marketing Cloud login cookies to tell which Marketing Cloud stack you use, and the value of Content Builder's security cookie (`_csrf`) to send it back with changes you make there. Cookie values are never stored or sent anywhere except back to Marketing Cloud.
 - **Security tokens.** Marketing Cloud adds a security token to its own requests; the extension reads it from those requests to send it back with the changes you make (for example, running a query). The Contacts page also reuses the headers Contact Builder's own page sends. These are kept in memory and in the browser's session storage, which is cleared when the browser closes. They are never written to disk by the extension, never logged and never sent anywhere except back to Marketing Cloud.
 - **Request bodies, only for features you turn on.** With Save email versions, Save CloudPage versions, Save Query and Script activity versions and Save Query Studio runs (on by default; each can be turned off in Settings), the extension reads the content of those saves as you make them, to keep a copy in your browser. Nothing from them leaves your browser.

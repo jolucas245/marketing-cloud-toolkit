@@ -2,17 +2,21 @@
 // Contact journeys: one contact across every journey, or within one journey. Lists
 // the journeys the contact is in now and the ones it went through, and for each the
 // path it took: its steps in order and the same path on the journey's canvas.
-// Read-only. The history items' field names are not confirmed live (utils/contactJourneys.js).
+// Read-only, except Remove from this journey on a journey the contact is in now (API idea 4,
+// user 2026-11-11), which opens the same reviewed and confirmed dialog as the journey page.
+// The history items' field names are not confirmed live (utils/contactJourneys.js).
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Loader2, Search, Route as RouteIcon, ChevronDown, ChevronRight, ExternalLink, Database, X, FileDown } from 'lucide-vue-next'
+import { Loader2, Search, Route as RouteIcon, ChevronDown, ChevronRight, ExternalLink, Database, X, FileDown, UserMinus } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
 import Input from '@/components/ui/input/Input.vue'
 import CodeView from '@/components/results/CodeView.vue'
 import JourneyCanvas from '@/components/journey/JourneyCanvas.vue'
 import StatusBadge from '@/components/results/StatusBadge.vue'
 import SfmcErrorNotice from '@/components/results/SfmcErrorNotice.vue'
+import JourneyExitDialog from '@/components/journey/JourneyExitDialog.vue'
+import { policy } from '@/utils/policy.js'
 import { useStack, whenStack } from '@/composables/useStack.js'
 import { withReconnect, searchError } from '@/utils/sfmcErrors.js'
 import { searchJourneys, groupJourneyVersions, journeyGraph, layoutJourney } from '@/utils/journeys.js'
@@ -176,13 +180,25 @@ function fromQuery() {
   return true
 }
 onMounted(() => whenStack(() => { if (!fromQuery() && !searched.value) restore() }))
+// Remove this contact from a journey it is in now: the journey and that version preselected.
+const exitFor = ref(null) // { journey, versions, initialVersions }
+function openExit(m) {
+  const g = groups.value.find((x) => x.definitionKey === m.definitionKey)
+  const one = searched.value?.journey?.key === m.definitionKey ? searched.value.journey : null
+  const name = one?.name || g?.name || m.definitionKey
+  exitFor.value = {
+    journey: { id: one?.id || g?.definitionId || '', key: m.definitionKey, name, version: m.version },
+    versions: m.version != null ? [{ version: m.version }] : [],
+    initialVersions: m.version != null ? [Number(m.version)] : null,
+  }
+}
 const statusClass = (s) => (/fail|error/i.test(s) ? 'text-red-600' : /complete|success|executed|metcriteria/i.test(s) ? 'text-green-700 dark:text-green-400' : 'text-muted-foreground')
 </script>
 
 <template>
   <div class="h-full overflow-y-auto p-4 space-y-4 text-sm">
     <h1 class="text-base font-semibold">Contact journeys</h1>
-    <p class="text-xs text-muted-foreground max-w-3xl">Find one contact in every journey, or in one journey, and see the path it took: each step in order, and the same path on the journey's canvas. Read-only.</p>
+    <p class="text-xs text-muted-foreground max-w-3xl">Find one contact in every journey, or in one journey, and see the path it took: each step in order, and the same path on the journey's canvas. Read-only, except Remove from this journey, which asks you to review and confirm first.</p>
 
     <section class="rounded-lg border border-border bg-card p-3 space-y-3 text-xs">
       <form class="flex flex-wrap items-end gap-3" @submit.prevent="find">
@@ -230,7 +246,9 @@ const statusClass = (s) => (/fail|error/i.test(s) ? 'text-red-600' : /complete|s
         <p v-if="membership?.error" class="text-red-600">Could not read the journeys this contact is in: {{ membership.error }}<ReportErrorButton /></p>
         <p v-else-if="!currentIn.length" class="text-muted-foreground">{{ searched.scope === 'one' ? 'Not in this journey now.' : 'Not in any journey now.' }}</p>
         <ul v-else class="space-y-0.5">
-          <li v-for="m in currentIn" :key="`${m.definitionKey}|${m.version}`"><span class="font-mono">{{ m.definitionKey }}</span> <span class="text-muted-foreground">version {{ m.version ?? '?' }}</span></li>
+          <li v-for="m in currentIn" :key="`${m.definitionKey}|${m.version}`" class="flex flex-wrap items-center gap-2"><span class="font-mono">{{ m.definitionKey }}</span> <span class="text-muted-foreground">version {{ m.version ?? '?' }}</span>
+            <button v-if="!policy.disableJourneyWrites" type="button" class="inline-flex items-center gap-1 text-red-700 dark:text-red-300 hover:underline" data-contact-exit @click="openExit(m)"><UserMinus class="h-3 w-3" /> Remove from this journey</button>
+          </li>
         </ul>
       </section>
 
@@ -305,5 +323,7 @@ const statusClass = (s) => (/fail|error/i.test(s) ? 'text-red-600' : /complete|s
         </template>
       </section>
     </template>
+    <JourneyExitDialog v-if="exitFor && !policy.disableJourneyWrites" :stack="stack" :journey="exitFor.journey" :versions="exitFor.versions"
+      :initial-keys="[searched?.key].filter(Boolean)" :initial-versions="exitFor.initialVersions" @close="exitFor = null" />
   </div>
 </template>

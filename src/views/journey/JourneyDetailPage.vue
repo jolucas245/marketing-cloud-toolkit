@@ -1,15 +1,18 @@
 <script setup>
 // One journey on a canvas (horizontal or vertical), with each node's content in a
 // side panel: email subject, preheader and a preview, waits, split paths and their
-// criteria, and every setting. Read-only.
+// criteria, and every setting. Read-only, except Remove contacts from this journey
+// (API idea 4, user 2026-11-11), which the user starts and confirms.
 import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PrevNext from '@/components/shell/PrevNext.vue'
-import { ArrowLeft, Loader2, ExternalLink, X, Columns3, Rows3, UserSearch, Footprints, ChevronDown, ChevronRight } from 'lucide-vue-next'
+import { ArrowLeft, Loader2, ExternalLink, X, Columns3, Rows3, UserSearch, Footprints, ChevronDown, ChevronRight, UserMinus } from 'lucide-vue-next'
 import JourneyCanvas from '@/components/journey/JourneyCanvas.vue'
 import JourneyContactCheck from '@/components/journey/JourneyContactCheck.vue'
 import JourneyPathsControl from '@/components/journey/JourneyPathsControl.vue'
+import JourneyExitDialog from '@/components/journey/JourneyExitDialog.vue'
+import { policy } from '@/utils/policy.js'
 import ActivityCard from '@/components/results/ActivityCard.vue'
 import StatusBadge from '@/components/results/StatusBadge.vue'
 import DownloadMenu from '@/components/results/DownloadMenu.vue'
@@ -68,6 +71,8 @@ watch(orientation, (v) => {
 const panel = ref('') // '' | 'check' | 'paths'
 const pathCounts = ref(null) // aggregatePaths output drawn on the canvas
 function togglePanel(name) { panel.value = panel.value === name ? '' : name }
+// Remove contacts (API idea 4): shown to everyone unless the admin policy turns it off.
+const exitOpen = ref(false)
 
 function selectActivity(key) {
   selected.value = selected.value === key ? null : key
@@ -231,6 +236,8 @@ const summaryPrompt = (extra) => buildAiTaskPrompt('journey', { text: docText(jo
             :aria-expanded="panel === 'check'" data-open-contact-check @click="togglePanel('check')"><UserSearch class="h-3.5 w-3.5" /> Is a contact in this journey?</button>
           <button type="button" class="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-border text-xs hover:bg-accent" :class="panel === 'paths' || pathCounts ? 'bg-accent' : ''"
             :aria-expanded="panel === 'paths'" data-open-contact-paths @click="togglePanel('paths')"><Footprints class="h-3.5 w-3.5" /> Contact paths<span v-if="pathCounts" class="text-muted-foreground"> (shown)</span></button>
+          <button v-if="!policy.disableJourneyWrites" type="button" class="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-red-300 text-xs text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/40"
+            data-open-journey-exit @click="exitOpen = true"><UserMinus class="h-3.5 w-3.5" /> Remove contacts from this journey</button>
         </div>
         <div v-show="panel === 'check'" class="mx-4 mb-3">
           <JourneyContactCheck :key="`check:${journey.id}:${journey.version}`" :stack="stack" :journey="journey" :versions="versions" />
@@ -279,6 +286,7 @@ const summaryPrompt = (extra) => buildAiTaskPrompt('journey', { text: docText(jo
         </div>
       </aside>
     </div>
+    <JourneyExitDialog v-if="exitOpen && journey && !policy.disableJourneyWrites" :stack="stack" :journey="journey" :versions="versions" @close="exitOpen = false" />
     <AskAiDialog v-if="ai.shown.value && journey" :open="summaryOpen" title="Summarize this journey" :system="AI_TEXT_SYSTEM"
       :prompt="summaryPrompt" extra-label="Anything else to ask about it?" @close="summaryOpen = false" />
   </div>

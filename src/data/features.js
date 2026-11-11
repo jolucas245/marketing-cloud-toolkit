@@ -362,7 +362,7 @@ export const FEATURE_GROUPS = [
   {
     id: 'journeys',
     title: 'Journeys',
-    intro: 'Journey > Journeys. Viewing a journey never changes it.',
+    intro: 'Journey > Journeys. Viewing a journey never changes it. The Toolkit reads journeys only, except Remove contacts from this journey, which you start and confirm.',
     items: [
       { title: 'Watch journeys', since: '2.0.9', how: 'Watch on a journey, or tick journeys in the list, then Watch', detail: 'Be told when a journey is paused or stopped, published or resumed, or (if you choose) gets a new version. A watch follows the journey through new versions.' },
       { title: 'Journey overview', since: '2.0.6', how: 'Journey > Journey overview', detail: 'Journeys counted by status, and which live journeys send email, SMS, push or WhatsApp, read from their definitions.' },
@@ -371,6 +371,7 @@ export const FEATURE_GROUPS = [
       { title: 'What each step does', how: 'Click a step', detail: 'Emails show their subject, preheader and a preview from Content Builder; waits their duration or date; decision and random splits each path with its criteria or share; every step all of its settings.' },
       { title: 'Download the journey', detail: 'Every step with its settings, goals and exit criteria, as Markdown, Word, PDF or HTML. Since 2.0.16 HTML and PDF include the journey canvas.' },
       { title: 'Is a contact in this journey?', since: '2.0.23', how: 'On a journey\'s page', detail: 'Check up to 25 Contact Keys against that journey only, in any version: whether each is in it now, which version, the last step and its status, and when they entered, with a link to Contact journeys for the full path. Nothing is read until you press Check.' },
+      { title: 'Remove contacts from this journey', since: '2.0.23', how: 'Remove contacts from this journey on a journey\'s page', detail: 'The one feature that changes journey data in SFMC. Paste Contact Keys, load a CSV or text file and pick the column, or read a data extension column (up to 50,000; trimmed and de-duplicated), choose all versions or some, review the journey, versions and the first keys, then type the number of contacts to confirm. Journey Builder gets them 50 at a time; Stop works between batches. Each contact shows Queued, Exited, Not in this journey or Error with SFMC\'s message; Check status again and CSV download. SFMC removes contacts some time after the request, not at once. Admins can hide it (policy disableJourneyWrites).' },
       { title: 'Contact paths', since: '2.0.23', how: 'Contact paths on a journey\'s page', detail: 'Pick the last 1, 7 or 30 days or your own dates and press Show paths: the canvas shows how many contacts reached each activity and took each route (thicker lines carry more), with failures and exits, from up to 5,000 rows of Journey Builder\'s history. Clear removes it. Only this journey\'s history is searched; if Journey Builder will not filter it by this journey, nothing is read and it offers email send counts per activity from the data views instead.' },
     ],
   },
@@ -396,7 +397,7 @@ export const FEATURE_GROUPS = [
   {
     id: 'contact-journeys',
     title: 'Contact journeys',
-    intro: 'Journey > Contact journeys (under Contacts before 2.0.23). Read-only. Also opens from a journey\'s page for one contact within that journey.',
+    intro: 'Journey > Contact journeys (under Contacts before 2.0.23). Read-only, except Remove from this journey next to a journey the contact is in now, which opens the same review and confirmation as the journey page. Also opens from a journey\'s page for one contact within that journey.',
     items: [
       { title: 'One contact across journeys', since: '2.0.18', how: 'Enter a Contact Key, then Find', detail: 'The journeys the contact is in now, and every journey it went through in the last 7, 30 or 90 days, across all journeys or within one you pick.' },
       { title: 'The path it took', since: '2.0.18', how: 'Open a journey in the results', detail: 'Each step in order with its time, status and any error, and the same path outlined on the journey canvas with step numbers; steps it did not reach are dimmed.' },

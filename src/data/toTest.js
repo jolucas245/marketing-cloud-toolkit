@@ -18,6 +18,12 @@ export const TO_TEST = [
         expect: 'Content Builder starts in the background (up to 25 seconds). If it cannot, the message says to open Content Builder in Marketing Cloud once and press Retry.',
       },
       {
+        id: '2.0.23-journey-exit', area: 'Journeys', title: 'Remove contacts from a journey (changes SFMC data)', ref: 'API idea 4', from: 'Mathes', live: true,
+        where: 'Journey > Journeys > a journey > Remove contacts from this journey; Journey > Contact journeys > Remove from this journey',
+        steps: ['Only in a test journey (s10 has TK_Paths_Test_Journey) with test contacts.', 'Paste two Contact Keys (one in the journey, one not), keep All versions, Review, type the number of contacts, Remove from the journey.', 'Repeat with a CSV file (pick the column) and with a data extension column.', 'Start a run of more than 50 keys and press Stop after the first batch.', 'Press Check status again after a minute.', 'Download CSV.', 'With the disableJourneyWrites policy set, check the button is gone on both pages.'],
+        expect: 'The confirm button stays off until the number of contacts (or the journey name) is typed; the contact in the journey shows Queued, then Exited, and gets no more journey steps; the other shows Not in this journey or an error with SFMC\'s message; Stop leaves the rest as Not sent. Report the status words SFMC uses (they were guessed) and any CSRF error.',
+      },
+      {
         id: '2.0.23-recycle-bin-des', area: 'Data Extensions', title: 'Recycle bin: deleted data extensions', from: 'Mathes', live: true,
         where: 'Data > Recycle bin (also the Recycle bin tab on Data Extensions)',
         steps: ['Open the Data extensions tab.', 'Compare with the Recycle Bin in Contact Builder: names, original path, deleted date and by whom, row counts.', 'Check Recoverable for against the date each was deleted.', 'Press Open in Contact Builder to restore.'],

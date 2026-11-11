@@ -25,7 +25,7 @@ Write and run SQL
 Write queries in an editor that checks Marketing Cloud's SQL rules as you type and offers one-click fixes. Run several queries side by side and see the results without setting anything up in Automation Studio. Every query you run is saved with its history. You can also build a query visually by joining data extensions on a canvas.
 
 Understand automations and journeys
-Open an automation to read its schedule in plain words and what each step does. Open a journey to see it drawn as a diagram, with what every step sends, waits for or decides. Looking never pauses or edits anything.
+Open an automation to read its schedule in plain words and what each step does. Open a journey to see it drawn as a diagram, with what every step sends, waits for or decides. Looking never pauses or edits anything. The one change the Toolkit can make to a journey is removing contacts you list from it, and only after you review the list and confirm.
 
 Find and look after your data
 Search data extensions, preview their rows, see where each one is used, and create new ones from a sample file.
