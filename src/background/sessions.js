@@ -53,7 +53,8 @@ export async function probeSession(app, stack) {
 export function landingTimeout(app, landingUrl) {
   const t = typeof app.landingTimeoutMs === 'function' ? app.landingTimeoutMs(landingUrl) : app.landingTimeoutMs
   if (Number.isFinite(t) && t > 0) return t
-  return app.slowLanding ? timing.slowLandingMs : timing.landingTimeoutMs
+  const slow = typeof app.slowLanding === 'function' ? app.slowLanding(landingUrl) : app.slowLanding
+  return slow ? timing.slowLandingMs : timing.landingTimeoutMs
 }
 
 // The SESSION_UNAVAILABLE error, with the app's own hint (what to open in SFMC) if any.

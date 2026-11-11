@@ -61,7 +61,9 @@ describe('Setup app landings', () => {
 
   it('Content Builder waits 25 s for its landing and says what to open (#1099)', () => {
     const cb = findApp('contentBuilder')
-    expect(landingTimeout(cb, cb.landings('401')[0])).toBe(timing.slowLandingMs)
+    const [sso, shell] = cb.landings('401')
+    expect(landingTimeout(cb, sso)).toBe(timing.landingTimeoutMs)
+    expect(landingTimeout(cb, shell)).toBe(timing.slowLandingMs)
     expect(cb.sessionHint).toMatch(/Open Content Builder/)
   })
 })
