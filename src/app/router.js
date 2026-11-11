@@ -32,6 +32,11 @@ const PAGES = {
   '/content/changes': () => import('../views/content/ChangesPage.vue'),
   '/domains': () => import('../views/setup/DomainsPage.vue'),
   '/installed-packages': () => import('../views/setup/InstalledPackagesPage.vue'),
+  '/users': () => import('../views/setup/UsersPage.vue'),
+  '/transactional': () => import('../views/sending/TransactionalPage.vue'),
+  '/triggered-sends': () => import('../views/sending/TriggeredSendsPage.vue'),
+  '/sends': () => import('../views/sending/SendsPage.vue'),
+  '/event-notifications': () => import('../views/sending/EventNotificationsPage.vue'),
 }
 
 export const routes = [

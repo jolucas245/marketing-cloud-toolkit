@@ -282,6 +282,9 @@ function buildDoc() {
                   <div class="flex flex-wrap items-center gap-1.5">
                     <span class="inline-flex items-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground"><ActivityIcon v-if="m.activityType != null || isActivityKind(m.kind)" :type="m.activityType ?? m.kind" size="h-3 w-3" />{{ m.kind }}</span>
                     <button v-if="m.route" class="font-semibold text-sm text-primary hover:underline text-left" @click="go(m.route)">{{ m.title }}</button>
+                    <!-- A data extension opens on Data Extensions with its details (feedback #1098). -->
+                    <button v-else-if="m.pivot?.kind === 'de' && (m.pivot.de?.name || m.title)" class="font-semibold text-sm text-primary hover:underline text-left" data-open-de
+                      :title="`Open ${m.pivot.de?.name || m.title} on Data Extensions`" @click="go(`/data-extensions?q=${encodeURIComponent(m.pivot.de?.name || m.title)}`)">{{ m.title }}</button>
                     <span v-else class="font-semibold text-sm">{{ m.title }}</span>
                     <DERowCount v-if="m.pivot?.kind === 'de' && m.pivot.de" :name="m.pivot.de.name || ''" :id="m.pivot.de.id || null" />
                     <template v-for="(b, bi) in m.badges" :key="bi">

@@ -86,6 +86,7 @@ The service worker accepts from content scripts only the messages those scripts 
 | Destination | When | What is sent |
 |---|---|---|
 | SFMC domains (above) | User actions, and reading the lists the user opens | SFMC API requests with the user's session |
+| `webservice.<stack>.exacttarget.com/Service.asmx` (SFMC's SOAP API for the stack) | When the user opens Sending > Triggered sends or Sends, or Setup > Users and roles | SOAP `Retrieve` only, for an allowlist of objects (AccountUser, Role, BusinessUnit, Send, TriggeredSendDefinition, TriggeredSendSummary), with the user's Marketing Cloud session token as `fueloauth`; the page sends a structured request and the service worker builds the envelope (`src/background/soap.js`, `src/utils/soapApi.js`). Extension pages only, never content scripts. |
 | `mc.<stack>.marketingcloudapps.com/AutomationStudioFuel3/css/styles.css` (the user's own SFMC stack) | Once per stack per 30 days, when a page shows automation activity icons | A plain GET without cookies or session (`credentials: 'omit'`); Automation Studio's public stylesheet, from which only its icon images are kept (in `chrome.storage.local`, `toolkit_asIcons_v2_<stack>`) (`src/utils/asIcons.js`) |
 | `sfmc-share-worker.mathes-btech.workers.dev` | Only after the user turns on Share and confirms a share | `{ name, queryText }` |
 | `query-saver-feedback.mathes-btech.workers.dev` | Only when the user sends feedback, after a payload preview | Message, details, kind, page (no IDs), version, optional name and email; opt-in technical details; opt-in screenshot |

@@ -7,6 +7,7 @@
 //   SFMC_CONNECT_APP { stack, appId }                 warm up one app's session
 //   SFMC_WARM_UP { stack, force }                     start the missing app sessions when at least one exists
 //   SFMC_FETCH { url, method, body, bootstrap }       → { data } or { error, code, status }
+//   SFMC_SOAP_RETRIEVE { request }                     → { data: response XML } (Retrieve only)
 //   SAVE_RECORDS { records }, RENAME_QUERY { id, name }, IMPORT_SHARED_QUERY { records }
 //   WATCH_CHECK { stack, force }, WATCH_BADGE          watched automations (watches.js)
 //   OPEN_APP { path }                                 open app.html#<path> (Automation Summary tab, dashboard card)
@@ -17,6 +18,7 @@
 //   SFMC_CONTEXT_CAPTURED, MCA_TOKEN_CAPTURED         from content.js
 //   PING
 
+import { soapRetrieve } from './soap.js'
 import {
   rememberActiveStack, noteRequestStack, resolveAndPublish, getStacks, setStackOverride,
   captureContext, getSession, forgetStack, onForgetStack,
@@ -155,6 +157,8 @@ const handlers = {
     return { result: await warmUpMissing(stack, { force: !!m.force, onLoggedOut: forgetStack }) }
   },
   SFMC_FETCH: async (m) => ({ data: await sfmcFetch(m) }),
+  // Read-only SOAP Retrieve for an allowlist of objects (background/soap.js).
+  SFMC_SOAP_RETRIEVE: async (m) => ({ data: await soapRetrieve(m.request || {}) }),
   SAVE_RECORDS: async (m) => { await saveRecords(m.records || {}); return { status: 'OK' } },
   // From share-handler.js on a share page only: one query record, known fields only.
   IMPORT_SHARED_QUERY: async (m, sender) => {

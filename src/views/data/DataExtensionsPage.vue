@@ -402,7 +402,17 @@ async function loadFoldersAndCounts() {
   await loadAllCounts()
 }
 
-useRouteSearch('/data-extensions', (q) => { query.value = q; whenStack(search) })
+// ?q= from Ctrl+K or a link (feedback #1098: Where used results open their data extension):
+// search, then open the details of the one whose name matches exactly.
+useRouteSearch('/data-extensions', (q) => {
+  query.value = q
+  whenStack(async () => {
+    await search()
+    const name = String(q).trim().toLowerCase()
+    const exact = results.value.filter((d) => String(d.name || '').toLowerCase() === name)
+    if (exact.length === 1) openDetail(exact[0])
+  })
+})
 
 const columns = [
   { key: 'pick', label: '', hideable: false, class: 'w-8' },

@@ -75,6 +75,22 @@ export async function fetchJourneyEvent(stack, journey, fetch = sfmcFetch) {
   } catch { return null }
 }
 
+/**
+ * Who created, saved, published, stopped or deleted each version (user, 2026-11-10):
+ * interaction/v1/interactions/<id>/audit/all, newest first. Items: { action, user: { name },
+ * timeStamp, versionNumber }.
+ */
+export async function fetchJourneyAudit(stack, id, fetch = sfmcFetch) {
+  const items = []
+  for (let page = 1; page <= 10; page++) {
+    const d = await fetch(`${JB(stack)}/interactions/${encodeURIComponent(id)}/audit/all?$page=${page}&$pageSize=50`, 'GET')
+    const list = d?.items || []
+    items.push(...list)
+    if (list.length < 50 || items.length >= Number(d?.count || 0)) break
+  }
+  return items.sort((a, b) => String(b.timeStamp || '').localeCompare(String(a.timeStamp || '')))
+}
+
 // ── Send classification, sender and delivery profile names ──
 // An email step stores only their IDs. Journey Builder's email activity reads the
 // names from messaging-internal (sendClassifications/{id}, senderProfiles); the same

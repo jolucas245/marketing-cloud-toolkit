@@ -6,7 +6,7 @@ import ReportErrorButton from '@/components/results/ReportErrorButton.vue'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PrevNext from '@/components/shell/PrevNext.vue'
-import { ArrowLeft, Loader2, ExternalLink, X, Columns3, Rows3, UserSearch, Footprints } from 'lucide-vue-next'
+import { ArrowLeft, Loader2, ExternalLink, X, Columns3, Rows3, UserSearch, Footprints, ChevronDown, ChevronRight } from 'lucide-vue-next'
 import JourneyCanvas from '@/components/journey/JourneyCanvas.vue'
 import JourneyContactCheck from '@/components/journey/JourneyContactCheck.vue'
 import JourneyPathsControl from '@/components/journey/JourneyPathsControl.vue'
@@ -18,7 +18,8 @@ import { openInSfmc } from '@/utils/sfmcLinks.js'
 import { useStack } from '@/composables/useStack.js'
 import { searchJourneys, primaryVersion, LIVE_VERSION } from '@/utils/journeys.js'
 import { statusWords } from '@/utils/format.js'
-import { fetchJourneyStats, fetchJourneyEvent } from '@/utils/journeys.js'
+import { fetchJourneyStats, fetchJourneyEvent, fetchJourneyAudit } from '@/utils/journeys.js'
+import { formatDateTime } from '@/utils/format.js'
 import { journeyStatusWord, populationByNode } from '@/utils/journeySummary.js'
 import { fetchJourney, journeyGraph, layoutJourney, describeJourneyNode, journeyOverviewRows, journeyBuilderUrl, journeyDoc, nodeEmailId, fetchJourneyEmailAsset, sendNames, hasEmailStep } from '@/utils/journeys.js'
 import { compile } from '@/utils/emailCompiler.js'
@@ -111,6 +112,15 @@ async function loadExtras(j, generation) {
   journeyEvent.value = ev
   stats.value = st
 }
+// Who changed the journey (user, 2026-11-10): read when the section is opened.
+const audit = ref({ open: false, items: null, loading: false, error: '' })
+async function toggleAudit() {
+  audit.value.open = !audit.value.open
+  if (!audit.value.open || audit.value.items || audit.value.loading) return
+  audit.value.loading = true
+  try { audit.value.items = await fetchJourneyAudit(stack.value, journey.value.id) } catch (e) { audit.value.error = e.message } finally { audit.value.loading = false }
+}
+watch(() => journey.value?.id, () => { audit.value = { open: false, items: null, loading: false, error: '' } })
 // Every version of this journey, to switch between them: the list opens the newest,
 // which can be a draft while an older version is the published one (live test,
 // 2026-11-08: "Welcome Journey", version 3 draft, version 2 published).
@@ -232,6 +242,21 @@ const summaryPrompt = (extra) => buildAiTaskPrompt('journey', { text: docText(jo
         <div class="mx-4 mb-4">
           <JourneyCanvas :key="`${journey.id}:${journey.version}`" ref="canvas" :graph="graph" :layout="layout" :orientation="orientation" :selected="selected" :counts="pathCounts" :population="pathCounts ? null : population" @select="selectActivity" />
         </div>
+        <section class="mx-4 mb-4 rounded-lg border border-border bg-card text-xs" data-journey-audit>
+          <button type="button" class="w-full flex items-center gap-1.5 px-3 py-2 text-sm font-semibold" :aria-expanded="audit.open" @click="toggleAudit">
+            <ChevronDown v-if="audit.open" class="h-4 w-4" /><ChevronRight v-else class="h-4 w-4" /> Changes to this journey
+            <span class="font-normal text-xs text-muted-foreground">Who created, saved, published, stopped or deleted each version (Journey Builder's audit log)</span>
+          </button>
+          <div v-if="audit.open" class="px-3 pb-3">
+            <div v-if="audit.loading" class="flex items-center gap-2 text-muted-foreground"><Loader2 class="h-3.5 w-3.5 animate-spin" /> Reading…</div>
+            <p v-else-if="audit.error" class="text-red-600">Could not read the audit log: {{ audit.error }}<ReportErrorButton /></p>
+            <p v-else-if="!audit.items?.length" class="italic text-muted-foreground">No entries.</p>
+            <table v-else class="w-full">
+              <thead><tr class="text-left text-muted-foreground"><th class="py-1 pr-3 font-medium">When</th><th class="py-1 pr-3 font-medium">Action</th><th class="py-1 pr-3 font-medium">Version</th><th class="py-1 font-medium">By</th></tr></thead>
+              <tbody><tr v-for="(a, i) in audit.items" :key="i" class="border-t border-border"><td class="py-1 pr-3 whitespace-nowrap">{{ formatDateTime(a.timeStamp) }}</td><td class="py-1 pr-3">{{ statusWords(a.action) }}</td><td class="py-1 pr-3">{{ a.versionNumber ?? '' }}</td><td class="py-1">{{ a.user?.name || a.user?.userId || '' }}</td></tr></tbody>
+            </table>
+          </div>
+        </section>
         <section v-if="journey.goals?.length || journey.exits?.length" class="mx-4 mb-4 text-xs text-muted-foreground">
           <span v-if="journey.goals?.length">Goals: {{ journey.goals.map((g) => g.name || g.key).join(', ') }}. </span>
           <span v-if="journey.exits?.length">Exit criteria: {{ journey.exits.length }}. </span>

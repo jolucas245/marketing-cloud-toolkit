@@ -2,7 +2,7 @@
 // Queries, Data, Contacts, Automation, Journeys, Content (feedback #128, regrouped in
 // the redesign, #1031). `hidden` pages have a route but no sidebar entry.
 import {
-  Bookmark, LayoutGrid, Blocks, Workflow, ListChecks, Database, Route, LogIn, Globe, Mail, Network, Trash2, LayoutTemplate, LayoutDashboard, Users, HardDrive, FilePlus2, History, MailCheck, Footprints, House, FileClock, ShieldCheck, Package, Newspaper, CalendarClock } from 'lucide-vue-next'
+  Bookmark, LayoutGrid, Blocks, Workflow, ListChecks, Database, Route, LogIn, Globe, Mail, Network, Trash2, LayoutTemplate, LayoutDashboard, Users, HardDrive, FilePlus2, History, MailCheck, Footprints, House, FileClock, ShieldCheck, Package, Newspaper, CalendarClock, Send, Zap, BellRing, MailOpen, UserCog } from 'lucide-vue-next'
 
 export const NAV_GROUPS = [
   // Home (feedback #1025): the start page, in a group without a heading.
@@ -62,6 +62,17 @@ export const NAV_GROUPS = [
       { path: '/content/changes', name: 'Changes', icon: CalendarClock },
     ],
   },
+  // Sending (user, 2026-11-10): read-only lookups of transactional messaging, triggered
+  // sends, email sends and Event Notification Service registrations.
+  {
+    label: 'Sending',
+    items: [
+      { path: '/transactional', name: 'Transactional messages', icon: Send },
+      { path: '/triggered-sends', name: 'Triggered sends', icon: Zap },
+      { path: '/sends', name: 'Sends', icon: MailOpen },
+      { path: '/event-notifications', name: 'Event notifications', icon: BellRing },
+    ],
+  },
   // Setup (user, 2026-11-05): sender authentication, From addresses and custom domains;
   // installed packages with their secrets, API endpoints and Automation Studio access
   // (was Account under Settings, feedback #1078).
@@ -70,6 +81,7 @@ export const NAV_GROUPS = [
     items: [
       { path: '/domains', name: 'Domains', icon: ShieldCheck },
       { path: '/installed-packages', name: 'Installed Packages', icon: Package },
+      { path: '/users', name: 'Users and roles', icon: UserCog },
     ],
   },
   // Saved Emails and Saved CloudPages are tabs of Emails and CloudPages (feedback #1059);

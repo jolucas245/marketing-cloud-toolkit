@@ -492,6 +492,27 @@ export const FEATURE_GROUPS = [
     ],
   },
   {
+    id: 'users',
+    title: 'Users and roles',
+    intro: 'Setup > Users and roles. Read only.',
+    items: [
+      { title: 'Every user of the account', since: '2.0.23', detail: 'All users across business units: name, username, active, last login, named roles, API user, locked, default business unit. People and API users apart; Download.' },
+      { title: 'Users that need a look', since: '2.0.23', detail: 'Active people with no login for 90 days or more (or never) and locked users, and how many active users hold each role.' },
+    ],
+  },
+  {
+    id: 'sending',
+    title: 'Sending',
+    intro: 'Read-only lookups of what SFMC sends.',
+    items: [
+      { title: 'Transactional messages', since: '2.0.23', how: 'Sending > Transactional messages', detail: 'Transactional Messaging API send definitions (email and SMS) with each active one\'s queue and the age of its oldest message, a definition\'s settings, a message\'s status by messageKey, and the emails that were not sent.' },
+      { title: 'Triggered sends', since: '2.0.23', how: 'Sending > Triggered sends', detail: 'Every triggered send definition with SFMC\'s counts (sent, queued, not sent, bounces, opens, clicks); queued messages and errors are marked.' },
+      { title: 'Sends', since: '2.0.23', how: 'Sending > Sends', detail: 'One send by JobID, or the sends of the last days, with targeted, sent, delivered, bounces, unique opens and clicks, unsubscribes and exclusions.' },
+      { title: 'Event notifications', since: '2.0.23', how: 'Sending > Event notifications', detail: 'Event Notification Service callbacks and subscriptions in this business unit, every event type a subscription can ask for (and which ones are subscribed), and a sample CloudPage to use as a callback URL, with the verification steps.' },
+      { title: 'Changes to a journey', since: '2.0.23', how: 'A journey > Changes to this journey', detail: 'Journey Builder\'s audit log: who created, saved, published, stopped or deleted each version, and when.' },
+    ],
+  },
+  {
     id: 'settings',
     title: 'Settings and connection',
     items: [
