@@ -61,6 +61,7 @@
     "developer.salesforce.com",
     "diagramforce.com",
     "email-app.*.marketingcloudapps.com",
+    "exacttarget.com",
     "jbinteractions.*.marketingcloudapps.com",
     "mateuszdabrowski.pl",
     "mc-data-ui.*.marketingcloudapps.com",
@@ -70,7 +71,9 @@
     "mc.exacttarget.com",
     "query-saver-feedback.mathes-btech.workers.dev",
     "schemas.openxmlformats.org",
+    "schemas.xmlsoap.org",
     "sfmc-share-worker.mathes-btech.workers.dev",
+    "webservice.*.exacttarget.com",
     "www.linkedin.com",
     "www.w3.org"
   ]
