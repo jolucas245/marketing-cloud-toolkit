@@ -86,6 +86,7 @@ The service worker accepts from content scripts only the messages those scripts 
 | Destination | When | What is sent |
 |---|---|---|
 | SFMC domains (above) | User actions, and reading the lists the user opens | SFMC API requests with the user's session |
+| `mc.<stack>.marketingcloudapps.com/AutomationStudioFuel3/css/styles.css` (the user's own SFMC stack) | Once per stack per 30 days, when a page shows automation activity icons | A plain GET without cookies or session (`credentials: 'omit'`); Automation Studio's public stylesheet, from which only its icon images are kept (in `chrome.storage.local`, `toolkit_asIcons_v2_<stack>`) (`src/utils/asIcons.js`) |
 | `sfmc-share-worker.mathes-btech.workers.dev` | Only after the user turns on Share and confirms a share | `{ name, queryText }` |
 | `query-saver-feedback.mathes-btech.workers.dev` | Only when the user sends feedback, after a payload preview | Message, details, kind, page (no IDs), version, optional name and email; opt-in technical details; opt-in screenshot |
 | `diagramforce.com` | Only when the user clicks Open in Diagramforce (new tab, `postMessage`) | Table, column and join names of the query |

@@ -3,17 +3,18 @@
 // (feedback #1072): a header band ("Starting source", "Step 1", ...), the starting source
 // column on the left with its schedule as labelled fields, then one full-height column per
 // step split by dashed lines, with numbered activity cards ("1.1 SQL Query", an icon tile,
-// the activity name). Automation Studio's own icons and tile colours (user, 2026-11-10),
-// bundled in data/automationStudioIcons.js; nothing is loaded from SFMC.
+// the activity name). Automation Studio's own icons and tile colours (user, 2026-11-10);
+// the icons are read from the user's SFMC stack at run time (utils/asIcons.js).
 // Clicking a card emits `select` with its "si.ai" key. The SVG download still draws
 // automationCanvasModel (utils/automationSvg.js).
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Loader2, AlertTriangle, Minus, Plus, Maximize2 } from 'lucide-vue-next'
+import { Loader2, AlertTriangle, Minus, Plus, Maximize2, CalendarClock, FolderInput, Play, Pause } from 'lucide-vue-next'
 import ActivityIcon from '@/components/results/ActivityIcon.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import { automationCanvasModel } from '@/utils/automationCanvas.js'
 import { scheduleSummary } from '@/utils/automationSummary.js'
-import { AS_GLYPHS, AS_SOURCE, AS_SOURCE_GLYPH, AS_TILE } from '@/data/automationStudioIcons.js'
+import { AS_SOURCE, AS_SOURCE_GLYPH, AS_TILE } from '@/data/automationStudioIcons.js'
+import { asIcons } from '@/utils/asIcons.js'
 
 const props = defineProps({
   details: { type: Object, required: true },
@@ -24,7 +25,8 @@ const emit = defineEmits(['select'])
 
 const model = computed(() => automationCanvasModel(props.details, { runningStep: props.runningStep }))
 const SOURCE_TITLE = { schedule: 'Schedule', fileDrop: 'File Drop', none: 'No starting source' }
-const sourceGlyph = computed(() => AS_GLYPHS[AS_SOURCE_GLYPH[model.value.source.kind]])
+const sourceGlyph = computed(() => asIcons.glyphs[AS_SOURCE_GLYPH[model.value.source.kind]] || null)
+const SOURCE_FALLBACK = { schedule: CalendarClock, fileDrop: FolderInput, none: Play }
 
 // The schedule as Automation Studio lists it: labelled fields, only those present.
 const schedule = computed(() => scheduleSummary(props.details))
@@ -94,9 +96,11 @@ watch(naturalWidth, () => { if (fitted.value) nextTick(() => fit(false)) })
             <div class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{{ SOURCE_TITLE[model.source.kind] }}</div>
             <div class="my-4 flex justify-center">
               <span class="relative flex h-16 w-16 items-center justify-center rounded-full" :style="{ background: model.source.kind === 'none' ? '#94a3b8' : AS_SOURCE }" data-canvas-source-icon>
-                <img :src="sourceGlyph" alt="" aria-hidden="true" class="h-9 w-9" />
+                <img v-if="sourceGlyph" :src="sourceGlyph" alt="" aria-hidden="true" class="h-9 w-9" />
+                <component :is="SOURCE_FALLBACK[model.source.kind] || Play" v-else class="h-8 w-8 text-white" aria-hidden="true" />
                 <span v-if="paused" class="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded" :style="{ background: AS_TILE }" title="Paused" data-canvas-paused>
-                  <img :src="AS_GLYPHS['lightning-pause']" alt="Paused" class="h-3.5 w-3.5" />
+                  <img v-if="asIcons.glyphs['lightning-pause']" :src="asIcons.glyphs['lightning-pause']" alt="Paused" class="h-3.5 w-3.5" />
+                  <Pause v-else class="h-3.5 w-3.5 text-white" aria-label="Paused" />
                 </span>
               </span>
             </div>

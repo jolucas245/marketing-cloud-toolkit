@@ -37,3 +37,6 @@ export function whenStack(fn) {
   const stop = watch(stack, (s) => { if (s) { stop(); clearTimeout(timer); fn() } })
   const timer = setTimeout(() => { stop(); if (!stack.value) fn() }, 15000)
 }
+
+/** The current stack ref without starting detection (icons that load per stack read it). */
+export const currentStack = stack
