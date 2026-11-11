@@ -402,6 +402,23 @@ export const FEATURE_GROUPS = [
     ],
   },
   {
+    id: 'subscriber-lookup',
+    title: 'Subscriber lookup',
+    intro: 'Contacts > Subscriber lookup. Read only: nothing is changed in SFMC.',
+    items: [
+      { title: 'Why is this person not getting email?', since: '2.0.23', how: 'Enter a subscriber key or email address, then Look up', detail: 'A plain summary of what stops sends to this subscriber: unsubscribed or held at All Subscribers, unsubscribed from a list, recent hard bounces, or not found in this business unit.' },
+      { title: 'One card per source', since: '2.0.23', detail: 'All Subscribers status, dates and email type (profile attributes are not shown); status on each list; bounces with the SMTP code and reason; unsubscribe events; the latest 20 sends with a link to each send. Several subscribers with the same email address can be picked one by one. Download as usual. SFMC keeps tracking events for about 6 months.' },
+    ],
+  },
+  {
+    id: 'contact-deletions',
+    title: 'Contact deletions',
+    intro: 'Contacts > Contact deletions. Read only: deletions are started in Contact Builder.',
+    items: [
+      { title: 'Delete operations', since: '2.0.23', detail: 'Every contact delete operation SFMC has, with its status, dates and counts, the raw record, and the status of one operation by its ID. When the account may read it, SFMC\'s deletion summary too; otherwise a note says the permission is missing.' },
+    ],
+  },
+  {
     id: 'email-validation',
     title: 'Email validation',
     intro: 'Data > Email validation. Uses SFMC\'s email validation API, one call per address; sends nothing to anyone.',
