@@ -60,6 +60,18 @@ export const TO_TEST = [
         expect: 'Up to 5 runs of that import from the last 90 days, newest first, the same as on Import results.',
       },
       {
+        id: '2.0.23-subscriber-lookup', area: 'Contacts', title: 'Subscriber lookup', from: 'Mathes', live: true,
+        where: 'Contacts > Subscriber lookup',
+        steps: ['Look up a subscriber key you know, then an email address (Detect picks the mode; the toggle forces one).', 'If several subscribers share the address, pick each one.', 'Look up a key that does not exist.', 'Click a JobID under Recent sends.'],
+        expect: 'All Subscribers shows status, dates and email type (no profile attributes); Lists, Bounces, Unsubscribes and Recent sends (latest 20) load on their own; the summary names unsubscribes, held or bounced status and recent hard bounces; an unknown key says not found; the JobID opens that send on the Sends page.',
+      },
+      {
+        id: '2.0.23-contact-deletions', area: 'Contacts', title: 'Contact deletions', from: 'Mathes', live: true,
+        where: 'Contacts > Contact deletions',
+        steps: ['Open the page on an account with no deletions, then on one that has some.', 'Press Raw JSON on a row.', 'Paste an operation ID into Status of an operation ID and press Check.'],
+        expect: 'No deletions: a calm note says none were found and that Contact Builder starts them. With deletions: ID, status, dates and counts fill in (field names were guessed: report any empty column with the raw JSON). Without the analytics permission, the Summary shows a blue note, not a red error.',
+      },
+      {
         id: '2.0.23-whats-new-pages', area: 'Shell', title: "What's New shows 3 items a page", ref: '#1083', from: 'Mathes',
         where: 'App start after an update (or set _seenVersion to an older version)',
         steps: ['Open the app.', 'Click Next and Previous; press the right and left arrow keys; go to the last page; press Esc.'],
