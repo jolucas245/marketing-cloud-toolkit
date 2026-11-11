@@ -37,6 +37,13 @@ const PAGES = {
   '/triggered-sends': () => import('../views/sending/TriggeredSendsPage.vue'),
   '/sends': () => import('../views/sending/SendsPage.vue'),
   '/event-notifications': () => import('../views/sending/EventNotificationsPage.vue'),
+  '/recycle-bin': () => import('../views/data/RecycleBinPage.vue'),
+  '/subscribers': () => import('../views/contacts/SubscriberLookupPage.vue'),
+  '/contact-deletions': () => import('../views/contacts/ContactDeletionsPage.vue'),
+  '/data-model': () => import('../views/contacts/DataModelPage.vue'),
+  '/import-results': () => import('../views/automation/ImportResultsPage.vue'),
+  '/send-settings': () => import('../views/sending/SendSettingsPage.vue'),
+  '/business-units': () => import('../views/setup/BusinessUnitsPage.vue'),
 }
 
 export const routes = [
