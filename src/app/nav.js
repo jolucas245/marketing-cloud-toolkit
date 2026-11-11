@@ -2,7 +2,7 @@
 // Queries, Data, Contacts, Automation, Journeys, Content (feedback #128, regrouped in
 // the redesign, #1031). `hidden` pages have a route but no sidebar entry.
 import {
-  Bookmark, LayoutGrid, Blocks, Workflow, ListChecks, Database, Route, LogIn, Globe, Mail, Network, Trash2, LayoutTemplate, LayoutDashboard, Users, HardDrive, FilePlus2, History, MailCheck, Footprints, House, FileClock, ShieldCheck, Package, Newspaper, CalendarClock, Send, Zap, BellRing, MailOpen, UserCog, UserSearch, UserX, Share2, ArchiveRestore, FileInput, SlidersHorizontal, Building2 } from 'lucide-vue-next'
+  Bookmark, LayoutGrid, Blocks, Workflow, ListChecks, Database, Route, LogIn, Globe, Mail, Network, Trash2, LayoutTemplate, LayoutDashboard, Users, HardDrive, FilePlus2, History, MailCheck, Footprints, House, FileClock, ShieldCheck, Package, Newspaper, CalendarClock, Send, Zap, BellRing, MailOpen, UserCog, UserSearch, UserX, Share2, ArchiveRestore, FileInput, SlidersHorizontal, Building2, Eraser, FolderInput } from 'lucide-vue-next'
 
 export const NAV_GROUPS = [
   // Home (feedback #1025): the start page, in a group without a heading.
@@ -67,6 +67,8 @@ export const NAV_GROUPS = [
       { path: '/cloudpages', name: 'CloudPages', icon: Globe },
       // What was created or modified, by whom, in a period (feedback #1087).
       { path: '/content/changes', name: 'Changes', icon: CalendarClock },
+      // Read-only report of what could be tidied (API idea 18, Mathes, 2026-11-11).
+      { path: '/content/cleanup', name: 'Clean-up report', icon: Eraser },
     ],
   },
   // Sending (user, 2026-11-10): read-only lookups of transactional messaging, triggered
@@ -91,6 +93,8 @@ export const NAV_GROUPS = [
       { path: '/installed-packages', name: 'Installed Packages', icon: Package },
       { path: '/users', name: 'Users and roles', icon: UserCog },
       { path: '/business-units', name: 'Business units', icon: Building2 },
+      // File locations and the activities that use them (API idea 20, Mathes, 2026-11-11).
+      { path: '/file-locations', name: 'File locations', icon: FolderInput },
     ],
   },
   // Saved Emails and Saved CloudPages are tabs of Emails and CloudPages (feedback #1059);

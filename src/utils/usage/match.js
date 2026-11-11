@@ -172,6 +172,25 @@ export function contentBlockRefs(text, block) {
   return [...new Set(out)]
 }
 
+/**
+ * Every content block `text` names, in one pass (Content > Clean-up report, API idea 18):
+ * the same rules as contentBlockRefs, for building an index over many assets at once.
+ * Keys and names are lower case; a name is the last part of a path.
+ * @returns {{ keys: string[], ids: string[], names: string[] }}
+ */
+export function allContentBlockRefs(text) {
+  const s = String(text || '')
+  const out = { keys: [], ids: [], names: [] }
+  let m
+  CB_KEY.lastIndex = 0
+  while ((m = CB_KEY.exec(s)) !== null) out.keys.push(norm(m[2]))
+  CB_ID.lastIndex = 0
+  while ((m = CB_ID.exec(s)) !== null) out.ids.push(String(m[1]))
+  CB_NAME.lastIndex = 0
+  while ((m = CB_NAME.exec(s)) !== null) out.names.push(norm(m[2].split(/[\\/]/).pop()))
+  return out
+}
+
 // ── Content Builder assets ────────────────────────────────
 const TEXT_PARTS = ['content', 'superContent', 'design', 'views', 'slots', 'blocks']
 

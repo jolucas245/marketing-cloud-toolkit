@@ -12,6 +12,18 @@ export const TO_TEST = [
     status: 'On main, not packaged',
     items: [
       {
+        id: '2.0.23-content-cleanup', area: 'Content', title: 'Content Builder clean-up report', ref: 'API idea 18', from: 'Mathes', live: true,
+        where: 'Content > Clean-up report',
+        steps: ['Press Read Content Builder; watch the progress bar; try Stop on a large account.', 'By type: compare a few counts with Content Builder.', 'Largest files: check sizes and View file against Content Builder.', 'Not modified: switch the months; press Add Used by from Where used and open Where used on a block.', 'Duplicates and copies: check a same-name group and a name ending in copy.', 'Download as HTML.'],
+        expect: 'Counts and sizes match Content Builder; deleted items are not counted; Used by appears only for content blocks and says None found, never unused; there is no delete or move button; Content Builder links open Content Builder. If reading fails, report the error (the match-all query, page size 250 and fileProperties field names were not checked live).',
+      },
+      {
+        id: '2.0.23-file-locations', area: 'Setup', title: 'File locations page', ref: 'API idea 20', from: 'Mathes', live: true,
+        where: 'Setup > File locations',
+        steps: ['Open the page and compare with Setup > Data Management > File Locations.', 'Open a location and read the record from SFMC.', 'Press Find activities; open a location used by an import or file transfer.', 'Press Where used on a location.'],
+        expect: 'Every location with the right type, path and URL; no password, key or token anywhere, also not in the record; imports and file transfers that use a location are listed with links to Automation Studio; Where used adds the automations.',
+      },
+      {
         id: '2.0.23-content-builder-session', area: 'Connection', title: 'Content Builder session start waits longer and says what to do', ref: '#1099', from: 'a user (no name given)', live: true,
         where: 'Home, or any Content page, in a browser where Content Builder has not been opened yet',
         steps: ['Log in to Marketing Cloud but do not open Content Builder.', 'Open the Toolkit Home page.'],

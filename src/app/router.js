@@ -44,6 +44,8 @@ const PAGES = {
   '/import-results': () => import('../views/automation/ImportResultsPage.vue'),
   '/send-settings': () => import('../views/sending/SendSettingsPage.vue'),
   '/business-units': () => import('../views/setup/BusinessUnitsPage.vue'),
+  '/content/cleanup': () => import('../views/content/ContentCleanupPage.vue'),
+  '/file-locations': () => import('../views/setup/FileLocationsPage.vue'),
 }
 
 export const routes = [
