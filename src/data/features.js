@@ -349,6 +349,15 @@ export const FEATURE_GROUPS = [
     ],
   },
   {
+    id: 'recycle-bin',
+    title: 'Recycle bin',
+    intro: 'Data > Recycle bin, also linked from Data Extensions and Content > Emails. Read only: restore items in SFMC.',
+    items: [
+      { title: 'Deleted data extensions', since: '2.0.23', detail: 'What is in Contact Builder\'s Recycle Bin: name, original folder, when it was deleted and by whom, rows and fields, and how many of its 30 days are left to restore it. Those with 3 days or less stand out. Open in Contact Builder to restore.' },
+      { title: 'Deleted Content Builder items', since: '2.0.23', detail: 'Deleted emails, images and files, blocks and other content, with a search and a filter by type; Include shared items adds deleted items shared with this business unit. SFMC gives no deletion date for content, so the page shows the last change before deletion. Restore in Content Builder.' },
+    ],
+  },
+  {
     id: 'journeys',
     title: 'Journeys',
     intro: 'Journey > Journeys. Viewing a journey never changes it.',
@@ -371,6 +380,15 @@ export const FEATURE_GROUPS = [
       { title: 'Every entry event', detail: 'Loads up to 1,000 when you open the section; Refresh loads them again.' },
       { title: 'Filters', detail: 'Name, event definition key, data extension name or ID, type, category, journey status, and scheduled today or later.' },
       { title: 'Open the journey', since: '2.0.8', how: 'Open journey on an entry event', detail: 'Opens the journey that uses the entry event; when several do, they are listed in the Where used panel.' },
+    ],
+  },
+  {
+    id: 'data-model',
+    title: 'Data model',
+    intro: 'Contacts > Data model. Read only: change it in Data Designer.',
+    items: [
+      { title: 'Attribute groups and their data extensions', since: '2.0.23', detail: 'Contact Builder\'s Data Designer as a list: each attribute group with its attribute sets (data extensions), whether each is root or sendable, and how each links to the others (the fields and one-to-one or one-to-many). Sets in no group are listed apart.' },
+      { title: 'Diagram', since: '2.0.23', how: 'Diagram', detail: 'Each group drawn as boxes and arrows with the cardinality of each link; also in the HTML and PDF downloads.' },
     ],
   },
   {

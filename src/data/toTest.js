@@ -12,6 +12,24 @@ export const TO_TEST = [
     status: 'On main, not packaged',
     items: [
       {
+        id: '2.0.23-recycle-bin-des', area: 'Data Extensions', title: 'Recycle bin: deleted data extensions', from: 'Mathes', live: true,
+        where: 'Data > Recycle bin (also the Recycle bin tab on Data Extensions)',
+        steps: ['Open the Data extensions tab.', 'Compare with the Recycle Bin in Contact Builder: names, original path, deleted date and by whom, row counts.', 'Check Recoverable for against the date each was deleted.', 'Press Open in Contact Builder to restore.'],
+        expect: 'The same data extensions as Contact Builder, newest deletion first; Recoverable for counts down from 30 days; nothing on the page restores or deletes; the link opens Contact Builder.',
+      },
+      {
+        id: '2.0.23-recycle-bin-content', area: 'Content', title: 'Recycle bin: deleted Content Builder items', from: 'Mathes', live: true,
+        where: 'Data > Recycle bin > Content Builder, or Recycle bin on Content > Emails',
+        steps: ['From Content > Emails press Recycle bin.', 'Switch the type buttons and search by name.', 'Tick Include shared items.', 'Compare with the Recycle Bin in Content Builder.'],
+        expect: 'Opens with Emails picked; the list matches Content Builder\'s Recycle Bin (shared items add a few more); the page says SFMC gives no deletion date and shows Last modified instead.',
+      },
+      {
+        id: '2.0.23-data-model', area: 'Contacts', title: 'Data model', from: 'Mathes', live: true,
+        where: 'Contacts > Data model',
+        steps: ['Open each attribute group.', 'Compare the attribute sets and their links with Data Designer in Contact Builder.', 'Switch to Diagram.', 'Download as HTML.'],
+        expect: 'Each group lists its data extensions with the fields and cardinality that link them (one-to-one, one-to-many); sets in no group are listed apart; the diagram shows the same links; the HTML download has the diagrams.',
+      },
+      {
         id: '2.0.23-whats-new-pages', area: 'Shell', title: "What's New shows 3 items a page", ref: '#1083', from: 'Mathes',
         where: 'App start after an update (or set _seenVersion to an older version)',
         steps: ['Open the app.', 'Click Next and Previous; press the right and left arrow keys; go to the last page; press Esc.'],

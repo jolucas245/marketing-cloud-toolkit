@@ -274,6 +274,7 @@ useRouteSearch('/emails', (q) => { text.value = q; searchAll.value = true; whenS
         <Button type="submit" :disabled="loading"><Loader2 v-if="loading" class="h-4 w-4 animate-spin" /><Search v-else class="h-4 w-4" /> Search</Button>
       </form>
       <Button variant="outline" title="Read folders and emails again" @click="refresh"><RefreshCw class="h-4 w-4" /> Refresh</Button>
+      <RouterLink to="/recycle-bin?tab=content&type=emails" class="text-xs text-muted-foreground hover:text-foreground hover:underline whitespace-nowrap" title="Deleted emails and content (read only)" data-recycle-bin-link>Recycle bin</RouterLink>
     </div>
 
     <div class="flex-1 min-h-0 grid max-[900px]:grid-cols-1 max-[900px]:overflow-y-auto" :class="focus ? '[grid-template-columns:44px_1fr]' : '[grid-template-columns:minmax(200px,260px)_minmax(260px,360px)_1fr]'">
