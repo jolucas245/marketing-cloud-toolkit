@@ -237,6 +237,8 @@ export const FEATURE_GROUPS = [
       { title: 'Data extensions on activity cards', since: '2.0.3', how: 'View or SFMC next to a target or result', detail: 'View finds the data extension in Data Extensions; SFMC opens it in Contact Builder.' },
       { title: 'Run this query', since: '2.0.3', how: 'On a SQL Query activity', detail: 'Run in Toolkit opens the SQL in Run Query (results go to a new data extension). Run activity in SFMC starts the Query activity itself, after asking, and says when it has finished; it writes to its own target data extension.' },
       { title: 'Load more automations', since: '2.0.3', detail: 'Works when SFMC repeats the first page instead of sending the next.' },
+      { title: 'Import results', since: '2.0.23', how: 'Automation > Import results', detail: 'Every import run of the last 7, 30 or 90 days with the import\'s name, status, start, duration and rows total, successful, duplicated and in error. Runs with errors or a status other than Completed are marked; Only those with problems; Download.' },
+      { title: 'Recent runs of an import', since: '2.0.23', how: 'Show the last 5 runs on an Import File activity card', detail: 'The last 5 runs of that import from the last 90 days, with status and row counts.' },
     ],
   },
   {
@@ -501,6 +503,15 @@ export const FEATURE_GROUPS = [
     ],
   },
   {
+    id: 'business-units',
+    title: 'Business units',
+    intro: 'Setup > Business units. Read only.',
+    items: [
+      { title: 'Every business unit of the account', since: '2.0.23', detail: 'MID, name, parent, active or not, type and dates, children indented under their parent; Hide inactive; Download.' },
+      { title: 'Which business unit is MID x', since: '2.0.23', detail: 'Type a MID to see that business unit\'s name, status and path from the top.' },
+    ],
+  },
+  {
     id: 'sending',
     title: 'Sending',
     intro: 'Read-only lookups of what SFMC sends.',
@@ -508,6 +519,7 @@ export const FEATURE_GROUPS = [
       { title: 'Transactional messages', since: '2.0.23', how: 'Sending > Transactional messages', detail: 'Transactional Messaging API send definitions (email and SMS) with each active one\'s queue and the age of its oldest message, a definition\'s settings, a message\'s status by messageKey, and the emails that were not sent.' },
       { title: 'Triggered sends', since: '2.0.23', how: 'Sending > Triggered sends', detail: 'Every triggered send definition with SFMC\'s counts (sent, queued, not sent, bounces, opens, clicks); queued messages and errors are marked.' },
       { title: 'Sends', since: '2.0.23', how: 'Sending > Sends', detail: 'One send by JobID, or the sends of the last days, with targeted, sent, delivered, bounces, unique opens and clicks, unsubscribes and exclusions.' },
+      { title: 'Send settings', since: '2.0.23', how: 'Sending > Send settings', detail: 'Send classifications (Commercial or Transactional) with their sender profile, From name and address and delivery profile key, which triggered sends use each one, and sender profiles. Marks Transactional classifications used by marketing-sounding sends and sender profiles with no From address or a free mail domain.' },
       { title: 'Event notifications', since: '2.0.23', how: 'Sending > Event notifications', detail: 'Event Notification Service callbacks and subscriptions in this business unit, every event type a subscription can ask for (and which ones are subscribed), and a sample CloudPage to use as a callback URL, with the verification steps.' },
       { title: 'Changes to a journey', since: '2.0.23', how: 'A journey > Changes to this journey', detail: 'Journey Builder\'s audit log: who created, saved, published, stopped or deleted each version, and when.' },
     ],
