@@ -2,7 +2,7 @@
 // Queries, Data, Contacts, Automation, Journeys, Content (feedback #128, regrouped in
 // the redesign, #1031). `hidden` pages have a route but no sidebar entry.
 import {
-  Bookmark, LayoutGrid, Blocks, Workflow, ListChecks, Database, Route, LogIn, Globe, Mail, Network, Trash2, LayoutTemplate, LayoutDashboard, Users, HardDrive, FilePlus2, History, MailCheck, Footprints, House, FileClock, ShieldCheck, Package, Newspaper, CalendarClock, Send, Zap, BellRing, MailOpen, UserCog } from 'lucide-vue-next'
+  Bookmark, LayoutGrid, Blocks, Workflow, ListChecks, Database, Route, LogIn, Globe, Mail, Network, Trash2, LayoutTemplate, LayoutDashboard, Users, HardDrive, FilePlus2, History, MailCheck, Footprints, House, FileClock, ShieldCheck, Package, Newspaper, CalendarClock, Send, Zap, BellRing, MailOpen, UserCog, UserSearch, UserX, Share2, ArchiveRestore, FileInput, SlidersHorizontal, Building2 } from 'lucide-vue-next'
 
 export const NAV_GROUPS = [
   // Home (feedback #1025): the start page, in a group without a heading.
@@ -22,6 +22,8 @@ export const NAV_GROUPS = [
       { path: '/create-de', name: 'Create DE', icon: FilePlus2 },
       { path: '/where-used', name: 'Where used', icon: Network },
       { path: '/de-storage', name: 'DE storage', icon: HardDrive },
+      // Deleted data extensions and Content Builder items, read-only (user, 2026-11-10).
+      { path: '/recycle-bin', name: 'Recycle bin', icon: ArchiveRestore },
     ],
   },
   {
@@ -31,6 +33,10 @@ export const NAV_GROUPS = [
       { path: '/email-validation', name: 'Email validation', icon: MailCheck },
       // Subscribers per list and status (feedback #1080).
       { path: '/publication-lists', name: 'Publication Lists', icon: Newspaper },
+      // User, 2026-11-10: why a person gets no email, contact deletions, Data Designer.
+      { path: '/subscribers', name: 'Subscriber lookup', icon: UserSearch },
+      { path: '/contact-deletions', name: 'Contact deletions', icon: UserX },
+      { path: '/data-model', name: 'Data model', icon: Share2 },
     ],
   },
   {
@@ -41,6 +47,7 @@ export const NAV_GROUPS = [
       { path: '/activities', name: 'Activities', icon: ListChecks },
       { path: '/saved-activities', name: 'Saved Activities', icon: History },
       { path: '/templates', name: 'Templates', icon: LayoutTemplate },
+      { path: '/import-results', name: 'Import results', icon: FileInput },
     ],
   },
   {
@@ -71,6 +78,7 @@ export const NAV_GROUPS = [
       { path: '/triggered-sends', name: 'Triggered sends', icon: Zap },
       { path: '/sends', name: 'Sends', icon: MailOpen },
       { path: '/event-notifications', name: 'Event notifications', icon: BellRing },
+      { path: '/send-settings', name: 'Send settings', icon: SlidersHorizontal },
     ],
   },
   // Setup (user, 2026-11-05): sender authentication, From addresses and custom domains;
@@ -82,6 +90,7 @@ export const NAV_GROUPS = [
       { path: '/domains', name: 'Domains', icon: ShieldCheck },
       { path: '/installed-packages', name: 'Installed Packages', icon: Package },
       { path: '/users', name: 'Users and roles', icon: UserCog },
+      { path: '/business-units', name: 'Business units', icon: Building2 },
     ],
   },
   // Saved Emails and Saved CloudPages are tabs of Emails and CloudPages (feedback #1059);

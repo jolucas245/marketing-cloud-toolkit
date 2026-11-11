@@ -10,6 +10,9 @@ import { getMcaToken, dropMcaToken } from './mcaToken.js'
 
 export const SOAP_OBJECTS = new Set([
   'AccountUser', 'Role', 'BusinessUnit', 'Send', 'TriggeredSendDefinition', 'TriggeredSendSummary',
+  // User, 2026-11-10: subscriber lookup, send settings, import results (all checked live on s10).
+  'Subscriber', 'ListSubscriber', 'List', 'BounceEvent', 'UnsubEvent', 'SentEvent',
+  'SendClassification', 'SenderProfile', 'ImportResultsSummary', 'ImportDefinition',
 ])
 const OPERATORS = new Set(['equals', 'notEquals', 'greaterThan', 'lessThan', 'greaterThanOrEqual', 'lessThanOrEqual', 'IN', 'like', 'isNull', 'isNotNull', 'between'])
 const STACK = /^s\d{1,3}$/i

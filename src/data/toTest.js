@@ -12,6 +12,12 @@ export const TO_TEST = [
     status: 'On main, not packaged',
     items: [
       {
+        id: '2.0.23-content-builder-session', area: 'Connection', title: 'Content Builder session start waits longer and says what to do', ref: '#1099', from: 'a user (no name given)', live: true,
+        where: 'Home, or any Content page, in a browser where Content Builder has not been opened yet',
+        steps: ['Log in to Marketing Cloud but do not open Content Builder.', 'Open the Toolkit Home page.'],
+        expect: 'Content Builder starts in the background (up to 25 seconds). If it cannot, the message says to open Content Builder in Marketing Cloud once and press Retry.',
+      },
+      {
         id: '2.0.23-whats-new-pages', area: 'Shell', title: "What's New shows 3 items a page", ref: '#1083', from: 'Mathes',
         where: 'App start after an update (or set _seenVersion to an older version)',
         steps: ['Open the app.', 'Click Next and Previous; press the right and left arrow keys; go to the last page; press Esc.'],

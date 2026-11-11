@@ -58,6 +58,12 @@ describe('Setup app landings', () => {
     const jb = findApp('journeyBuilder')
     expect(landingTimeout(jb, jb.landings('s10')[0])).toBe(timing.landingTimeoutMs)
   })
+
+  it('Content Builder waits 25 s for its landing and says what to open (#1099)', () => {
+    const cb = findApp('contentBuilder')
+    expect(landingTimeout(cb, cb.landings('401')[0])).toBe(25000)
+    expect(cb.sessionHint).toMatch(/Open Content Builder/)
+  })
 })
 
 describe('starting a Setup app session', () => {
