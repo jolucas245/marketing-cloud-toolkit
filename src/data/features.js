@@ -431,6 +431,22 @@ export const FEATURE_GROUPS = [
     ],
   },
   {
+    id: 'suppression-lists',
+    title: 'Suppression lists',
+    intro: 'Contacts > Suppression lists. Read only: nothing is changed in SFMC.',
+    items: [
+      { title: 'Suppression lists and where they apply', since: '2.0.23', detail: 'Every suppression list with the number of addresses on it and where it applies: the whole enterprise, the business unit, a send classification, a sender profile, a publication list or one send. Lists from every business unit on request, a filter for lists not set to apply anywhere, and Download as usual. Whether one address is on a list is not shown: SFMC has no documented way to read it.' },
+    ],
+  },
+  {
+    id: 'sms-subscriptions',
+    title: 'SMS subscriptions',
+    intro: 'Contacts > SMS subscriptions. Needs MobileConnect. Read only.',
+    items: [
+      { title: 'Why did this number not get the SMS?', since: '2.0.23', how: 'Paste up to 500 mobile numbers (country code first) or subscriber keys, then Look up', detail: 'The short codes and keywords each number is opted in to or out of, with dates, and the entries SFMC has no subscription for. Without MobileConnect a note says so. The numbers are not stored or logged.' },
+    ],
+  },
+  {
     id: 'contact-deletions',
     title: 'Contact deletions',
     intro: 'Contacts > Contact deletions. Read only: deletions are started in Contact Builder.',

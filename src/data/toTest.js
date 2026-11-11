@@ -66,6 +66,18 @@ export const TO_TEST = [
         expect: 'All Subscribers shows status, dates and email type (no profile attributes); Lists, Bounces, Unsubscribes and Recent sends (latest 20) load on their own; the summary names unsubscribes, held or bounced status and recent hard bounces; an unknown key says not found; the JobID opens that send on the Sends page.',
       },
       {
+        id: '2.0.23-suppression-lists', area: 'Contacts', title: 'Suppression lists', ref: 'API idea 16', from: 'Mathes', live: true,
+        where: 'Contacts > Suppression lists',
+        steps: ['Open the page in a business unit that has suppression lists (auto-suppression lists too).', 'Tick Every business unit.', 'Tick Only lists not set to apply anywhere.', 'Compare a list with Email Studio > Subscribers > Suppression Lists.'],
+        expect: 'Each list with its subscriber count and where it applies (enterprise, business unit, send classification or sender profile by name, publication, one send). If SFMC refuses a property, the page still lists the lists with fewer columns. Report any note shown in amber and any Applies to that reads "as SFMC names it".',
+      },
+      {
+        id: '2.0.23-sms-subscriptions', area: 'Contacts', title: 'SMS subscriptions', ref: 'API idea 17', from: 'Mathes', live: true,
+        where: 'Contacts > SMS subscriptions',
+        steps: ['In an account with MobileConnect, paste a mobile number you know (country code first) and press Look up.', 'Look up a subscriber key, then a mix of a known and an unknown number.', 'Open the page in an account or business unit without MobileConnect and look up a number.', 'With Settings > API console on, check the lookup shows "[not logged]" instead of the numbers.'],
+        expect: 'Each subscription with short code, keyword, status and opt-in date; unknown entries listed under No subscription found. Without MobileConnect a blue note says so, not a red error. Report empty columns (the answer\'s field names were guessed).',
+      },
+      {
         id: '2.0.23-contact-deletions', area: 'Contacts', title: 'Contact deletions', from: 'Mathes', live: true,
         where: 'Contacts > Contact deletions',
         steps: ['Open the page on an account with no deletions, then on one that has some.', 'Press Raw JSON on a row.', 'Paste an operation ID into Status of an operation ID and press Check.'],

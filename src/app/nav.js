@@ -2,7 +2,7 @@
 // Queries, Data, Contacts, Automation, Journeys, Content (feedback #128, regrouped in
 // the redesign, #1031). `hidden` pages have a route but no sidebar entry.
 import {
-  Bookmark, LayoutGrid, Blocks, Workflow, ListChecks, Database, Route, LogIn, Globe, Mail, Network, Trash2, LayoutTemplate, LayoutDashboard, Users, HardDrive, FilePlus2, History, MailCheck, Footprints, House, FileClock, ShieldCheck, Package, Newspaper, CalendarClock, Send, Zap, BellRing, MailOpen, UserCog, UserSearch, UserX, Share2, ArchiveRestore, FileInput, SlidersHorizontal, Building2 } from 'lucide-vue-next'
+  Bookmark, LayoutGrid, Blocks, Workflow, ListChecks, Database, Route, LogIn, Globe, Mail, Network, Trash2, LayoutTemplate, LayoutDashboard, Users, HardDrive, FilePlus2, History, MailCheck, Footprints, House, FileClock, ShieldCheck, Package, Newspaper, CalendarClock, Send, Zap, BellRing, MailOpen, UserCog, UserSearch, UserX, Share2, ArchiveRestore, FileInput, SlidersHorizontal, Building2, ShieldBan, MessageSquareText } from 'lucide-vue-next'
 
 export const NAV_GROUPS = [
   // Home (feedback #1025): the start page, in a group without a heading.
@@ -37,6 +37,9 @@ export const NAV_GROUPS = [
       { path: '/subscribers', name: 'Subscriber lookup', icon: UserSearch },
       { path: '/contact-deletions', name: 'Contact deletions', icon: UserX },
       { path: '/data-model', name: 'Data model', icon: Share2 },
+      // API ideas 16 and 17 (user, 2026-11-11): suppression lists, MobileConnect subscriptions.
+      { path: '/suppression-lists', name: 'Suppression lists', icon: ShieldBan },
+      { path: '/sms-subscriptions', name: 'SMS subscriptions', icon: MessageSquareText },
     ],
   },
   {

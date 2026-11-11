@@ -13,6 +13,8 @@ export const SOAP_OBJECTS = new Set([
   // User, 2026-11-10: subscriber lookup, send settings, import results (all checked live on s10).
   'Subscriber', 'ListSubscriber', 'List', 'BounceEvent', 'UnsubEvent', 'SentEvent',
   'SendClassification', 'SenderProfile', 'ImportResultsSummary', 'ImportDefinition',
+  // API idea 16 (user, 2026-11-11): suppression lists and where they apply (not checked live).
+  'SuppressionListDefinition', 'SuppressionListContext',
 ])
 const OPERATORS = new Set(['equals', 'notEquals', 'greaterThan', 'lessThan', 'greaterThanOrEqual', 'lessThanOrEqual', 'IN', 'like', 'isNull', 'isNotNull', 'between'])
 const STACK = /^s\d{1,3}$/i

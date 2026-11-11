@@ -16,7 +16,10 @@ describe('SOAP reads (2026-11-10)', () => {
     expect(x).toContain('<Value>1&lt;2</Value>')
     expect(x).toContain('<fueloauth xmlns="http://exacttarget.com">TOKEN</fueloauth>')
     expect(() => retrieveEnvelope({ stack: 's10', objectType: 'DataExtensionObject', properties: [] }, 't')).toThrow(/not supported/)
-    for (const o of ['Subscriber', 'ListSubscriber', 'List', 'BounceEvent', 'UnsubEvent', 'SentEvent']) expect(SOAP_OBJECTS.has(o)).toBe(true)
+    for (const o of ['Subscriber', 'ListSubscriber', 'List', 'BounceEvent', 'UnsubEvent', 'SentEvent', 'SuppressionListDefinition', 'SuppressionListContext']) expect(SOAP_OBJECTS.has(o)).toBe(true)
+    // Retrieve only: the allowlist names object types, never actions, and every envelope is a Retrieve.
+    expect(retrieveEnvelope({ stack: 's10', objectType: 'SuppressionListContext', properties: ['Definition.ObjectID'] }, 't')).toContain('<a:Action s:mustUnderstand="1">Retrieve</a:Action>')
+    expect(() => retrieveEnvelope({ stack: 's10', objectType: 'SuppressionListMember', properties: [] }, 't')).toThrow(/not supported/)
     expect(() => retrieveEnvelope({ stack: 'evil.com/x', objectType: 'Send' }, 't')).toThrow(/stack/)
     expect(() => retrieveEnvelope({ stack: 's10', objectType: 'Send', filter: { property: 'ID', operator: 'DROP' } }, 't')).toThrow(/filter/)
     expect(SOAP_OBJECTS.has('Send')).toBe(true)

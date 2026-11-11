@@ -94,25 +94,35 @@ export function sfmcFetch(url, method, body = null) {
 let _callCount = 0
 export function sfmcCallCount() { return _callCount }
 
-function proxyFetch(url, method, body) {
+/**
+ * sfmcFetch that keeps the request body, the answer and long digit runs in errors out of
+ * the API console and the recent-call list (API idea 17: SMS lookups carry phone numbers).
+ */
+export function sfmcFetchQuiet(url, method, body = null) {
+  return proxyFetch(url, method, body, { quiet: true })
+}
+const maskDigits = (s) => String(s).replace(/\+?\d[\d\s()-]{5,}\d/g, '[number]')
+
+function proxyFetch(url, method, body, { quiet = false } = {}) {
   _callCount++
   const ts = Date.now()
-  _log({ ts, type: 'req', method, url, body })
+  _log({ ts, type: 'req', method, url, body: quiet && body != null ? '[not logged]' : body })
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage({ type: 'SFMC_FETCH', url, method, body }, (response) => {
       const error = chrome.runtime.lastError?.message || response?.error ||
         (response ? null : 'No reply from the extension service worker.')
       if (error) {
-        _log({ ts: Date.now(), type: 'err', method, url, error })
-        _rememberCall(method, url, ts, { status: response?.status ?? null, error })
+        const shown = quiet ? maskDigits(error) : error
+        _log({ ts: Date.now(), type: 'err', method, url, error: shown })
+        _rememberCall(method, url, ts, { status: response?.status ?? null, error: shown })
         const err = new Error(error)
         err.code = response?.code || null
         err.status = response?.status ?? null
         err.app = response?.app || null
         return reject(err)
       }
-      _log({ ts: Date.now(), type: 'res', method, url, result: response.data })
-      _rememberCall(method, url, ts, { status: response.status ?? 200, data: response.data })
+      _log({ ts: Date.now(), type: 'res', method, url, result: quiet ? '[not logged]' : response.data })
+      _rememberCall(method, url, ts, { status: response.status ?? 200, data: quiet ? null : response.data })
       resolve(response.data)
     })
   })
