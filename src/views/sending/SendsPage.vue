@@ -2,6 +2,7 @@
 // Sending > Sends (user, 2026-11-10): one email send by its JobID, or the sends of the
 // last days, with SFMC's numbers (targeted, sent, delivered, bounces, opens, clicks,
 // unsubscribes, exclusions). SOAP Send. Read-only.
+// ?q=<JobID> opens one send (links from Subscriber lookup, user, 2026-11-10).
 import { computed, ref } from 'vue'
 import { Loader2, Search } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
@@ -10,6 +11,7 @@ import DataTable from '@/components/results/DataTable.vue'
 import DownloadMenu from '@/components/results/DownloadMenu.vue'
 import StatusBadge from '@/components/results/StatusBadge.vue'
 import { useStack, whenStack } from '@/composables/useStack.js'
+import { useRouteSearch } from '@/composables/useRouteSearch.js'
 import { searchError } from '@/utils/sfmcErrors.js'
 import { fetchSends } from '@/utils/messagingApi.js'
 import { formatDateTime } from '@/utils/format.js'
@@ -37,7 +39,9 @@ async function run(byJob) {
     }
   } catch (e) { error.value = searchError(e, 'read the sends') } finally { busy.value = false }
 }
-whenStack(() => run(false))
+let fromLink = false
+useRouteSearch('/sends', (q) => { fromLink = true; jobId.value = String(q).trim(); whenStack(() => run(true)) })
+whenStack(() => { if (!fromLink) run(false) })
 
 const pct = (a, b) => (a != null && b ? `${Math.round((a / b) * 1000) / 10}%` : '')
 const rows = computed(() => (list.value || []).map((s) => ({

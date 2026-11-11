@@ -237,6 +237,8 @@ export const FEATURE_GROUPS = [
       { title: 'Data extensions on activity cards', since: '2.0.3', how: 'View or SFMC next to a target or result', detail: 'View finds the data extension in Data Extensions; SFMC opens it in Contact Builder.' },
       { title: 'Run this query', since: '2.0.3', how: 'On a SQL Query activity', detail: 'Run in Toolkit opens the SQL in Run Query (results go to a new data extension). Run activity in SFMC starts the Query activity itself, after asking, and says when it has finished; it writes to its own target data extension.' },
       { title: 'Load more automations', since: '2.0.3', detail: 'Works when SFMC repeats the first page instead of sending the next.' },
+      { title: 'Import results', since: '2.0.23', how: 'Automation > Import results', detail: 'Every import run of the last 7, 30 or 90 days with the import\'s name, status, start, duration and rows total, successful, duplicated and in error. Runs with errors or a status other than Completed are marked; Only those with problems; Download.' },
+      { title: 'Recent runs of an import', since: '2.0.23', how: 'Show the last 5 runs on an Import File activity card', detail: 'The last 5 runs of that import from the last 90 days, with status and row counts.' },
     ],
   },
   {
@@ -349,6 +351,15 @@ export const FEATURE_GROUPS = [
     ],
   },
   {
+    id: 'recycle-bin',
+    title: 'Recycle bin',
+    intro: 'Data > Recycle bin, also linked from Data Extensions and Content > Emails. Read only: restore items in SFMC.',
+    items: [
+      { title: 'Deleted data extensions', since: '2.0.23', detail: 'What is in Contact Builder\'s Recycle Bin: name, original folder, when it was deleted and by whom, rows and fields, and how many of its 30 days are left to restore it. Those with 3 days or less stand out. Open in Contact Builder to restore.' },
+      { title: 'Deleted Content Builder items', since: '2.0.23', detail: 'Deleted emails, images and files, blocks and other content, with a search and a filter by type; Include shared items adds deleted items shared with this business unit. SFMC gives no deletion date for content, so the page shows the last change before deletion. Restore in Content Builder.' },
+    ],
+  },
+  {
     id: 'journeys',
     title: 'Journeys',
     intro: 'Journey > Journeys. Viewing a journey never changes it.',
@@ -371,6 +382,15 @@ export const FEATURE_GROUPS = [
       { title: 'Every entry event', detail: 'Loads up to 1,000 when you open the section; Refresh loads them again.' },
       { title: 'Filters', detail: 'Name, event definition key, data extension name or ID, type, category, journey status, and scheduled today or later.' },
       { title: 'Open the journey', since: '2.0.8', how: 'Open journey on an entry event', detail: 'Opens the journey that uses the entry event; when several do, they are listed in the Where used panel.' },
+    ],
+  },
+  {
+    id: 'data-model',
+    title: 'Data model',
+    intro: 'Contacts > Data model. Read only: change it in Data Designer.',
+    items: [
+      { title: 'Attribute groups and their data extensions', since: '2.0.23', detail: 'Contact Builder\'s Data Designer as a list: each attribute group with its attribute sets (data extensions), whether each is root or sendable, and how each links to the others (the fields and one-to-one or one-to-many). Sets in no group are listed apart.' },
+      { title: 'Diagram', since: '2.0.23', how: 'Diagram', detail: 'Each group drawn as boxes and arrows with the cardinality of each link; also in the HTML and PDF downloads.' },
     ],
   },
   {
@@ -399,6 +419,23 @@ export const FEATURE_GROUPS = [
     items: [
       { title: 'Subscribers per list by status', since: '2.0.21', detail: 'Every list in the business unit with its Active, Unsubscribed, Held and Bounced subscribers and the total, counted by a query on the _ListSubscribers data view (feedback #1080). Sort, filter and download like any results table.' },
       { title: 'Runs in the background', since: '2.0.21', how: 'Refresh', detail: 'SFMC runs the count as a Query Activity, which can take minutes: leave the page and the Toolkit says when the counts are ready, even after a reload. One data extension and Query Activity per business unit are reused (SFMCQS_publist_...); the counts stay in that data extension.' },
+    ],
+  },
+  {
+    id: 'subscriber-lookup',
+    title: 'Subscriber lookup',
+    intro: 'Contacts > Subscriber lookup. Read only: nothing is changed in SFMC.',
+    items: [
+      { title: 'Why is this person not getting email?', since: '2.0.23', how: 'Enter a subscriber key or email address, then Look up', detail: 'A plain summary of what stops sends to this subscriber: unsubscribed or held at All Subscribers, unsubscribed from a list, recent hard bounces, or not found in this business unit.' },
+      { title: 'One card per source', since: '2.0.23', detail: 'All Subscribers status, dates and email type (profile attributes are not shown); status on each list; bounces with the SMTP code and reason; unsubscribe events; the latest 20 sends with a link to each send. Several subscribers with the same email address can be picked one by one. Download as usual. SFMC keeps tracking events for about 6 months.' },
+    ],
+  },
+  {
+    id: 'contact-deletions',
+    title: 'Contact deletions',
+    intro: 'Contacts > Contact deletions. Read only: deletions are started in Contact Builder.',
+    items: [
+      { title: 'Delete operations', since: '2.0.23', detail: 'Every contact delete operation SFMC has, with its status, dates and counts, the raw record, and the status of one operation by its ID. When the account may read it, SFMC\'s deletion summary too; otherwise a note says the permission is missing.' },
     ],
   },
   {
@@ -501,6 +538,15 @@ export const FEATURE_GROUPS = [
     ],
   },
   {
+    id: 'business-units',
+    title: 'Business units',
+    intro: 'Setup > Business units. Read only.',
+    items: [
+      { title: 'Every business unit of the account', since: '2.0.23', detail: 'MID, name, parent, active or not, type and dates, children indented under their parent; Hide inactive; Download.' },
+      { title: 'Which business unit is MID x', since: '2.0.23', detail: 'Type a MID to see that business unit\'s name, status and path from the top.' },
+    ],
+  },
+  {
     id: 'sending',
     title: 'Sending',
     intro: 'Read-only lookups of what SFMC sends.',
@@ -508,6 +554,7 @@ export const FEATURE_GROUPS = [
       { title: 'Transactional messages', since: '2.0.23', how: 'Sending > Transactional messages', detail: 'Transactional Messaging API send definitions (email and SMS) with each active one\'s queue and the age of its oldest message, a definition\'s settings, a message\'s status by messageKey, and the emails that were not sent.' },
       { title: 'Triggered sends', since: '2.0.23', how: 'Sending > Triggered sends', detail: 'Every triggered send definition with SFMC\'s counts (sent, queued, not sent, bounces, opens, clicks); queued messages and errors are marked.' },
       { title: 'Sends', since: '2.0.23', how: 'Sending > Sends', detail: 'One send by JobID, or the sends of the last days, with targeted, sent, delivered, bounces, unique opens and clicks, unsubscribes and exclusions.' },
+      { title: 'Send settings', since: '2.0.23', how: 'Sending > Send settings', detail: 'Send classifications (Commercial or Transactional) with their sender profile, From name and address and delivery profile key, which triggered sends use each one, and sender profiles. Marks Transactional classifications used by marketing-sounding sends and sender profiles with no From address or a free mail domain.' },
       { title: 'Event notifications', since: '2.0.23', how: 'Sending > Event notifications', detail: 'Event Notification Service callbacks and subscriptions in this business unit, every event type a subscription can ask for (and which ones are subscribed), and a sample CloudPage to use as a callback URL, with the verification steps.' },
       { title: 'Changes to a journey', since: '2.0.23', how: 'A journey > Changes to this journey', detail: 'Journey Builder\'s audit log: who created, saved, published, stopped or deleted each version, and when.' },
     ],

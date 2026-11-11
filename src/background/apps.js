@@ -76,8 +76,8 @@ export const SFMC_APPS = [
       `${coreOrigin(s)}/cloud/#app/Content%20Builder`,
     ],
     // Feedback #1099 (stack 401): the start timed out. The landing loads the whole
-    // Marketing Cloud shell before Content Builder, so it gets longer than the default.
-    landingTimeoutMs: (url) => (url.includes('/cloud/tools/SSO.aspx') ? 6000 : 25000),
+    // Marketing Cloud shell before Content Builder, so it gets timing.slowLandingMs (25 s).
+    slowLanding: true,
     sessionHint: 'Open Content Builder in Marketing Cloud once in this browser, then press Retry. If it does not open there either, your user may not have access to Content Builder in this business unit.',
   },
   {
