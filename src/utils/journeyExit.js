@@ -12,8 +12,11 @@
 //   Message }] }) and that the exits happen later, not at once.
 // - POST interaction/v1/interactions/contactexit/status with the same items: per contact and
 //   version, a status such as Queued or Exited and a message.
-// Not checked against a live org (changes data): the response field names and the status
-// words are read loosely (statusOf) and the raw text is kept.
+// Checked live on s10 (2026-11-11): the exit POST is accepted with Journey Builder's CSRF
+// token; status answers [{ contactKey, definitionKey, status: [{ version, message }] }] with
+// messages "Exit request received for processing" and "Exit request Cancelled - Contact not
+// in this Interaction". Not seen yet: the message for a contact that did exit (the test
+// journey's waits do not hold contacts), and the contactexit response body.
 import { sfmcFetch } from './sfmcApi.js'
 import { isPolicyOn } from './policy.js'
 
@@ -118,7 +121,7 @@ export function statusOf(text) {
   const t = String(text ?? '').trim()
   if (!t) return 'unknown'
   if (/not\s*(in|found|present|part of)|notin|no (such )?contact|does not exist|isn'?t in|not a member/i.test(t)) return 'not_in_journey'
-  if (/fail|error|invalid|denied|refused|not allowed|unauthori[sz]ed/i.test(t)) return 'error'
+  if (/fail|error|invalid|denied|refused|cancel|not allowed|unauthori[sz]ed/i.test(t)) return 'error'
   if (/queue|pending|progress|request|submitted|accepted|scheduled|waiting|processing/i.test(t)) return 'queued'
   if (/exit|complete|removed|success|ejected|done/i.test(t)) return 'exited'
   return 'unknown'
@@ -159,22 +162,36 @@ export function parseExitResponse(keys, data) {
 // matters most: still queued, else exited, else an error, else not in the journey.
 const RANK = { queued: 5, exited: 4, error: 3, unknown: 2, not_in_journey: 1 }
 
-/** The contactexit/status response: Map of contact key to { status, message, sfmcStatus, versions }. */
+/**
+ * The contactexit/status response: Map of contact key to { status, message, sfmcStatus, versions }.
+ * Seen live on s10 (2026-11-11): an array of { contactKey, definitionKey, status: [{ version,
+ * message }] }, e.g. message "Exit request Cancelled - Contact not in this Interaction". The
+ * status array has one entry per version; the row shows the entry that matters most. Older
+ * guesses (status as text, results/items wrappers) are still read.
+ */
 export function parseStatusResponse(data) {
   const list = data?.results || data?.items || data?.Results || (Array.isArray(data) ? data : [])
   const out = new Map()
+  const add = (k, status, message, sfmcStatus, version) => {
+    const prev = out.get(k)
+    // SFMC keeps one entry per exit request, so a key sent twice lists its version twice
+    const versions = [...new Set([...(prev?.versions || []), ...(version != null ? [version] : [])])]
+    if (!prev || RANK[status] > RANK[prev.status]) out.set(k, { status, message, sfmcStatus, versions })
+    else prev.versions = versions
+  }
   for (const r of Array.isArray(list) ? list : []) {
     const k = keyOf(r)
     if (k == null) continue
-    const sfmcStatus = String(pick(r, 'status', 'Status', 'exitStatus', 'ExitStatus') ?? '')
-    const message = String(pick(r, 'message', 'Message', 'statusMessage', 'StatusMessage') ?? '')
-    let status = statusOf(sfmcStatus)
-    if (status === 'unknown') status = statusOf(message)
-    const version = pick(r, 'version', 'Version', 'versionNumber')
-    const prev = out.get(String(k))
-    const versions = [...(prev?.versions || []), ...(version != null ? [version] : [])]
-    if (!prev || RANK[status] > RANK[prev.status]) out.set(String(k), { status, message, sfmcStatus, versions })
-    else prev.versions = versions
+    const raw = pick(r, 'status', 'Status', 'exitStatus', 'ExitStatus')
+    const entries = Array.isArray(raw) ? raw : [{ ...r, status: raw }]
+    for (const e of entries) {
+      const text = e && typeof e === 'object' ? pick(e, 'status', 'Status', 'state') : e
+      const sfmcStatus = text != null && typeof text !== 'object' ? String(text) : ''
+      const message = String(pick(e, 'message', 'Message', 'statusMessage', 'StatusMessage') ?? (e === r ? '' : pick(r, 'message', 'Message') ?? ''))
+      let status = statusOf(sfmcStatus)
+      if (status === 'unknown') status = statusOf(message)
+      add(String(k), status, message, sfmcStatus, pick(e, 'version', 'Version', 'versionNumber') ?? pick(r, 'version', 'Version', 'versionNumber'))
+    }
   }
   return out
 }

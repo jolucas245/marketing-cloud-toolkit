@@ -67,6 +67,8 @@ describe('status mapping', () => {
     expect(statusOf('Exit Failed')).toBe('error')
     expect(statusOf('')).toBe('unknown')
     expect(statusOf('Something else')).toBe('unknown')
+    expect(statusOf('Exit request Cancelled - Contact not in this Interaction')).toBe('not_in_journey')
+    expect(statusOf('Exit request Cancelled')).toBe('error')
   })
   it('reads the exit reply: listed keys fail, the rest are queued', () => {
     const rows = parseExitResponse(['a', 'b', 'c'], { errors: [
@@ -171,5 +173,21 @@ describe('confirm and CSV', () => {
       '"Contact Key","Result","SFMC status","Versions","Message","Journey"',
       '"a""1","Exited","Exited","1 2","ok","J"',
     ])
+  })
+})
+
+describe('contactexit/status as seen live on s10 (2026-11-11)', () => {
+  it('reads the per-version status array', () => {
+    const live = [
+      { contactKey: 'A', definitionKey: 'J', status: [{ version: 1, message: 'Exit request Cancelled - Contact not in this Interaction' }] },
+      { contactKey: 'B', definitionKey: 'J', status: [{ version: 1, message: 'Exit request Cancelled - Contact not in this Interaction' }, { version: 2, message: 'Exit request Queued' }] },
+    ]
+    const m = parseStatusResponse(live)
+    expect(m.get('A')).toEqual({ status: 'not_in_journey', message: 'Exit request Cancelled - Contact not in this Interaction', sfmcStatus: '', versions: [1] })
+    expect(m.get('B').status).toBe('queued')
+    expect(m.get('B').versions).toEqual([1, 2])
+    expect(m.get('B').sfmcStatus).not.toMatch(/object/)
+    const twice = parseStatusResponse([{ contactKey: 'C', status: [{ version: 1, message: 'Exit request received for processing' }, { version: 1, message: 'Exit request Cancelled - Contact not in this Interaction' }] }])
+    expect(twice.get('C')).toMatchObject({ status: 'queued', versions: [1] })
   })
 })
