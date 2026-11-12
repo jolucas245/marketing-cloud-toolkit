@@ -69,6 +69,10 @@ describe('status mapping', () => {
     expect(statusOf('Something else')).toBe('unknown')
     expect(statusOf('Exit request Cancelled - Contact not in this Interaction')).toBe('not_in_journey')
     expect(statusOf('Exit request Cancelled')).toBe('error')
+    // the four messages seen live on s10 (2026-11-11)
+    expect(statusOf('Exit request received for processing')).toBe('queued')
+    expect(statusOf('Exit process Completed.')).toBe('exited')
+    expect(statusOf('Exit request Not Found')).toBe('unknown')
   })
   it('reads the exit reply: listed keys fail, the rest are queued', () => {
     const rows = parseExitResponse(['a', 'b', 'c'], { errors: [

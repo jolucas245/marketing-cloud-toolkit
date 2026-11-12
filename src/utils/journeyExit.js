@@ -15,8 +15,9 @@
 // Checked live on s10 (2026-11-11): the exit POST is accepted with Journey Builder's CSRF
 // token; status answers [{ contactKey, definitionKey, status: [{ version, message }] }] with
 // messages "Exit request received for processing" and "Exit request Cancelled - Contact not
-// in this Interaction". Not seen yet: the message for a contact that did exit (the test
-// journey's waits do not hold contacts), and the contactexit response body.
+// in this Interaction", then for a removed contact "Exit process Completed." (about a minute
+// later); "Exit request Not Found" (version 0) when no exit was requested. Not seen: the
+// contactexit response body (no errors came back).
 import { sfmcFetch } from './sfmcApi.js'
 import { isPolicyOn } from './policy.js'
 
@@ -120,6 +121,8 @@ export function chunk(list, size = EXIT_BATCH) {
 export function statusOf(text) {
   const t = String(text ?? '').trim()
   if (!t) return 'unknown'
+  // "Exit request Not Found": no exit was ever requested for this contact (seen live), not "not in the journey"
+  if (/exit request not found/i.test(t)) return 'unknown'
   if (/not\s*(in|found|present|part of)|notin|no (such )?contact|does not exist|isn'?t in|not a member/i.test(t)) return 'not_in_journey'
   if (/fail|error|invalid|denied|refused|cancel|not allowed|unauthori[sz]ed/i.test(t)) return 'error'
   if (/queue|pending|progress|request|submitted|accepted|scheduled|waiting|processing/i.test(t)) return 'queued'
