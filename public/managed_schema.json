@@ -45,6 +45,11 @@
       "title": "Turn off DNS checks",
       "description": "The Domains page never looks up SPF, DKIM, DMARC, name server, MX or CNAME records, so no domain name is ever sent to Cloudflare's public DNS resolver (cloudflare-dns.com).",
       "type": "boolean"
+    },
+    "disableJourneyWrites": {
+      "title": "Turn off removing contacts from journeys",
+      "description": "Hides Remove contacts from this journey, the only feature that changes journey data in Marketing Cloud, so the extension never asks Journey Builder to remove contacts.",
+      "type": "boolean"
     }
   }
 }

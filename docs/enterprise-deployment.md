@@ -44,6 +44,7 @@ The extension reads these keys from Chrome's managed storage (`chrome.storage.ma
 | `disableContacts` | No Contacts page, and Contact Builder's request headers are not read. |
 | `disableDiagramforce` | No Open in Diagramforce (which sends table and column names to diagramforce.com). |
 | `disableDnsLookup` | No DNS checks on the Domains page (which send domain names to Cloudflare's public DNS resolver, cloudflare-dns.com). |
+| `disableJourneyWrites` | No Remove contacts from a journey (the only feature that changes journey data in Marketing Cloud; the user reviews and confirms each run). |
 | `disableAiAssist` | No AI features (Ask AI, Fix with AI, Explain, Summarize, Suggest types; Chrome's built-in model, on the computer; nothing is sent over the network). Users can also turn them off in Settings > Experimental. |
 
 A strict setup for a regulated organization:

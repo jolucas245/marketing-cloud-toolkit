@@ -3,6 +3,7 @@
 export const POLICY_KEYS = [
   'disableHistory', 'disableShare', 'disableFeedback', 'disableFeedbackMetadata',
   'disableScreenshots', 'disableContacts', 'disableDiagramforce', 'disableAiAssist', 'disableDnsLookup',
+  'disableJourneyWrites',
 ]
 
 /** Only `true` turns a policy on; anything else (missing, false, a string) leaves it off. */

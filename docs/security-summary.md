@@ -6,6 +6,8 @@ For security and privacy reviewers. Describes version 2.0.18 (the first version 
 
 A Chrome extension for people who work in Salesforce Marketing Cloud (SFMC). In one full-tab app it lets them write, save and run SQL queries, and browse their own account's automations, journeys, data extensions, CloudPages and emails. It works through the user's existing SFMC login in the same browser and calls SFMC's own APIs on the user's behalf. It has no server of its own for SFMC data: SFMC data goes only between the browser and SFMC.
 
+Journeys are read only, with one exception (2.0.23): Remove contacts from a journey (journey page, and Contact journeys for a contact in a journey now). The user starts it, gives the Contact Keys (pasted, from a file or from a data extension column, at most 50,000), reviews the journey, versions and keys, and confirms by typing the number of contacts. The extension then calls Journey Builder's `interaction/v1/interactions/contactexit` 50 keys at a time and `contactexit/status` to show each contact's result; the user can stop between batches. Nothing is stored. The `disableJourneyWrites` policy hides it, and the call itself is refused under that policy (`src/utils/journeyExit.js`, `src/components/journey/JourneyExitDialog.vue`).
+
 Single purpose (as declared to the Chrome Web Store): help Marketing Cloud users work with their own account.
 
 ## Data flow
@@ -127,6 +129,7 @@ Set through Chrome policy for the extension (schema `public/managed_schema.json`
 | `disableDiagramforce` | No Open in Diagramforce. |
 | `disableAiAssist` | No AI features anywhere (Chrome's on-device model). |
 | `disableDnsLookup` | No DNS checks on the Domains page; nothing is sent to `cloudflare-dns.com`. |
+| `disableJourneyWrites` | No Remove contacts from a journey, the only feature that changes journey data; the extension never calls `contactexit`. |
 
 ## Supply chain
 
