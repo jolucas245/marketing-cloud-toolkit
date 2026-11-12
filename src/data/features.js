@@ -501,6 +501,15 @@ export const FEATURE_GROUPS = [
     ],
   },
   {
+    id: 'content-cleanup',
+    title: 'Clean-up report',
+    intro: 'Content > Clean-up report. Read only: delete or move items in Content Builder.',
+    items: [
+      { title: 'What could be tidied in Content Builder', since: '2.0.23', how: 'Read Content Builder', detail: 'Reads up to 10,000 Content Builder items (with a progress bar and Stop) and shows: how many there are of each asset type with their total file size; the 100 largest images and files; templates and content blocks not modified in 6 to 36 months (12 by default); items of the same kind with the same name; and names ending in "copy". Each item links to Content Builder; emails and content blocks open Where used. Download as usual.' },
+      { title: 'Used by, for content blocks only', since: '2.0.23', how: 'Not modified > Add Used by from Where used', detail: 'How many emails, templates, blocks and CloudPages name each old content block or place it in a slot, from the Where used data. The page never says an item is unused: SFMC has no way to ask where an image, file or template is used.' },
+    ],
+  },
+  {
     id: 'saved-cloudpages',
     title: 'CloudPage versions',
     intro: 'Content > CloudPages, Saved versions tab. Turn saving on or off in Settings > Emails and CloudPages.',
@@ -560,6 +569,15 @@ export const FEATURE_GROUPS = [
     items: [
       { title: 'Every business unit of the account', since: '2.0.23', detail: 'MID, name, parent, active or not, type and dates, children indented under their parent; Hide inactive; Download.' },
       { title: 'Which business unit is MID x', since: '2.0.23', detail: 'Type a MID to see that business unit\'s name, status and path from the top.' },
+    ],
+  },
+  {
+    id: 'file-locations',
+    title: 'File locations',
+    intro: 'Setup > File locations. Read only.',
+    items: [
+      { title: 'Every file location', since: '2.0.23', detail: 'Enhanced FTP, external SFTP and FTP, and cloud storage locations with their type, path and URL, a search and the record from SFMC. Passwords and keys are never shown, even if SFMC sends them.' },
+      { title: 'Which activities use each location', since: '2.0.23', how: 'Find activities', detail: 'The Import, File Transfer and Data Extract activities that name each location, from the same lists Where used reads (saved data is shown at once), with links to Automation Studio. Where used on a location also shows the automations that run them.' },
     ],
   },
   {
